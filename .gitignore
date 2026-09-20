@@ -1,0 +1,21 @@
+# SUKUNA-X DOMAIN — gitignore (keeps repo clean, easy to update)
+# sessions & secrets
+*.session
+*.session-journal
+sukuna_data/
+data/
+*.log
+__pycache__/
+*.pyc
+*.pyo
+.env
+config.py
+accounts.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# venv
+.venv/
+venv/
