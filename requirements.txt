@@ -1,3 +1,7 @@
-telethon>=1.36
-tgcrypto
-pillow
+# SUKUNA-X DOMAIN v7.0 — required
+telethon>=1.34.0
+tgcrypto>=1.2.5
+pillow>=9.0.0
+
+# optional (enables CPU/RAM in .stats / .sysinfo — auto-detected)
+psutil>=5.9.0

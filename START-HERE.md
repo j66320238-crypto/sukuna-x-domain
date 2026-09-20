@@ -1,8 +1,8 @@
-# ⚡ SUKUNA-X DOMAIN v6.2 — START HERE (well-structured)
+# ⚡ SUKUNA-X DOMAIN v7.0 — START HERE (well-structured)
 
 ## 0. What changed? (well-structured)
 
-Old versions were single-file `userbot.py` (10k lines). v6.2 is **fully modular**:
+Old versions were single-file `userbot.py` (10k lines). v7.0 is **fully modular**:
 
 - `userbot.py` = 255 lines bootstrapper only
 - `core/` = 11 files (config, safety, store, accounts, helpers, decorators, banner, ui, client, state, __init__)
@@ -109,4 +109,4 @@ Push this to https://github.com/j66320238-crypto/sukuna-x-domain.git
 - FloodWait → normal, engine slows down
 - Session expired → rm -rf data/*.session, re-login
 
-Enjoy — SUKUNA-X DOMAIN v6.2 well-structured
+Enjoy — SUKUNA-X DOMAIN v7.0 PHANTOM EDITION 👑

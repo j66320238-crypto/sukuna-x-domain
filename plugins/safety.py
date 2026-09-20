@@ -6,15 +6,16 @@ from core import *  # noqa: F401,F403 — shared engine
 #   .safemode  .antiban  .limits  .warmup  .session  .panic
 # ============================================================================
 COMMANDS_SAFETY = {
-    "description": "Safety & Anti-Ban (6)",
+    "description": "Safety & Anti-Ban (7)",
     "commands": [
-(".safemode on|off", "toggle anti-ban protection"),
+        (".safemode on|off", "toggle anti-ban protection"),
         (".safemode fast|normal|paranoid", "speed profile (fast = snappier, paranoid = extra safe)"),
         (".antiban", "same as .safemode status"),
         (".limits", "live rate-limit dashboard"),
         (".warmup", "new-session warm-up status"),
         (".session", "backup your login as a string (Saved Messages)"),
         (".panic", "stop everything + enable Safe Mode"),
+        (".raksha on|off|status", "v7.1 BAN-PROOF autopilot (storm detect + hard caps)"),
     ],
 }
 
@@ -40,7 +41,9 @@ async def _safety_card() -> str:
         f"┃    {bar} {r['pct']}%\n"
         f"┃ 📨 Total sends  : `{SAFETY['sends']}`\n"
         f"┃ ✏️ Total edits  : `{SAFETY['edits']}`\n"
-        f"┃ 🌊 FloodWaits   : `{SAFETY['floods']}`\n"
+        f"┃ 🌊 FloodWaits   : `{SAFETY['floods']}`"
+        + (f" • 🚨 STORM {storm_left() // 60}m" if storm_active() else "") + "\n"
+        f"┃ ️ Raksha      : {'ON' if raksha_on() else 'OFF'} • 📨 `{hour_sends()}/150`h · `{day_sends()}/900`d\n"
         f"┃ 🫁 Breathers    : `{SAFETY['breathers']}`\n"
         f"┃ ⏳ Time held back: `{SAFETY['blocked_waits']:.0f}s`\n"
         "┃\n"
@@ -193,4 +196,40 @@ def register_safety(client):
             link_preview=False,
         )
 
-    log.info("Safety commands: .safemode .antiban .limits .warmup .session .panic")
+    # ---- .raksha : v7.1 BAN-PROOF master switch ----
+    @client.on(events.NewMessage(outgoing=True,
+                                 pattern=r"^\.(?:raksha|banshield)(?:\s+(on|off|status))?$"))
+    @client.flood_safe
+    async def _raksha(event):
+        arg = (event.pattern_match.group(1) or "").lower()
+        if arg == "on":
+            raksha_set(True)
+            return await event.edit(
+                "✦ ━━━〔 🛡️ RAKSHA KAVACH: ON 〕━━━ ✦\n"
+                "✅ ID ban-protection autopilot **ACTIVE**:\n"
+                "┃ • 🚨 Flood-storm detect → auto paranoid 30min\n"
+                "┃ • ⛔ Hard caps: 150 sends/hour, 900/day\n"
+                "┃ • 🐢 During storms: gaps ×2 + prememoji/rotator pause\n"
+                "┃ • 🌊 FloodWait cluster pe instant brake\n"
+                "┃\n┃ Your ID is fully protected. 👑\n"
+                "✦ ━━━━━━━━━━━━━━━━━━━━━━━━━━━ ✦",
+                link_preview=False)
+        if arg == "off":
+            raksha_set(False)
+            return await event.edit(
+                "⚠️ **RAKSHA OFF** — storm autopilot & hard caps disabled.\n"
+                "💡 Only disable for testing — keep `.raksha on` otherwise.",
+                link_preview=False)
+        storm = storm_active()
+        await event.edit(
+            "✦ ━━━〔 ️ RAKSHA STATUS 〕━━━ ✦\n"
+            f"┃ 🛡️ Raksha   : {'**ON** — autopilot active' if raksha_on() else 'OFF'}\n"
+            f"┃ 🚨 Storm    : {'**ACTIVE** — ' + str(storm_left() // 60) + 'm cooldown' if storm else 'none (all normal)'}\n"
+            f"┃ 📨 Sends    : `{hour_sends()}/150` (hour) · `{day_sends()}/900` (day)\n"
+            f"┃ 🌊 Floods   : `{SAFETY['floods']}` total\n"
+            f"┃ 🛡️ Shield  : {safety_line()}\n"
+            "┃\n `.panic` emergency • `.limits` dashboard\n"
+            "✦ ━━━━━━━━━━━━━━━━━━━━━━━━━━━ ✦",
+            link_preview=False)
+
+    log.info("Safety commands: .safemode .antiban .limits .warmup .session .panic .raksha")

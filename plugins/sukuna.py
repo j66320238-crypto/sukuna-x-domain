@@ -184,7 +184,7 @@ def register_sukuna(client: TelegramClient) -> None:
             await safe_sleep(0.3, floor=0.18)
         await event.edit(
             "✦ ━━━〔 🔥 TAGRA MODE 〕━━━ ✦\n"
-            "┃ 🔥 SUKUNA-X DOMAIN — Tagra, khatarnak, alag level\n"
+            "┃ 🔥 SUKUNA-X DOMAIN — powerful, dangerous, next level\n"
             "┃ ⚡ 25 plugins • 340+ cmds • Farmer + Extra + Sukuna\n"
             "┃ 👑 Banner fixed, account manager, error-free\n"
             "✦ ━━━━━━━━━━━━━━━━━━━━━━━━━━━ ✦",
@@ -285,8 +285,8 @@ COMMANDS_SUKUNA = {
         (".cursed", "Cursed energy levels"),
         (".heian", "Heian era Sukuna lore"),
         (".king", "King of Curses title animation"),
-        (".khatarnak", "Khatarnak mode — alag level"),
-        (".tagra", "Tagra mode — SUKUNA-X DOMAIN"),
+        (".khatarnak", "Khatarnak mode — next-level power"),
+        (".tagra", "Tagra (strong) mode — SUKUNA-X DOMAIN"),
         (".boom", "Boom explosion"),
         (".matrix", "Matrix rain hack"),
         (".glitch", "Glitch text effect"),

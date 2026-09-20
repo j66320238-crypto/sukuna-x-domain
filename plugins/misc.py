@@ -126,6 +126,8 @@ COMMANDS_MISC = {
         (".random [max]", "random number"),
         (".reverse <text>", "reverse text"),
         (".count <text>", "character/word count"),
+        (".gc", "memory cleanup + stats (optimise)"),
+        (".speed", "event-loop + Telegram speed test"),
     ],
 }
 
@@ -243,4 +245,58 @@ def register_misc(client):
         chars = len(text)
         await event.edit(
             f"📊 **Characters:** `{chars}`  |  **Words:** `{words}`"
+        )
+
+    # ---- .gc : memory cleanup (optimisation) ----
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.gc$"))
+    async def _gc(event):
+        import gc as _gc
+        await event.edit("🧹 Cleaning memory…")
+        before = len(_gc.get_objects())
+        freed = _gc.collect()
+        after = len(_gc.get_objects())
+        ram_line = ""
+        if _HAS_PSUTIL:
+            vm = psutil.virtual_memory()
+            def _fb(n):
+                for u in ("B", "KB", "MB", "GB"):
+                    if n < 1024:
+                        return f"{n:.1f}{u}"
+                    n /= 1024
+                return f"{n:.1f}TB"
+            ram_line = f"┃ 💾 RAM     : `{_fb(vm.used)}` ({vm.percent}%)\n"
+        await event.edit(
+            "✦ ━━━〔 🧹 MEMORY SWEEP 〕━━━ ✦\n"
+            f"┃ ♻️ Freed   : `{freed}` objects\n"
+            f"┃ 📦 Objects : `{before:,}` → `{after:,}`\n"
+            f"┃ 🧵 Tasks   : `{len(stop_processes)}` active\n"
+            f"{ram_line}"
+            "┃ ⚡ Bot optimised & smooth\n"
+            "✦ ━━━━━━━━━━━━━━━━━━━━━ ✦",
+            link_preview=False,
+        )
+
+    # ---- .speed : loop + network responsiveness ----
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.speed$"))
+    async def _speed(event):
+        t0 = time.time()
+        # event-loop responsiveness: 20 micro-sleeps should total ~0.2s
+        for _ in range(20):
+            await asyncio.sleep(0.01)
+        loop_ms = (time.time() - t0) * 1000
+        t1 = time.time()
+        try:
+            await client.get_me()
+            tg_ms = (time.time() - t1) * 1000
+        except Exception:
+            tg_ms = -1
+        grade = "🚀 KHATARNAK" if loop_ms < 350 else ("✅ Normal" if loop_ms < 800 else "🐢 Slow")
+        await event.edit(
+            "✦ ━━━〔 ⚡ SPEED TEST 〕━━━ ✦\n"
+            f"┃ 🧠 Event loop : `{loop_ms:.0f} ms` ({grade})\n"
+            f"┃ 📡 Telegram   : `{tg_ms:.0f} ms`"
+            + ("" if tg_ms >= 0 else " (failed)") + "\n"
+            f"┃ ⏱ Uptime     : `{_fmt_uptime(time.time() - START_TIME)}`\n"
+            "✦ ━━━━━━━━━━━━━━━━━━━━ ✦",
+            link_preview=False,
         )

@@ -16,6 +16,7 @@ Easy to update: `git pull` + `bash start.sh` or `.update` inside Telegram.
 import asyncio
 import os
 import sys
+import time
 import platform
 import signal
 from logging.handlers import RotatingFileHandler
@@ -29,6 +30,7 @@ from core import (
     _fmt_uptime, stop_processes, command_registry,
     log, _safety_save,
 )
+from core import state as _core_state
 from core.ui import register_builtin_commands, _total_commands
 from core.client import _step, _shutdown_panel, _run_forever, _interactive_login
 
@@ -44,12 +46,15 @@ def register_all(client) -> int:
     names = sorted(f[:-3] for f in os.listdir(plugin_dir)
                    if f.endswith(".py") and not f.startswith("_"))
     loaded = 0
-    for name in names:
+    total = len(names)
+    print(f"\n   🔌 Loading {total} plugins…")
+    for idx, name in enumerate(names, 1):
+        t0 = time.time()
         try:
             mod = importlib.import_module(f"plugins.{name}")
         except Exception as e:
             log.error("  ✗  Plugin %s failed to import: %s", name, e, exc_info=True)
-            print(f"   ✗  Plugin {name}: import failed (see log)")
+            print(f"   [{idx}/{total}] ✗  {name} — import failed (see log)")
             continue
         reg = meta = None
         for attr in sorted(dir(mod)):
@@ -64,10 +69,13 @@ def register_all(client) -> int:
             reg(client)
             command_registry[name] = meta or {"description": name, "commands": []}
             loaded += 1
-            log.info("  ✓  Loaded plugin: %s", name)
+            ms = (time.time() - t0) * 1000
+            core.state.PLUGIN_LOAD_TIMES[name] = ms
+            log.info("  ✓  Loaded plugin: %s (%.0fms)", name, ms)
+            print(f"   [{idx}/{total}] ✓  {name:<14} ({ms:.0f}ms)")
         except Exception as e:
             log.error("  ✗  Plugin %s failed: %s", name, e, exc_info=True)
-            print(f"   ✗  Plugin {name}: register failed (see log)")
+            print(f"   [{idx}/{total}] ✗  {name} — register failed (see log)")
     return loaded
 
 
@@ -172,6 +180,7 @@ async def main() -> None:
                  session_obj)
 
     me = await client.get_me()
+    _core_state.OWNER_ID = me.id
     log.info("✅  Logged in as: %s (@%s)  │  ID: %s",
              me.first_name, me.username or "n/a", me.id)
 
@@ -181,8 +190,11 @@ async def main() -> None:
     cmds = _total_commands()
     _step(4, TOTAL_STEPS,
           f"Registered {count} plugins · {total_handlers} handlers · {cmds} commands")
-    if count < 23 or total_handlers < 290:
-        log.warning("Self-check looks low — some plugins may have failed (scroll up for ✗).")
+    expected_plugins = len([f for f in os.listdir(os.path.join(os.path.dirname(os.path.abspath(__file__)), "plugins"))
+                            if f.endswith(".py") and not f.startswith("_")])
+    if count < expected_plugins:
+        log.warning("Self-check: %d/%d plugins loaded — some failed (scroll up for ✗).",
+                    count, expected_plugins)
 
     stop_event = asyncio.Event()
     loop = asyncio.get_running_loop()
@@ -199,13 +211,12 @@ async def main() -> None:
         await client.send_message(
             "me",
             "✦ ━━━━━〔 ⚡ SUKUNA-X DOMAIN 〕━━━━━ ✦\n"
-            f"┃ 💚 **Userbot Online!** `v{BOT_VERSION}`\n"
-            f"┃ 👤 {me.first_name} (@{me.username or 'n/a'})\\n"
+            f"┃ 💚 **Userbot Online!** `v{BOT_VERSION}` PHANTOM\n"
+            f"┃ 👤 {me.first_name} (@{me.username or 'n/a'})\n"
             f"┃ 🧩 Plugins: `{count}`  ·  ⌨️ Commands: `{cmds}`\n"
             f"┃ 🛡️ Shield: {safety_line()}\n"
-            "┃ 📖 Commands: `.help`\n"
-            "┃ 🎮 Farmer: `.mhelp`\n"
-            "┃ 🎬 Animations: `.anims`\n"
+            "┃ 📖 Menu: `.help` · 🕹 `.menu` · 🎬 `.anims`\n"
+            "┃ 📜 `.plist` · 📊 `.stats` · 🎮 `.mhelp`\n"
             "✦ ━━━━━━━━━━━━━━━━━━━━━━━━━━━ ✦",
             link_preview=False,
         )

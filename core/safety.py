@@ -17,7 +17,8 @@ from collections import deque
 
 from .config import (
     SAFE_MODE_DEFAULT, SAFE_SEND_GAP, SAFE_EDIT_GAP, SAFE_LOOP_DELAY,
-    SAFE_ANIM_DELAY, SAFE_BURST_CAP, SAFETY_PROFILES, WARMUP_HOURS
+    SAFE_ANIM_DELAY, SAFE_BURST_CAP, SAFETY_PROFILES, WARMUP_HOURS,
+    HARD_HOUR_CAP, HARD_DAY_CAP, STORM_FLOODS, STORM_WINDOW, STORM_COOLDOWN,
 )
 from .store import DATA_DIR, SAFETY_FILE, load_store
 from .state import START_TIME
@@ -48,8 +49,19 @@ _CHAT_WINDOW: dict = {}
 _CHAT_LAST: dict = {}
 _SENDS_SINCE_BREATHER = 0
 
+# ── v7.1 BAN-PROOF SHIELD state ─────────────────────────────────────────
+_FLOOD_TIMES: deque = deque(maxlen=60)   # timestamps of recent FloodWaits
+_HOUR_WINDOW: deque = deque(maxlen=HARD_HOUR_CAP + 200)
+_DAY_WINDOW: deque = deque(maxlen=HARD_DAY_CAP + 500)
+STORM_UNTIL: float = 0.0                 # monotonic ts until paranoid cooldown
+_STORM_PREV_PROFILE = None               # profile to restore after cooldown
+RAKSHA = True                            # master ban-protection autopilot
+import logging as _lg
+_log = _lg.getLogger("userbot")
+
 
 def _safety_load() -> None:
+    global RAKSHA
     try:
         with open(SAFETY_FILE, "r", encoding="utf-8") as fh:
             data = json.load(fh)
@@ -59,6 +71,8 @@ def _safety_load() -> None:
             SAFETY["first_seen"] = float(data["first_seen"])
         if data.get("profile") in SAFETY_PROFILES:
             SAFETY["profile"] = data["profile"]
+        if isinstance(data.get("raksha"), bool):
+            RAKSHA = data["raksha"]
     except Exception:
         pass
 
@@ -71,11 +85,70 @@ def _safety_save() -> None:
                     "safe_mode": SAFETY["safe_mode"],
                     "first_seen": SAFETY["first_seen"],
                     "profile": SAFETY.get("profile", "normal"),
+                    "raksha": RAKSHA,
                 },
                 fh,
             )
     except OSError:
         pass
+
+
+# ── v7.1 BAN-PROOF SHIELD API ───────────────────────────────────────────
+def raksha_on() -> bool:
+    return bool(RAKSHA)
+
+
+def raksha_set(on: bool) -> None:
+    global RAKSHA
+    RAKSHA = bool(on)
+    _safety_save()
+
+
+def _storm_check(now: float) -> None:
+    """Auto-paranoid cooldown when FloodWaits cluster (ban-storm autopilot)."""
+    global STORM_UNTIL, _STORM_PREV_PROFILE
+    recent = [t for t in _FLOOD_TIMES if now - t < STORM_WINDOW]
+    if RAKSHA and len(recent) >= STORM_FLOODS and now > STORM_UNTIL:
+        STORM_UNTIL = now + STORM_COOLDOWN
+        _STORM_PREV_PROFILE = SAFETY.get("profile", "normal")
+        SAFETY["profile"] = "paranoid"
+        SAFETY["mult"] = max(SAFETY["mult"], 3.0)
+        _log.warning("🚨 FLOOD STORM detected (%d FloodWaits) → paranoid "
+                     "cooldown %ds. ID protection autopilot engaged.",
+                     len(recent), STORM_COOLDOWN)
+
+
+def storm_active() -> bool:
+    """True while ban-storm cooldown is running (auto restores after)."""
+    global STORM_UNTIL, _STORM_PREV_PROFILE
+    now = time.time()
+    if STORM_UNTIL and now >= STORM_UNTIL:
+        if _STORM_PREV_PROFILE:
+            SAFETY["profile"] = _STORM_PREV_PROFILE
+            _STORM_PREV_PROFILE = None
+            _log.info("🛡️ Storm cooldown over — profile restored to %s",
+                      SAFETY["profile"])
+        STORM_UNTIL = 0.0
+        return False
+    return now < STORM_UNTIL
+
+
+def storm_left() -> int:
+    return max(0, int(STORM_UNTIL - time.time()))
+
+
+def hour_sends() -> int:
+    cut = time.monotonic() - 3600
+    while _HOUR_WINDOW and _HOUR_WINDOW[0] < cut:
+        _HOUR_WINDOW.popleft()
+    return len(_HOUR_WINDOW)
+
+
+def day_sends() -> int:
+    cut = time.monotonic() - 86400
+    while _DAY_WINDOW and _DAY_WINDOW[0] < cut:
+        _DAY_WINDOW.popleft()
+    return len(_DAY_WINDOW)
 
 
 _safety_load()
@@ -99,8 +172,11 @@ def anim_floor() -> float:
 
 def note_flood(seconds: int = 0) -> None:
     SAFETY["floods"] += 1
-    SAFETY["last_flood"] = time.time()
+    now = time.time()
+    SAFETY["last_flood"] = now
     SAFETY["mult"] = min(FLOOD_MULT_MAX, max(1.5, SAFETY["mult"] * 1.5))
+    _FLOOD_TIMES.append(now)
+    _storm_check(now)
 
 
 def warmup_active() -> bool:
@@ -143,6 +219,24 @@ async def throttle(kind: str = "send", chat_id=None) -> None:
     lim = _effective(kind)
     now = time.monotonic()
     waited = 0.0
+    storm_mult = 2.0 if storm_active() else 1.0   # extra caution in storm
+
+    # 🚨 v7.1 hard hourly/daily caps — brake hard before Telegram flags you
+    if RAKSHA and kind != "edit":
+        cut_h = now - 3600
+        while _HOUR_WINDOW and _HOUR_WINDOW[0] < cut_h:
+            _HOUR_WINDOW.popleft()
+        cut_d = now - 86400
+        while _DAY_WINDOW and _DAY_WINDOW[0] < cut_d:
+            _DAY_WINDOW.popleft()
+        if len(_HOUR_WINDOW) >= HARD_HOUR_CAP or len(_DAY_WINDOW) >= HARD_DAY_CAP:
+            pause = random.uniform(45.0, 90.0)
+            SAFETY["breathers"] += 1
+            SAFETY["blocked_waits"] += pause
+            _log.warning("🛡️ Hard cap reached (%d/h or %d/day) — braking %.0fs",
+                         len(_HOUR_WINDOW), len(_DAY_WINDOW), pause)
+            await asyncio.sleep(pause)
+            waited += pause
 
     if kind == "edit":
         need = lim["edit_gap"] * SAFETY["mult"] - (now - SAFETY["last_edit"])
@@ -175,7 +269,7 @@ async def throttle(kind: str = "send", chat_id=None) -> None:
         w.append(time.monotonic())
         _CHAT_LAST[chat_id] = time.monotonic()
 
-    need = lim["gap"] - (time.monotonic() - SAFETY["last_send"])
+    need = lim["gap"] * storm_mult - (time.monotonic() - SAFETY["last_send"])
     if need > 0:
         await asyncio.sleep(need)
         waited += need
@@ -183,7 +277,8 @@ async def throttle(kind: str = "send", chat_id=None) -> None:
     cut = time.monotonic() - 60
     while _SEND_WINDOW and _SEND_WINDOW[0] < cut:
         _SEND_WINDOW.popleft()
-    if lim["per_min"] and len(_SEND_WINDOW) >= lim["per_min"]:
+    per_min = int(lim["per_min"] / storm_mult) if lim["per_min"] else 0
+    if per_min and len(_SEND_WINDOW) >= per_min:
         need = 60 - (time.monotonic() - _SEND_WINDOW[0]) + 0.05
         if need > 0:
             await asyncio.sleep(need)
@@ -192,6 +287,8 @@ async def throttle(kind: str = "send", chat_id=None) -> None:
         while _SEND_WINDOW and _SEND_WINDOW[0] < cut:
             _SEND_WINDOW.popleft()
     _SEND_WINDOW.append(time.monotonic())
+    _HOUR_WINDOW.append(time.monotonic())
+    _DAY_WINDOW.append(time.monotonic())
 
     _SENDS_SINCE_BREATHER += 1
     breath_every = _profile()["breather_every"]
@@ -258,6 +355,8 @@ def safety_line() -> str:
     if not safe_mode_on():
         return "⚠️ OFF (no protection)"
     bits = ["🛡️ ON"]
+    if storm_active():
+        bits.append(f"🚨 storm-cooldown {storm_left() // 60}m")
     if warmup_active():
         bits.append(f"warm-up {warmup_left()}")
     if SAFETY["mult"] > 1.0:

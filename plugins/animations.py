@@ -785,6 +785,138 @@ BUTTERFLY_FRAMES = [
     "🌸 🦋 🌸 so pretty 🌸",
 ]
 
+# ============================================================================
+#  v7.0 PHANTOM EDITION — 10 brand-new animations (popular-repo inspired)
+# ============================================================================
+
+DEPLOY_FRAMES = [
+    "⚙️ Deploying SUKUNA-X…\n[░░░░░░░░░░] 0%",
+    "⚙️ Deploying SUKUNA-X…\n[██░░░░░░░░] 20%",
+    "📦 Installing dependencies…\n[████░░░░░░] 40%",
+    "🧩 Loading plugins…\n[██████░░░░] 60%",
+    "🔌 Connecting to Telegram…\n[████████░░] 80%",
+    "🚀 Finalising…\n[██████████] 100%",
+    "✅ **DEPLOYED!**\n⚡ SUKUNA-X DOMAIN is LIVE 👑",
+]
+
+OS_FRAMES = [
+    "```SUKUNA-OS v7.0 booting…```",
+    "```[ OK ] Loading kernel modules```",
+    "```[ OK ] Mounting /cursed-energy```",
+    "```[ OK ] Starting shrine.service```",
+    "```[ OK ] Starting domain-expansion.target```",
+    "```[WARN] Cleverness daemon not found```",
+    "```[ OK ] Starting sukuna.service```",
+    "```\nWelcome to SUKUNA-OS 7.0\nKernel 6.6.6-cursed #1 SMP\nLogin: root (King of Curses)\n```",
+]
+
+SOLAR_FRAMES = [
+    "☀️ · ☿ · ♀ · 🌍 · ♂ · ♃ · ♄",
+    "· ☀️ · ☿ · ♀ · 🌍 · ♂ · ♃ ♄",
+    "· ☿ ☀️ · ♀ · 🌍 · ♂ · ♃ ♄",
+    "☿ · · ☀️ ♀ · 🌍 · ♂ · ♃ ♄",
+    "☿ · ♀ · ☀️ · 🌍 · ♂ · ♃ ♄",
+    "🌌 The solar system spins… ⚡",
+]
+
+MUSIC_FRAMES = [
+    "🎵 ♪ 🎶 ♩ 🎵",
+    "♪ 🎶 ♩ 🎵 ♪",
+    "🎶 ♩ 🎵 ♪ 🎶",
+    "♩ 🎵 ♪ 🎶 ♩",
+    "🎧 Vibes on — SUKUNA-X FM 🎧",
+]
+
+CHARGING_FRAMES = [
+    "🔌 Charging…\n🔋 ▁ — 10%",
+    "🔌 Charging…\n🔋 ▃ — 30%",
+    "🔌 Charging…\n🔋 ▅ — 55%",
+    "🔌 Charging…\n🔋 ▆ — 75%",
+    "🔌 Charging…\n🔋 ▇ — 90%",
+    "⚡ **100% CHARGED!** Full power 👑",
+]
+
+WIFI_FRAMES = [
+    "📶 Scanning networks…\n▁ ▂ ▃ ▄ ▅ ▆ ▇",
+    "📶 Connecting…\n▁ ▂ ▃ ▄ ▅ ▆ ⬜",
+    "📶 Connecting…\n▁ ▂ ▃ ▄ ⬜ ⬜ ⬜",
+    "📶 Connecting…\n▁ ▂ ⬜ ⬜ ⬜ ⬜ ⬜",
+    "📶 Handshake…\n▁ ▂ ▃ ▄ ▅ ▆ ⬜",
+    "✅ **Connected!** Full bars 📶⚡",
+]
+
+DOWNLOAD_FRAMES = [
+    "⬇️ Downloading cursed energy…\n⏳ 0.5 MB/s",
+    "⬇️ Downloading…\n▓▓░░░░░░░░ 24%",
+    "⬇️ Downloading…\n▓▓▓▓▓░░░░░ 52%",
+    "⬇️ Downloading…\n▓▓▓▓▓▓▓░░░ 78%",
+    "⬇️ Downloading…\n▓▓▓▓▓▓▓▓▓▓ 99%",
+    "✅ **Download complete!** 666 MB ⚡",
+]
+
+SERVER_FRAMES = [
+    "🖥 SUKUNA SERVERS\n🟢🟢🟢 | CPU 12%\n🟢🟢🟢 | RAM 4.2G",
+    "🖥 SUKUNA SERVERS\n🟢🟡🟢 | CPU 34%\n🟢🟢🟢 | RAM 5.1G",
+    "🖥 SUKUNA SERVERS\n🟢🟢🔴 | CPU 88%\n🟡🟢🟢 | RAM 7.7G",
+    "🖥 SUKUNA SERVERS\n🟢🟢🟢 | CPU 21%\n🟢🟢🟢 | RAM 4.8G",
+    "✅ All systems nominal. Uptime 100% 👑",
+]
+
+RADAR_FRAMES = [
+    "📡 Radar sweep\n· · · · ·\n· · 🎯 · ·\n· · · · ·",
+    "📡 Radar sweep\n· · · · ·\n· 🎯 · · ·\n· · · · ·",
+    "📡 Radar sweep\n· · · · ·\n🎯 · · · ·\n· · · · ·",
+    "📡 Radar sweep\n· · · · ·\n· · · 🎯 ·\n· · · · ·",
+    "📡 Radar sweep\n· · · · ·\n· · · · 🎯\n· · · · ·",
+    "🎯 **Target locked!** No escape 👑",
+]
+
+GAMER_FRAMES = [
+    "🎮 Press START…",
+    "🎮 ⬆️ ⬆️ ⬇️ ⬇️",
+    "🎮 ⬅️ ➡️ ⬅️ ➡️",
+    "🎮 🅱️ 🅰️ 🅱️ 🅰️",
+    "🕹 SELECT ✦ START",
+    "👾 **KONAMI CODE UNLOCKED!** +30 lives ⚡",
+]
+
+# ── v7.0 batch-2 (popular repo classics) ─────────────────────────────────
+QUICKHEAL_FRAMES = [
+    "🩹 SUKUNA-ANTIVIRUS\nScanning… ▁▁▁▁▁",
+    "🩹 Scanning… ▂▂▂▂▂",
+    "🩹 Scanning… ▄▄▄▄▄",
+    "🩹 Found: 0 threats ✅",
+    "💊 Quick-heal complete — system khatarak!",
+]
+
+HEARTBEAT_FRAMES = [
+    "💓 . . . .",
+    "💗 . . . .",
+    "💓 . . . .",
+    "🫀 dhak… dhak…",
+    "❤️ **Heart is beating!** (Sukuna approved)",
+]
+
+SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏",
+                  "⠋ loading…", "⠙ still loading…", "✅ **DONE!** Instant, powerful."]
+
+ENERGY_FRAMES = [
+    "🔮 Cursed energy: ▁▁▁▁▁▁",
+    "🔮 Cursed energy: ▃▃▃▃▃▃",
+    "🔮 Cursed energy: ▅▅▅▅▅▅",
+    "🔮 Cursed energy: ▇▇▇▇▇▇",
+    "⚡ **FULL POWER!** Domain expansion ready 👑",
+]
+
+SHIELD_FRAMES = [
+    "🛡 . . . .",
+    "🛡️ ▒ . . .",
+    "🛡️ ▒ ▒ . .",
+    "🛡️ ▒ ▒ ▒ .",
+    "🛡️ ▒ ▒ ▒ ▒",
+    "✅ **SHIELD ACTIVE!** ID fully protected — zero risk 🔐",
+]
+
 
 # ============================================================================
 #  REGISTRATION
@@ -1280,6 +1412,99 @@ def register_animations(client):
     async def _butterfly(event):
         await _play(event, BUTTERFLY_FRAMES, delay=0.4, name="butterfly",
                     stop_text="⏹️ Butterfly flew away.")
+
+    # ---- v7.0 PHANTOM EDITION — new animations ----
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.deploy(?:\s+\d+)?$"))
+    @client.flood_safe
+    async def _deploy(event):
+        await _play(event, DEPLOY_FRAMES, delay=0.55, loops=1, name="deploy",
+                    stop_text="⏹️ Deploy cancelled.")
+
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.os(?:\s+\d+)?$"))
+    @client.flood_safe
+    async def _os(event):
+        await _play(event, OS_FRAMES, delay=0.5, loops=1, name="os",
+                    stop_text="⏹️ Shutdown complete.")
+
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.solarsystem(?:\s+\d+)?$"))
+    @client.flood_safe
+    async def _solarsystem(event):
+        await _play(event, SOLAR_FRAMES, delay=0.5, name="solarsystem",
+                    stop_text="⏹️ The planets stopped.")
+
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.music(?:\s+\d+)?$"))
+    @client.flood_safe
+    async def _music(event):
+        await _play(event, MUSIC_FRAMES, delay=0.4, name="music",
+                    stop_text="⏹️ Music stopped.")
+
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.charging(?:\s+\d+)?$"))
+    @client.flood_safe
+    async def _charging(event):
+        await _play(event, CHARGING_FRAMES, delay=0.5, loops=1, name="charging",
+                    stop_text="⏹️ Unplugged.")
+
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.wifi(?:\s+\d+)?$"))
+    @client.flood_safe
+    async def _wifi(event):
+        await _play(event, WIFI_FRAMES, delay=0.5, loops=1, name="wifi",
+                    stop_text="⏹️ Wi-Fi off.")
+
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.download(?:\s+\d+)?$"))
+    @client.flood_safe
+    async def _download(event):
+        await _play(event, DOWNLOAD_FRAMES, delay=0.5, loops=1, name="download",
+                    stop_text="⏹️ Download cancelled.")
+
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.server(?:\s+\d+)?$"))
+    @client.flood_safe
+    async def _server(event):
+        await _play(event, SERVER_FRAMES, delay=0.5, loops=1, name="server",
+                    stop_text="⏹️ Servers powered down.")
+
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.radar(?:\s+\d+)?$"))
+    @client.flood_safe
+    async def _radar(event):
+        await _play(event, RADAR_FRAMES, delay=0.45, loops=1, name="radar",
+                    stop_text="⏹️ Radar off.")
+
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.gamer(?:\s+\d+)?$"))
+    @client.flood_safe
+    async def _gamer(event):
+        await _play(event, GAMER_FRAMES, delay=0.45, loops=1, name="gamer",
+                    stop_text="⏹️ Game over.")
+
+    # ---- v7.0 batch-2 ----
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.quickheal(?:\s+\d+)?$"))
+    @client.flood_safe
+    async def _quickheal(event):
+        await _play(event, QUICKHEAL_FRAMES, delay=0.5, loops=1, name="quickheal",
+                    stop_text="⏹️ Scan cancelled.")
+
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.heartbeat(?:\s+\d+)?$"))
+    @client.flood_safe
+    async def _heartbeat(event):
+        await _play(event, HEARTBEAT_FRAMES, delay=0.4, name="heartbeat",
+                    stop_text="⏹️ Flatline.")
+
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.spinner(?:\s+\d+)?$"))
+    @client.flood_safe
+    async def _spinner(event):
+        await _play(event, SPINNER_FRAMES, delay=0.3, loops=1, name="spinner",
+                    stop_text="⏹️ Spinner stopped.")
+
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.energy(?:\s+\d+)?$"))
+    @client.flood_safe
+    async def _energy(event):
+        await _play(event, ENERGY_FRAMES, delay=0.5, loops=1, name="energy",
+                    stop_text="⏹️ Energy drained.")
+
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.shield(?:\s+\d+)?$"))
+    @client.flood_safe
+    async def _shield(event):
+        await _play(event, SHIELD_FRAMES, delay=0.45, loops=1, name="shield",
+                    stop_text="⏹️ Shield down.")
+
     @client.on(events.NewMessage(outgoing=True, pattern=r"^\.anims(?:\s+(.*))?$"))
     @client.flood_safe
     async def _anims(event):
@@ -1302,7 +1527,11 @@ def register_animations(client):
             ".portal", ".wizard", ".galaxy", ".fireworks", ".dj", ".battery",
             ".nuke", ".kill", ".dragon", ".zombie", ".rose", ".moneyrain", ".ocean",
             ".holi", ".diwali", ".virus", ".race", ".casino", ".bigoof", ".theart",
-            ".police", ".butterfly"
+            ".police", ".butterfly",
+            # v7.0 PHANTOM EDITION additions
+            ".deploy", ".os", ".solarsystem", ".music", ".charging",
+            ".wifi", ".download", ".server", ".radar", ".gamer",
+            ".quickheal", ".heartbeat", ".spinner", ".energy", ".shield",
         ]
         per_page = 20
         pages = (len(all_anims) + per_page - 1) // per_page
@@ -1328,9 +1557,13 @@ def register_animations(client):
 
 
 COMMANDS_ANIMATIONS = {
-    "description": "Animations (73)",
+    "description": "Animations (88)",
     "commands": [
         (".hack .matrix .bomb .shoot", "terminal / action"),
+        (".deploy .os .server .download", "v7 tech stories"),
+        (".solarsystem .radar .wifi .charging", "v7 systems & space"),
+        (".music .gamer .spinner .energy", "v7 vibes"),
+        (".quickheal .heartbeat .shield", "v7 protection & life"),
         (".moon .clock .earth .stars", "sky loops"),
         (".heart .love .kiss .slap", "love & fun"),
         (".fire .rocket .loading .loader", "energy / progress"),

@@ -131,7 +131,7 @@ async def _farm_delay(base: float) -> None:
 
 
 async def _farm_nap(seconds: float) -> None:
-    """Interruptible sleep — `.mstop`/`.mstopall` se turant jaag jata hai."""
+    """Interruptible sleep — wakes up instantly on `.mstop`/`.mstopall`."""
     end = time.time() + seconds
     while time.time() < end and FARM["running"]:
         await asyncio.sleep(1)
@@ -163,7 +163,7 @@ async def _farm_wait_reply(chat, our_id, timeout=12.0, game_ent=None):
 
 
 class _FarmDead(Exception):
-    """Pass ab chalta nahi — kind: 'chat' (group gone) | 'session'."""
+    """Pass no longer works — kind: 'chat' (group gone) | 'session'."""
     def __init__(self, kind: str, msg: str = ""):
         super().__init__(msg)
         self.kind = kind
@@ -696,7 +696,7 @@ def register_farmer(client: TelegramClient) -> None:
         try:
             with open(path, "r", encoding="utf-8", errors="replace") as fh:
                 lines = fh.readlines()[-18:]
-            body = "".join(lines).strip() or "(farm log abhi khali hai)"
+            body = "".join(lines).strip() or "(farm log is empty)"
         except Exception:
             body = "(farm log file not found)"
         await event.edit(
@@ -720,7 +720,7 @@ def register_farmer(client: TelegramClient) -> None:
         _farm_log(f"ignored {uid} (total {len(FARM['ignore'])})")
         await event.edit(
             f"✦ ━━━〔 🚫 IGNORED 〕━━━ ✦\n"
-            f"┃ User `{uid}` kabhi target nahi hoga.\n"
+            f"┃ User `{uid}` will never be targeted.\n"
             f"┃ Total ignored: `{len(FARM['ignore'])}` (`.mignored`)\n"
             "✦ ━━━━━━━━━━━━━━━━━━━━━━ ✦", link_preview=False)
 
@@ -755,7 +755,7 @@ def register_farmer(client: TelegramClient) -> None:
             return await event.edit(
                 f"🛡 Protection-skip is **{state}**.\n"
                 "`.mskip on`  → protected user chhodo, agla pakdo\n"
-                "`.mskip off` → protection check mat karo")
+                "`.mskip off` → disable the protection check")
         d = _farm_cfg()
         d["skip_protected"] = (arg == "on")
         save_store("farmer", d)
@@ -789,7 +789,7 @@ def register_farmer(client: TelegramClient) -> None:
         FARM["scanned"].clear()
         await event.edit(
             f"🔭 Scan depth → `{d['history_depth']}` msgs. "
-            "Dry pass pe window khud older messages ki taraf badhti hai.")
+            "On a dry pass the window moves toward older messages automatically.")
 
     @client.on(events.NewMessage(outgoing=True, pattern=r"^\.mbot(?:\s+([A-Za-z0-9_]{3,32}))?$"))
     async def _mbot(event):
@@ -844,7 +844,7 @@ def register_farmer(client: TelegramClient) -> None:
             "**🎛 TUNING**\n"
             "┌ `.mspeed slow|medium|fast` → this group\n"
             "├ `.mmode slow|medium|fast` → all groups\n"
-            "├ `.mskip on|off` → protected users skip karo ya nahi\n"
+            "├ `.mskip on|off` → whether to skip protected users\n"
             "├ `.mmin <n>` → min coins to rob (below = skip)\n"
             "├ `.mdepth <100-1000>` → older members bhi scan\n"
             "└ `.mbot <username>` → game bot (default im_bakabot)\n"
@@ -852,7 +852,7 @@ def register_farmer(client: TelegramClient) -> None:
             "**🚫 IGNORE LIST**\n"
             "┌ `.mignore` (reply) / `.mignore <id>` → hamesha skip\n"
             "├ `.munignore <id>` → list se hatao\n"
-            "└ `.mignored` → list dekho\n"
+            "└ `.mignored` → view the list\n"
             "┃\n"
             "**⚙️ CONTROLS**\n"
             "┌ `.mjobs` → active groups · `.mpause` · `.mresume`\n"

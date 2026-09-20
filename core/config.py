@@ -24,7 +24,14 @@ SAFE_CHAT_GAP = 1.0
 SAFE_BREATHER_EVERY = 15
 WARMUP_HOURS = 48
 
-BOT_VERSION = "6.7.0"
+# 🚨 v7.1 BAN-PROOF SHIELD — hard caps & flood-storm autopilot
+HARD_HOUR_CAP = 150        # max sends per rolling hour (human-like ceiling)
+HARD_DAY_CAP = 900         # max sends per rolling 24h
+STORM_FLOODS = 3           # FloodWaits in window = storm
+STORM_WINDOW = 600         # 10 min window for storm detection
+STORM_COOLDOWN = 1800      # 30 min paranoid cooldown after a storm
+
+BOT_VERSION = "7.0.0"
 
 SAFETY_PROFILES = {
     "paranoid": dict(gap=0.80, edit_gap=0.60, per_min=12, chat_per_min=8,

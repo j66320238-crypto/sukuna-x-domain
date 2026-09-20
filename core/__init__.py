@@ -127,7 +127,7 @@ from .config import (
     SAFE_CHAT_GAP, SAFE_BREATHER_EVERY, WARMUP_HOURS, BOT_VERSION,
     SAFETY_PROFILES,
 )
-from .state import START_TIME, stop_processes, command_registry
+from .state import START_TIME, stop_processes, command_registry, PLUGIN_LOAD_TIMES, OWNER_ID
 from .store import DATA_DIR, SAFETY_FILE, load_store, save_store
 from .safety import (
     SAFETY, _SEND_WINDOW, _CHAT_WINDOW, _CHAT_LAST, _SENDS_SINCE_BREATHER,
@@ -136,6 +136,8 @@ from .safety import (
     note_flood, warmup_active, warmup_left, _effective,
     throttle, throttle_chat, rate_used, safe_sleep, safe_cap,
     safe_mode_on, safety_line,
+    # v7.1 BAN-PROOF SHIELD
+    raksha_on, raksha_set, storm_active, storm_left, hour_sends, day_sends,
 )
 from .accounts import ACCOUNT, _safe_name, _acc_cfg_load, _acc_cfg_save, resolve_credentials
 from .helpers import _web_get, _web_dl, _fmt_uptime
