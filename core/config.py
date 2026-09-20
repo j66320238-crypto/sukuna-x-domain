@@ -24,7 +24,7 @@ SAFE_CHAT_GAP = 1.0
 SAFE_BREATHER_EVERY = 15
 WARMUP_HOURS = 48
 
-BOT_VERSION = "6.5.0"
+BOT_VERSION = "6.7.0"
 
 SAFETY_PROFILES = {
     "paranoid": dict(gap=0.80, edit_gap=0.60, per_min=12, chat_per_min=8,

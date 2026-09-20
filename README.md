@@ -1,137 +1,96 @@
-<p align="center">
-  <img src="https://img.shields.io/badge/python-3.8%2B-blue?logo=python&logoColor=white" alt="Python"/>
-  <img src="https://img.shields.io/badge/Telethon-1.45-229ED9?logo=telegram&logoColor=white" alt="Telethon"/>
-  <img src="https://img.shields.io/badge/version-6.5.0-success" alt="version"/>
-  <img src="https://img.shields.io/badge/help--menu-premium-brightgreen" alt="help menu"/>
-  <img src="https://img.shields.io/badge/banner-fixed-brightgreen" alt="banner"/>
-  <img src="https://img.shields.io/badge/account--manager-enhanced-brightgreen" alt="account manager"/>
-  <img src="https://img.shields.io/badge/plugins-25-orange" alt="plugins"/>
-  <img src="https://img.shields.io/badge/commands-247-orange" alt="commands"/>
-</p>
+# ⚡ SUKUNA-X DOMAIN v6.7 — Full Clone + Video PFP + AutoPFP Rotate + No Flood
 
-<h1 align="center">⚡ SUKUNA-X DOMAIN</h1>
+**25 plugins · 355 handlers · 260+ cmds · 73 anims · no flood · full copy**
 
-<p align="center">
-  <b>Khatarnak, tagra, alag level — well-structured, premium help, account manager, banner fixed.</b><br/>
-  25 plugins · 343 handlers · 247+ commands · 73 animations — fully modular, error-free.<br/>
-  New: 👑 Sukuna Special (20 cmds) + 🌟 Extra Addons (18 cmds) + 🎮 Farmer (24 cmds)
-</p>
+### 🔥 What's New v6.7 (your requests)
 
----
+**Profile Full System:**
+- `.clone` → main clone (reply): name + bio + main pfp/video
+- `.fclone` → **full clone**: ALL photos/videos of target (20 max) — deletes old, uploads all in order (video supported)
+- `.clone full` → same as full
+- `.saveprofile <name>` → save replied user's **full profile** (all pfps) to `data/profiles/<name>/photos/`
+- `.loadprofile <name>` → load main (1 photo + name/bio)
+- `.floadprofile <name>` or `.loadprofile <name> full` → **full load** (all photos/videos)
+- `.savedprofiles` → list all saved (new dir + legacy)
+- `.delprofile <name>` → delete saved
 
-## 🆕 v6.5 — Khatarnak Update
+**PFP Tools (new):**
+- `.pfpsave` / `.savepfp` → save own or replied user's all pfps to `data/pfps/`
+- `.getpfp [n]` → get replied user's pfps (1-20) and send to chat
+- `.setpfp` → reply to photo/video to set as your pfp (video supported if square <=10s <=2MB)
+- `.pfplist` / `.pfps` → list saved pfp collections
+- `.delpfp [n]` → delete all or n pfps
+- `.setname <first> [last]` / `.setbio <text>`
 
-### 1. 👑 Sukuna Special — 20 new khatarnak commands (alag level)
+**AutoPFP Rotate (human-like, no flood):**
+- `.autopfp <hours> [profile_name]` — e.g. `.autopfp 2` rotates every 2h ±15% jitter, min 5min, human delays 1-2.5s between uploads, safe throttle
+- `.pfprotate` alias
+- `.stopautopfp` → stop
+- Source: latest saved pfps or specified profile's photos
+- Protection: deletes old all, uploads new 1, FloodWait handled, adaptive backoff
 
-Jujutsu Kaisen themed — King of Curses:
+**Animations — No Limit Fix:**
+- OLD: loops=0 infinite → flood
+- NEW v6.7: loops=0 runs **max 28 sec auto-stop** (not endless), human jitter -0.08 to +0.15s, floor 0.6s, throttle + safe_sleep
+- `.hack 20` → run 20 sec (3-120s allowed), `.moon 10`, etc
+- `.anims` compact 2-col paginated: `.anims` page1, `.anims 2` page2
+- All anims stop via `.stop`
 
+**Help Menu — Mast Premium (not bekar):**
+- OLD: big boxed 30+ lines
+- NEW v6.7:
 ```
-.sukuna        King of Curses intro animation
-.domainx       Domain Expansion: Malevolent Shrine
-.cleave [@user] / .dismantle [@user]  Sukuna techniques
-.fuga          Divine Flame — Open
-.shrine / .cursed / .heian / .king
-.khatarnak     Khatarnak mode — alag level
-.tagra         Tagra mode — SUKUNA-X DOMAIN
-.boom / .matrix / .glitch / .fire / .lightning
-.domain        Domain info + stats
-.bingo / .slots / .8ball <q>
+⚡ SUKUNA-X v6.7 👑 — 25 plugins • 260 cmds • 2h 15m
+📚 MENU Page 1/3 — .help <module> details, .help 2 next
+────────────────────────────
+🛠 admin(12)          😴 afk(5)
+🎬 animations(73)     🛡 antipm(6)
+👤 profile(16)        👑 sukuna(20)
+...
+────────────────────────────
+🛠 Core: .alive .tasks .stop .restart .update .crashlog
+👤 Profile: .clone .fclone .saveprofile .floadprofile .pfpsave .autopfp
+🎬 Anims: .anims .anims 2 .hack 20 (time arg) • auto-stop 28s • no flood
+🎮 Farmer: .mhelp • 👑 Sukuna: .help sukuna • 🌟 Extra: .help extra
+🛡️ Shield ON • No Flood • Human Delays
 ```
+- Module view: icon + desc + `• cmd — help` list
+- Search: `.help clone` → 22 results
 
-All animated, premium UI, safety engine.
+**Protection — Popular Repos Inspired (Ultroid/CatUserbot):**
+- 5-layer anti-ban: min gap, sliding window, per-chat limiter, human breather, adaptive backoff + warmup 47h
+- Animations: throttle + jitter + auto-stop 28s
+- Profile: safe_sleep 0.6-1.2s between photos, FloodWait catch + retry
+- Telethon log spam silenced (Got difference...)
+- Banner safe ASCII
 
-### 2. 📖 Help Menu — Premium, Not Bekar
-
-Old help was simple list. New is **premium, boxed, paginated, with previews**:
-
-```
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃  ⚡ SUKUNA-X DOMAIN — Help Menu  v6.5.0  👑            ┃
-┃  25 plugins • 247 commands • 73 animations • Farmer ON ┃
-┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
-┃  🔍 .help <plugin>  •  .help <command>  •  .help 2,3…  ┃
-┃  📖 Core: .alive .tasks .stop .restart .update        ┃
-┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
-┃  🎮 farmer (24) — Isolation auto-farmer               ┃
-┃    .mstart, .msmart, .mhelp                           ┃
-┃  👑 sukuna (20) — Khatarnak cursed techniques         ┃
-┃    .sukuna, .domainx, .cleave                          ┃
-┃  🌟 extra (18) — Addons (figlet, imdb, waifu…)        ┃
-┃    .figlet, .imdb, .waifu                              ┃
-┃  ... 8 per page, .help 2 for next                      ┃
-┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
-┃  🎮 Farmer: .mhelp • 👑 Sukuna: .help sukuna           ┃
-┃  🔗 Repo: github.com/j66320238-crypto/sukuna-x-domain  ┃
-┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-```
-
-- `.help` → main menu (paginated, 8 per page)
-- `.help 2` → page 2
-- `.help sukuna` → full module with `• cmd — help` + `└─ description`
-- `.help cleave` → search any command
-
-### 3. 👥 Account Manager at Startup (v6.4)
-
-Shows ALL IDs at boot, last used highlighted, Enter for same:
-
-```
-  #  Name   Phone        API_ID  Session  Last Used
-  1  main   +91****3210  12345   ✅ Yes   2h ago ← last
-  2  second +91****3211  67890   ❌ No    —
-  Options: [1-2] choose • [N] new • [D] delete • [L] details • [Enter]=last
-```
-
-Single ID → auto-start card. Non-interactive → auto last. Env: `SUKUNA_ACCOUNT=name`. Telegram: `.accounts`
-
-### 4. 🛠 Banner Fixed (your screenshot)
-
-Old `█▀` broke into `SUKUHA : T`. New uses safe `_ / \ |` + `┏━┓` — renders perfect in Termux.
-
-### 5. 🗂 Well-Structured, Easy Upgrade
-
+### 📦 Structure
 ```
 sukuna-x-domain/
-├── userbot.py (255 lines) — bootstrapper only
-├── core/ (11 files) — config, safety, accounts (manager!), banner (fixed!), ui (premium help!), client, etc
-├── plugins/ (25 plugins) — farmer, extra, sukuna new
-├── data/ (gitignored)
-├── start.sh, termux-setup.sh, bot.py, .gitignore
+├── userbot.py (entry only)
+├── core/ (11 files) — ui (premium help), safety (5-layer), accounts, banner fixed
+├── plugins/ (25) — profile v6.7 (full+video+autopfp), animations (no flood), sukuna (20), extra (18), farmer (24) etc
+├── data/ (gitignored) — profiles/, pfps/, autopfp/
+├── start.sh / termux-setup.sh / bot.py
 ```
 
-`git pull` or `.update` → easy upgrade, data safe.
-
-## 📱 Termux One-Command
-
+### 📱 Alwaysdata / VPS / Termux
 ```bash
-pkg update -y && pkg install -y git
+# Alwaysdata
 git clone https://github.com/j66320238-crypto/sukuna-x-domain.git
 cd sukuna-x-domain
+pip install telethon tgcrypto pillow
+bash start.sh   # NOT python start.sh
+# first run: API_ID, API_HASH, phone, OTP
+
+# Termux
 bash termux-setup.sh
-```
 
-## 🔁 Update
-
-```
+# Update
 .update + .restart
-git pull + bash start.sh
 ```
 
-## 📜 Commands
-
-- **Core (7):** .alive .help .tasks .stop .restart .update .crashlog
-- **Farmer (24):** .mstart .msmart .mhelp .mjobs .mstatus .mstopall etc
-- **Sukuna (20):** .sukuna .domainx .cleave .dismantle .fuga .khatarnak .tagra .boom etc
-- **Extra (18):** .figlet .imdb .anime .waifu .pokedex .truth .dare .wiki .covid .qrcode .accounts etc
-- **Animations (73):** .anims + .hack .boom .fire etc
-- + admin, afk, antipm, chat, events, fun, info, media, misc, net, party, profile, raid, remind, safety, spam, stickers, tags, texttools, tools, util
-
-Total: 247+ commands
-
-## ✅ Tested
-
-25 plugins · 343 handlers · 301 fired · zero exceptions · compile OK · banner OK · account manager OK
+### ✅ Tested
+25 plugins · 355 handlers · 313 fired · 0 exc · clone full+video · autopfp human · anims auto-stop 28s · help compact mast
 
 Repo: https://github.com/j66320238-crypto/sukuna-x-domain.git
-Baka: https://github.com/j66320238-crypto/baka.git
-
-v6.5.0 — khatarnak, tagra, alag level, premium help, banner fixed, account manager, 20+ new cmds, error-free

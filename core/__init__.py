@@ -150,6 +150,9 @@ logging.basicConfig(
     stream=sys.stdout,
 )
 log = logging.getLogger("userbot")
+# silence telethon update spam (Got difference...)
+logging.getLogger("telethon").setLevel(logging.WARNING)
+logging.getLogger("telethon.client.updates").setLevel(logging.WARNING)
 
 # ── export everything (so `from core import *` works) ───────────────────
 __all__ = [n for n in globals() if not n.startswith("__")]

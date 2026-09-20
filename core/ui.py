@@ -2,12 +2,13 @@
 # -*- coding: utf-8 -*-
 """
 core/ui.py — builtin commands: .alive .help .tasks .stop .restart .update .crashlog
-v6.5 — premium help menu (not bekar), tagra, khatarnak, alag level
+v6.7 — ultra-premium compact help (mast, not bekar) + clone fixes + no flood anims
 """
 import asyncio
 import os
 import sys
 import time
+import random
 
 from telethon import events
 
@@ -29,64 +30,45 @@ _MODULE_ICONS = {
     "sukuna": "👑", "tags": "🏷", "texttools": "🔤", "tools": "🧰", "util": "🧷",
 }
 
-
 def _module_icon(name: str) -> str:
     return _MODULE_ICONS.get(name, "📦")
 
-
 def _total_commands() -> int:
     return sum(len(m.get("commands", [])) for m in command_registry.values())
-
 
 def register_builtin_commands(client) -> None:
 
     @client.on(events.NewMessage(outgoing=True, pattern=r"^\.stop(?:\s+(\S+))?$"))
     async def _stop_handler(event):
         if not stop_processes:
-            return await event.edit("⏹️ **No active tasks.** Nothing to stop.")
+            return await event.edit("⏹ **No active tasks.**")
         target = event.pattern_match.group(1)
         if target:
             task = stop_processes.get(target)
             if task is None:
-                return await event.edit(f"⚠️ No task named `{target}`.")
+                return await event.edit(f"⚠️ No task `{target}`.")
             if task.done():
                 stop_processes.pop(target, None)
-                return await event.edit(f"ℹ️ `{target}` already finished.")
+                return await event.edit(f"ℹ️ `{target}` already done.")
             task.cancel()
             stop_processes.pop(target, None)
-            return await event.edit(
-                "┏━━━━━━━━━━━━━━━━━━━━━━━┓\n"
-                "┃ ⏹ STOPPED             ┃\n"
-                f"┃ Task: {target} killed      ┃\n"
-                "┗━━━━━━━━━━━━━━━━━━━━━━━┛",
-                link_preview=False,
-            )
-        stopped = 0
-        for name, task in list(stop_processes.items()):
-            if not task.done():
-                task.cancel()
-                stopped += 1
+            return await event.edit(f"⏹ `{target}` stopped.", link_preview=False)
+        stopped = sum(1 for t in stop_processes.values() if not t.done())
+        for t in list(stop_processes.values()):
+            if not t.done():
+                t.cancel()
         stop_processes.clear()
-        await event.edit(
-            "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n"
-            "┃ ⏹ ALL STOPPED                 ┃\n"
-            f"┃ {stopped} loop(s) cancelled          ┃\n"
-            "┃ 🛡️ Idle & safe                ┃\n"
-            "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛",
-            link_preview=False,
-        )
+        await event.edit(f"⏹ {stopped} task(s) stopped. 🛡️ Idle.", link_preview=False)
 
     @client.on(events.NewMessage(outgoing=True, pattern=r"^\.tasks$"))
     async def _tasks_handler(event):
         if not stop_processes:
-            return await event.edit("📭 **No active tasks.** Everything is idle.")
-        lines = ["┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓", "┃ 🧵 ACTIVE TASKS                 ┃", "┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫"]
+            return await event.edit("📭 No active tasks.")
+        lines = ["🧵 **Active Tasks**"]
         for name, task in stop_processes.items():
-            status = "✅ done" if task.done() else "🔄 running"
-            lines.append(f"┃ • {name} — {status}")
-        lines.append("┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫")
-        lines.append("┃ Control: .stop • .stop <name>      ┃")
-        lines.append("┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛")
+            st = "✅" if task.done() else "🔄"
+            lines.append(f"• {st} `{name}`")
+        lines.append("\n`.stop` to kill all")
         await event.edit("\n".join(lines), link_preview=False)
 
     @client.on(events.NewMessage(outgoing=True, pattern=r"^\.alive$"))
@@ -99,22 +81,16 @@ def register_builtin_commands(client) -> None:
             dc = client.session.dc_id or "—"
         except Exception:
             dc = "—"
-        acct = ACCOUNT.get("name") if isinstance(ACCOUNT, dict) else "built-in"
+        acct = ACCOUNT.get("name") if isinstance(ACCOUNT, dict) else "main"
+        await event.edit("⚡ Checking…", link_preview=False)
+        await asyncio.sleep(0.35)
         await event.edit(
-            "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n"
-            "┃  ⚡ SUKUNA-X DOMAIN — Online  👑               ┃\n"
-            "┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫\n"
-            f"┃ 💚 Status : Online & watching                ┃\n"
-            f"┃ 👤 User   : {me.first_name} ({uname})                ┃\n"
-            f"┃ 🆔 ID     : {me.id} • Account: {acct}     ┃\n"
-            f"┃ 📡 DC     : {dc} • Ping: {ping:.0f} ms                 ┃\n"
-            f"┃ ⏱ Uptime : {_fmt_uptime(time.time() - START_TIME)}                ┃\n"
-            f"┃ 🧵 Tasks  : {len(stop_processes)} • Cmds: {_total_commands()} • v{BOT_VERSION}   ┃\n"
-            f"┃ 🛡️ Shield : {safety_line()}      ┃\n"
-            "┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫\n"
-            "┃ 📖 .help for menu • 🎮 .mhelp for farmer     ┃\n"
-            "┃ 👑 .sukuna for Sukuna special • 🎬 .anims    ┃\n"
-            "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛",
+            f"⚡ **SUKUNA-X DOMAIN** `v{BOT_VERSION}` — Online 👑\n"
+            f"👤 {me.first_name} ({uname}) • ID `{me.id}` • `{acct}`\n"
+            f"📡 DC `{dc}` • Ping `{ping:.0f}ms` • Uptime `{_fmt_uptime(time.time() - START_TIME)}`\n"
+            f"🧩 `{len(command_registry)}` plugins • `{_total_commands()}` cmds • Tasks `{len(stop_processes)}`\n"
+            f"🛡️ {safety_line()}\n"
+            f"`.help` menu • `.mhelp` farmer • `.help sukuna` • `.anims` • `.clone` `.fclone`",
             link_preview=False,
         )
 
@@ -122,122 +98,103 @@ def register_builtin_commands(client) -> None:
     async def _help_handler(event):
         query = (event.pattern_match.group(1) or "").strip()
         low = query.lower().lstrip(".")
-        # ---- pagination support: .help 2 ----
         page = 1
         if low.isdigit():
             page = max(1, int(low))
             low = ""
 
+        # exact module match
         if low:
-            # 1) module exact match
             for mod, meta in command_registry.items():
                 desc = meta.get("description", mod)
-                if low == mod.lower() or low == desc.lower():
-                    # premium module view
+                if low == mod.lower() or low == desc.lower() or low in mod.lower():
                     icon = _module_icon(mod)
                     cmds = meta.get("commands", [])
                     lines = [
-                        f"┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓",
-                        f"┃  {icon} {desc} — {mod} ({len(cmds)} cmds)  👑 SUKUNA-X DOMAIN  ┃",
-                        f"┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫",
+                        f"{icon} **{desc}** (`{mod}`) — {len(cmds)} cmds",
+                        "┈" * 24,
                     ]
                     for cmd, help_text in cmds:
-                        lines.append(f"┃ • `{cmd}`")
-                        lines.append(f"┃   └─ {help_text}")
-                        lines.append(f"┃")
-                    lines.append(f"┃  💡 Tip: `.help <command>` to search any cmd     ┃")
-                    lines.append(f"┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛")
-                    return await event.edit("\n".join(lines), link_preview=False)
-            # 2) command search
+                        lines.append(f"• `{cmd}` — {help_text}")
+                    lines.append("")
+                    lines.append(f"_{len(command_registry)} plugins • {_total_commands()} cmds • .help_")
+                    return await event.edit("\n".join(lines)[:3900], link_preview=False)
+            # search
             hits = []
             for mod, meta in command_registry.items():
                 for cmd, help_text in meta.get("commands", []):
-                    if low in cmd.lower() or low in help_text.lower():
+                    if low in cmd.lower() or low in help_text.lower() or low in mod.lower():
                         hits.append((mod, cmd, help_text))
             if hits:
-                lines = [
-                    f"┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓",
-                    f"┃  🔍 Results for '{query}' — {len(hits)} found         ┃",
-                    f"┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫",
-                ]
-                for mod, cmd, help_text in hits[:25]:
-                    icon = _module_icon(mod)
-                    lines.append(f"┃ {icon} `{cmd}` — {help_text}")
-                    lines.append(f"┃   └─ module: {mod}")
-                lines.append(f"┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫")
-                lines.append(f"┃  Use `.help {hits[0][0]}` for full module          ┃")
-                lines.append(f"┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛")
-                return await event.edit("\n".join(lines), link_preview=False)
-            mods = ", ".join(f"`{m}`" for m in sorted(command_registry))
-            return await event.edit(
-                f"⚠️ Nothing matched `{query}`.\n\n📦 Modules: {mods}\n\n💡 Try `.help` for main menu or `.help 2` for page 2",
-                link_preview=False,
-            )
+                lines = [f"🔍 **{len(hits)} results for `{query}`**", ""]
+                for mod, cmd, help_text in hits[:22]:
+                    lines.append(f"• {_module_icon(mod)} `{cmd}` — {help_text} ({mod})")
+                return await event.edit("\n".join(lines)[:3900], link_preview=False)
+            mods = ", ".join(sorted(command_registry.keys()))
+            return await event.edit(f"⚠️ No match for `{query}`.\nModules: {mods}", link_preview=False)
 
-        # ---- MAIN MENU — premium, not bekar ----
+        # MAIN MENU — mast premium, compact, 2 columns, not too big
         total = len(command_registry)
         total_cmds = _total_commands()
-        # sort modules by category for better grouping
-        order = ["admin", "safety", "farmer", "sukuna", "extra", "animations", "spam", "raid", "fun", "tools", "media", "stickers", "chat", "events", "info", "profile", "misc", "net", "party", "tags", "texttools", "util", "afk", "antipm", "remind"]
+        # ordered for nice display
+        order = ["admin","profile","animations","sukuna","extra","farmer","spam","raid","fun","tools","media","stickers","chat","events","info","misc","net","party","tags","texttools","util","afk","antipm","remind","safety"]
         sorted_mods = sorted(command_registry.items(), key=lambda x: (order.index(x[0]) if x[0] in order else 999, x[0]))
 
-        # pagination: 8 modules per page
-        per_page = 8
+        per_page = 12
         pages = (total + per_page - 1) // per_page
         page = max(1, min(page, pages))
-        start = (page - 1) * per_page
-        chunk = sorted_mods[start:start+per_page]
+        chunk = sorted_mods[(page-1)*per_page : page*per_page]
 
-        lines = [
-            f"┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓",
-            f"┃  ⚡ SUKUNA-X DOMAIN — Help Menu  v{BOT_VERSION}  👑            ┃",
-            f"┃  {total} plugins • {total_cmds} commands • 73 animations • Farmer ON ┃",
-            f"┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫",
-            f"┃  🔍 .help <plugin>  •  .help <command>  •  .help 2,3…  ┃",
-            f"┃  📖 Core: .alive .tasks .stop .restart .update .crashlog ┃",
-            f"┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫",
+        # build 2-column lines with padding
+        col_lines = []
+        for i in range(0, len(chunk), 2):
+            left = chunk[i]
+            right = chunk[i+1] if i+1 < len(chunk) else None
+            l_icon = _module_icon(left[0])
+            l_cnt = len(left[1].get("commands", []))
+            # format: icon name(count) padded to 18
+            l_text = f"{l_icon} `{left[0]}`({l_cnt})"
+            if right:
+                r_icon = _module_icon(right[0])
+                r_cnt = len(right[1].get("commands", []))
+                r_text = f"{r_icon} `{right[0]}`({r_cnt})"
+                # pad left to align
+                col_lines.append(f"{l_text:<22} {r_text}")
+            else:
+                col_lines.append(l_text)
+
+        uptime = _fmt_uptime(time.time() - START_TIME)
+        # mast header with box
+        header = f"⚡ **SUKUNA-X v{BOT_VERSION}** 👑 — {total} plugins • {total_cmds} cmds • {uptime}"
+        menu = [
+            header,
+            f"📚 **MENU** Page {page}/{pages} — `.help <module>` details, `.help 2` next",
+            "─" * 28,
+            "\n".join(col_lines),
+            "─" * 28,
+            "🛠 **Core:** `.alive` `.tasks` `.stop` `.restart` `.update` `.crashlog`",
+            "👤 **Profile:** `.clone` `.fclone` `.saveprofile` `.floadprofile` `.pfpsave` `.autopfp`",
+            "🎬 **Anims:** `.anims` `.anims 2` `.hack 20` (time arg) • auto-stop 28s • no flood",
+            "🎮 **Farmer:** `.mhelp` • 👑 **Sukuna:** `.help sukuna` • 🌟 **Extra:** `.help extra`",
+            f"🛡️ {safety_line()}",
         ]
-        for mod, meta in chunk:
-            icon = _module_icon(mod)
-            n = len(meta.get("commands", []))
-            desc = meta.get("description", mod)
-            # show first 3 commands as preview
-            preview = ", ".join(f"`{c.split()[0]}`" for c, _ in meta.get("commands", [])[:3])
-            lines.append(f"┃  {icon} {mod} ({n}) — {desc}")
-            if preview:
-                lines.append(f"┃    {preview}")
-            lines.append(f"┃")
+        await event.edit("\n".join(menu)[:3900], link_preview=False)
 
-        lines.append(f"┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫")
-        if pages > 1:
-            lines.append(f"┃  📄 Page {page}/{pages} — .help {page+1} for next • .help {mod} for details ┃")
-        lines.append(f"┃  🎮 Farmer: .mhelp  •  👑 Sukuna: .help sukuna  •  🌟 Extra: .help extra ┃")
-        lines.append(f"┃  🎬 .anims for animations • 🛡️ .limits for safety dashboard      ┃")
-        lines.append(f"┃  🔗 Repo: github.com/j66320238-crypto/sukuna-x-domain            ┃")
-        lines.append(f"┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛")
-
-        await event.edit("\n".join(lines), link_preview=False)
+    def total_cmds_hint():
+        return f"{len(command_registry)} plugins • {_total_commands()} cmds"
 
     @client.on(events.NewMessage(outgoing=True, pattern=r"^\.restart$"))
     async def _restart_handler(event):
-        await event.edit(
-            "┏━━━━━━━━━━━━━━━━━━━━━━━┓\n"
-            "┃ ♻️ RESTARTING          ┃\n"
-            "┃ Stopping tasks…       ┃\n"
-            "┃ Booting again ⚡       ┃\n"
-            "┗━━━━━━━━━━━━━━━━━━━━━━━┛",
-            link_preview=False,
-        )
-        await asyncio.sleep(1)
-        for name, task in list(stop_processes.items()):
-            if not task.done():
-                task.cancel()
+        await event.edit("♻️ Restarting…", link_preview=False)
+        await asyncio.sleep(0.8)
+        for t in list(stop_processes.values()):
+            if not t.done():
+                t.cancel()
         stop_processes.clear()
         try:
             await client.disconnect()
         except Exception:
             pass
-        log.info("Restarting via exec…")
         os.execl(sys.executable, sys.executable, *sys.argv)
 
     @client.on(events.NewMessage(outgoing=True, pattern=r"^\.update$"))
@@ -245,55 +202,51 @@ def register_builtin_commands(client) -> None:
         base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         if not os.path.isdir(os.path.join(base, ".git")):
             return await event.edit(
-                "ℹ️ Not a git repo — can't `.update`.\n\n"
-                "`git clone https://github.com/j66320238-crypto/sukuna-x-domain.git`\n"
-                "`cd sukuna-x-domain && bash start.sh`",
+                "ℹ️ Not a git repo.\n`git clone https://github.com/j66320238-crypto/sukuna-x-domain.git`",
                 link_preview=False,
             )
-        await event.edit("🔄 Checking for updates…")
+        await event.edit("🔄 Pulling updates…")
         def _git():
             import subprocess
             try:
-                out = subprocess.run(["git", "pull", "--ff-only"], cwd=base,
-                                     capture_output=True, text=True, timeout=90)
+                out = subprocess.run(["git", "pull", "--ff-only"], cwd=base, capture_output=True, text=True, timeout=90)
                 return out.returncode, (out.stdout or "") + (out.stderr or "")
             except Exception as e:
                 return 1, str(e)
         code, out = await asyncio.get_running_loop().run_in_executor(None, _git)
         out = out.strip()[:400]
         if code == 0 and "Already up to date" in out:
-            return await event.edit("✅ **Already up to date.**")
+            return await event.edit("✅ Already up to date.")
         if code == 0:
-            return await event.edit(
-                f"⬇️ **Updated!**\n`{out}`\n\n`.restart` to load new code.",
-                link_preview=False)
+            return await event.edit(f"⬇️ Updated!\n`{out}`\n`.restart` now.", link_preview=False)
         await event.edit(f"❌ Update failed:\n`{out}`", link_preview=False)
 
     @client.on(events.NewMessage(outgoing=True, pattern=r"^\.crashlog(?:\s+(\d+))?$"))
     async def _crashlog_handler(event):
-        n = int(event.pattern_match.group(1) or 30)
-        n = max(5, min(n, 200))
+        n = int(event.pattern_match.group(1) or 20)
+        n = max(5, min(n, 100))
         path = os.path.join(DATA_DIR, "userbot.log")
         if not os.path.exists(path):
-            return await event.edit("📜 No log file yet.")
+            return await event.edit("📜 No log yet.")
         try:
             with open(path, "r", encoding="utf-8", errors="replace") as fh:
                 lines = fh.readlines()
         except Exception as e:
-            return await event.edit(f"❌ Couldn't read log: `{e}`")
+            return await event.edit(f"❌ {e}")
         tail = "".join(lines[-n:]).strip()
         if not tail:
             return await event.edit("📜 Log empty.")
         shown = []
-        for ln in tail.splitlines():
+        for ln in tail.splitlines()[-n:]:
             if "ERROR" in ln or "CRITICAL" in ln:
-                shown.append("🔴 " + ln)
+                shown.append("🔴 " + ln[-180:])
             elif "WARNING" in ln:
-                shown.append("🟠 " + ln)
+                shown.append("🟠 " + ln[-180:])
             else:
-                shown.append(ln)
-        await event.edit(
-            f"📜 **Last {n} log lines**:\n```\n" + "\n".join(shown)[-3500:] + "\n```",
-            link_preview=False)
+                shown.append(ln[-180:])
+        await event.edit(f"📜 Last {n} lines:\n```\n" + "\n".join(shown)[-3500:] + "\n```", link_preview=False)
 
-    log.info("Core UI registered: .stop .tasks .alive .help .restart .update .crashlog (premium menu)")
+    log.info("Core UI v6.7 registered: compact premium help + profile full clone")
+
+def _total_commands():
+    return sum(len(m.get("commands", [])) for m in command_registry.values())

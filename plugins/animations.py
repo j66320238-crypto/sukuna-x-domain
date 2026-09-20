@@ -7,37 +7,51 @@ from core import *  # noqa: F401,F403 — shared engine
 #  comes from the header. Inserted by assemble.py — do NOT run standalone.
 # ============================================================================
 
-async def _start_animation(client, event, frames, delay=0.5, loops=0, name="anim",
-                           stop_text=None, prefix="", suffix=""):
-    """Play `frames` by editing the command message.
-
-    loops=0 → infinite (stoppable via `.stop` / `.stop anim_<name>_<id>`).
-    Tracks the task in client.stop_processes so `.tasks` / `.stop` see it.
+async def _start_animation(client, event, frames, delay=0.6, loops=0, name="anim",
+                           stop_text=None, prefix="", suffix="", max_duration=30):
+    """Play frames with anti-flood protection.
+    - loops=0 => run for max_duration sec (default 30) then auto-stop, not infinite.
+    - human-like random jitter on delay
+    - respects safe_mode floor + global throttle
+    - auto-stops on 3 fails, flood handled
     """
     task_key = f"anim_{name}_{event.id}"
-    # 🛡️ Safe Mode: never edit faster than the anti-ban floor
-    if safe_mode_on() and delay < anim_floor():
-        delay = anim_floor()
+    # 🛡️ Safe Mode: never edit faster than floor
+    floor = anim_floor() if safe_mode_on() else 0.6
+    if delay < floor:
+        delay = floor
+    # if loops==0, limit to max_duration to avoid endless spam (user request)
+    if loops == 0 and max_duration <= 0:
+        max_duration = 30
     old = client.stop_processes.get(task_key)
     if old is not None and not old.done():
         old.cancel()
     msg = event
     last_content = None
+    start_ts = time.time()
 
     async def _animate():
         nonlocal last_content
         fail_count = 0
         try:
             loop_count = 0
-            while loops == 0 or loop_count < loops:
-                stop = False
+            while True:
+                # auto-stop after max_duration if loops==0
+                if loops == 0 and max_duration > 0:
+                    if (time.time() - start_ts) >= max_duration:
+                        break
+                if loops != 0 and loop_count >= loops:
+                    break
                 for frame in frames:
+                    # check max_duration inside frame loop too
+                    if loops == 0 and max_duration > 0 and (time.time() - start_ts) >= max_duration:
+                        break
                     content = f"{prefix}{frame}{suffix}" if (prefix or suffix) else frame
                     if content == last_content:
-                        await safe_sleep(delay, floor=0.0)
+                        await safe_sleep(delay + random.uniform(0, 0.2), floor=floor)
                         continue
                     try:
-                        await throttle("edit")  # 🛡️ global edit throttle
+                        await throttle("edit")
                         await msg.edit(content)
                         last_content = content
                         fail_count = 0
@@ -45,7 +59,7 @@ async def _start_animation(client, event, frames, delay=0.5, loops=0, name="anim
                         pass
                     except FloodWaitError as e:
                         note_flood(e.seconds)
-                        await asyncio.sleep(e.seconds + 1)
+                        await asyncio.sleep(e.seconds + 1.5)
                         try:
                             await throttle("edit")
                             await msg.edit(content)
@@ -55,12 +69,20 @@ async def _start_animation(client, event, frames, delay=0.5, loops=0, name="anim
                     except Exception:
                         fail_count += 1
                     if fail_count >= 3:
-                        stop = True
                         break
-                    await safe_sleep(delay, floor=0.0)
-                if stop:
+                    # human-like jitter
+                    jitter = random.uniform(-0.08, 0.15)
+                    await safe_sleep(max(floor, delay + jitter), floor=floor)
+                if fail_count >= 3:
                     break
                 loop_count += 1
+            # finished — optional stop text
+            if stop_text:
+                try:
+                    await throttle("edit")
+                    await msg.edit(stop_text)
+                except Exception:
+                    pass
         except asyncio.CancelledError:
             if stop_text:
                 try:
@@ -771,128 +793,143 @@ BUTTERFLY_FRAMES = [
 def register_animations(client):
     """Register every animation command on the given Telethon client."""
 
+    def _parse_time_arg(text: str, default=28):
+        # parse optional seconds from command like ".hack 20" or ".moon 10"
+        try:
+            parts = text.strip().split()
+            if len(parts) > 1 and parts[1].isdigit():
+                v = int(parts[1])
+                return max(3, min(v, 120))
+        except Exception:
+            pass
+        return default
+
     async def _play(event, frames, delay=0.5, loops=0, name="anim", stop_text=None):
+        # if loops==0, use time arg, else loops as is
+        max_dur = 30
+        if loops == 0:
+            max_dur = _parse_time_arg(event.text, default=28)
         await _start_animation(
             client, event, frames, delay=delay, loops=loops,
-            name=name, stop_text=stop_text,
+            name=name, stop_text=stop_text, max_duration=max_dur
         )
 
     # ---- classics (upgraded) ----
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.hack$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.hack(?:\s+\d+)?$"))
     @client.flood_safe
     async def _hack(event):
         await _play(event, HACK_FRAMES, delay=0.6, loops=1, name="hack",
                     stop_text="⏹️ Hack aborted.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.dino$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.dino(?:\s+\d+)?$"))
     @client.flood_safe
     async def _dino(event):
         await _play(event, DINO_FRAMES, delay=0.4, name="dino",
                     stop_text="⏹️ Dino stopped.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.brain$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.brain(?:\s+\d+)?$"))
     @client.flood_safe
     async def _brain(event):
         await _play(event, BRAIN_FRAMES, delay=0.5, loops=1, name="brain",
                     stop_text="⏹️ Brain stopped.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.fuck$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.fuck(?:\s+\d+)?$"))
     @client.flood_safe
     async def _fuck(event):
         await _play(event, FUCK_FRAMES, delay=0.5, loops=1, name="fuck",
                     stop_text="⏹️ Stopped.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.moon$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.moon(?:\s+\d+)?$"))
     @client.flood_safe
     async def _moon(event):
         await _play(event, MOON_FRAMES, delay=0.5, loops=2, name="moon",
                     stop_text="⏹️ Moon stopped.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.clock$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.clock(?:\s+\d+)?$"))
     @client.flood_safe
     async def _clock(event):
         await _play(event, CLOCK_FRAMES, delay=0.5, loops=2, name="clock",
                     stop_text="⏹️ Clock stopped.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.earth$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.earth(?:\s+\d+)?$"))
     @client.flood_safe
     async def _earth(event):
         await _play(event, EARTH_FRAMES, delay=0.6, name="earth",
                     stop_text="⏹️ Earth stopped.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.heart$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.heart(?:\s+\d+)?$"))
     @client.flood_safe
     async def _heart(event):
         await _play(event, HEART_FRAMES, delay=0.35, name="heart",
                     stop_text="⏹️ Heart stopped.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.matrix$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.matrix(?:\s+\d+)?$"))
     @client.flood_safe
     async def _matrix(event):
         await _play(event, MATRIX_FRAMES, delay=0.5, name="matrix",
                     stop_text="⏹️ Matrix stopped.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.bomb$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.bomb(?:\s+\d+)?$"))
     @client.flood_safe
     async def _bomb(event):
         await _play(event, BOMB_FRAMES, delay=0.5, loops=1, name="bomb",
                     stop_text="⏹️ Bomb defused. 💣")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.rocket$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.rocket(?:\s+\d+)?$"))
     @client.flood_safe
     async def _rocket(event):
         await _play(event, ROCKET_FRAMES, delay=0.6, loops=1, name="rocket",
                     stop_text="⏹️ Launch aborted.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.loading$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.loading(?:\s+\d+)?$"))
     @client.flood_safe
     async def _loading(event):
         await _play(event, LOADING_FRAMES, delay=0.35, loops=1, name="loading",
                     stop_text="⏹️ Loading cancelled.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.wave$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.wave(?:\s+\d+)?$"))
     @client.flood_safe
     async def _wave(event):
         await _play(event, WAVE_FRAMES, delay=0.4, name="wave",
                     stop_text="⏹️ Wave stopped.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.dance$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.dance(?:\s+\d+)?$"))
     @client.flood_safe
     async def _dance(event):
         await _play(event, DANCE_FRAMES, delay=0.4, name="dance",
                     stop_text="⏹️ Dance stopped.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.ghost$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.ghost(?:\s+\d+)?$"))
     @client.flood_safe
     async def _ghost(event):
         await _play(event, GHOST_FRAMES, delay=0.5, name="ghost",
                     stop_text="⏹️ Ghost vanished.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.fire$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.fire(?:\s+\d+)?$"))
     @client.flood_safe
     async def _fire(event):
         await _play(event, FIRE_FRAMES, delay=0.4, name="fire",
                     stop_text="⏹️ Fire out.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.shoot$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.shoot(?:\s+\d+)?$"))
     @client.flood_safe
     async def _shoot(event):
         await _play(event, SHOOT_FRAMES, delay=0.5, loops=1, name="shoot",
                     stop_text="⏹️ Shot cancelled.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.stars$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.stars(?:\s+\d+)?$"))
     @client.flood_safe
     async def _stars(event):
         await _play(event, STARS_FRAMES, delay=0.4, name="stars",
                     stop_text="⏹️ Stars faded.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.loader$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.loader(?:\s+\d+)?$"))
     @client.flood_safe
     async def _loader(event):
         await _play(event, LOADER_FRAMES, delay=0.25, loops=1, name="loader",
                     stop_text="⏹️ Loader stopped.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.cointoss$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.cointoss(?:\s+\d+)?$"))
     @client.flood_safe
     async def _cointoss(event):
         result = random.choice(["👑 HEADS!", "🌙 TAILS!"])
@@ -907,7 +944,7 @@ def register_animations(client):
         await _play(event, frames, delay=0.4, loops=1, name="cointoss",
                     stop_text="⏹️ Toss cancelled.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.dice$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.dice(?:\s+\d+)?$"))
     @client.flood_safe
     async def _dice(event):
         result = random.choice(["⚀", "⚁", "⚂", "⚃", "⚄", "⚅"])
@@ -922,49 +959,49 @@ def register_animations(client):
         await _play(event, frames, delay=0.35, loops=1, name="dice",
                     stop_text="⏹️ Roll cancelled.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.rain$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.rain(?:\s+\d+)?$"))
     @client.flood_safe
     async def _rain(event):
         await _play(event, RAIN_FRAMES, delay=0.5, name="rain",
                     stop_text="⏹️ Rain stopped.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.snow$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.snow(?:\s+\d+)?$"))
     @client.flood_safe
     async def _snow(event):
         await _play(event, SNOW_FRAMES, delay=0.5, name="snow",
                     stop_text="⏹️ Snow stopped.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.siren$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.siren(?:\s+\d+)?$"))
     @client.flood_safe
     async def _siren(event):
         await _play(event, SIREN_FRAMES, delay=0.35, name="siren",
                     stop_text="⏹️ Siren off.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.fight$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.fight(?:\s+\d+)?$"))
     @client.flood_safe
     async def _fight(event):
         await _play(event, FIGHT_FRAMES, delay=0.5, loops=1, name="fight",
                     stop_text="⏹️ Fight stopped.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.snake$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.snake(?:\s+\d+)?$"))
     @client.flood_safe
     async def _snake(event):
         await _play(event, SNAKE_FRAMES, delay=0.4, name="snake",
                     stop_text="⏹️ Snake stopped.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.love$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.love(?:\s+\d+)?$"))
     @client.flood_safe
     async def _love(event):
         await _play(event, LOVE_FRAMES, delay=0.5, loops=1, name="love",
                     stop_text="⏹️ Love stopped.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.ninja$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.ninja(?:\s+\d+)?$"))
     @client.flood_safe
     async def _ninja(event):
         await _play(event, NINJA_FRAMES, delay=0.5, loops=1, name="ninja",
                     stop_text="⏹️ Ninja vanished.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.countdown$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.countdown(?:\s+\d+)?$"))
     @client.flood_safe
     async def _countdown(event):
         nums = ["🔟", "9️⃣", "8️⃣", "7️⃣", "6️⃣",
@@ -973,7 +1010,7 @@ def register_animations(client):
         await _play(event, frames, delay=0.8, loops=1, name="countdown",
                     stop_text="⏹️ Countdown aborted.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.typewriter$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.typewriter(?:\s+\d+)?$"))
     @client.flood_safe
     async def _typewriter(event):
         text = "⚡ Sukuna-X Userbot ⚡"
@@ -981,164 +1018,164 @@ def register_animations(client):
         await _play(event, frames, delay=0.18, loops=1, name="typewriter",
                     stop_text="⏹️ Typing stopped.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.balloon$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.balloon(?:\s+\d+)?$"))
     @client.flood_safe
     async def _balloon(event):
         await _play(event, BALLOON_FRAMES, delay=0.5, loops=1, name="balloon",
                     stop_text="⏹️ Balloon popped. 🎈")
 
     # ---- brand-new animations ----
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.party$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.party(?:\s+\d+)?$"))
     @client.flood_safe
     async def _party(event):
         await _play(event, PARTY_FRAMES, delay=0.4, name="party",
                     stop_text="⏹️ Party over.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.think$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.think(?:\s+\d+)?$"))
     @client.flood_safe
     async def _think(event):
         await _play(event, THINK_FRAMES, delay=0.5, loops=1, name="think",
                     stop_text="⏹️ Stopped thinking.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.sleep$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.sleep(?:\s+\d+)?$"))
     @client.flood_safe
     async def _sleep(event):
         await _play(event, SLEEP_FRAMES, delay=0.6, name="sleep",
                     stop_text="⏹️ Woke up!")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.run$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.run(?:\s+\d+)?$"))
     @client.flood_safe
     async def _run(event):
         await _play(event, RUN_FRAMES, delay=0.45, loops=1, name="run",
                     stop_text="⏹️ Stopped running.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.plane$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.plane(?:\s+\d+)?$"))
     @client.flood_safe
     async def _plane(event):
         await _play(event, PLANE_FRAMES, delay=0.4, loops=1, name="plane",
                     stop_text="⏹️ Flight cancelled.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.train$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.train(?:\s+\d+)?$"))
     @client.flood_safe
     async def _train(event):
         await _play(event, TRAIN_FRAMES, delay=0.5, loops=1, name="train",
                     stop_text="⏹️ Train halted.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.storm$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.storm(?:\s+\d+)?$"))
     @client.flood_safe
     async def _storm(event):
         await _play(event, STORM_FRAMES, delay=0.5, loops=1, name="storm",
                     stop_text="⏹️ Storm passed.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.kiss$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.kiss(?:\s+\d+)?$"))
     @client.flood_safe
     async def _kiss(event):
         await _play(event, KISS_FRAMES, delay=0.5, loops=1, name="kiss",
                     stop_text="⏹️ Kiss stopped.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.slap$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.slap(?:\s+\d+)?$"))
     @client.flood_safe
     async def _slap(event):
         await _play(event, SLAP_FRAMES, delay=0.5, loops=1, name="slap",
                     stop_text="⏹️ Slap dodged.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.magic$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.magic(?:\s+\d+)?$"))
     @client.flood_safe
     async def _magic(event):
         await _play(event, MAGIC_FRAMES, delay=0.45, loops=1, name="magic",
                     stop_text="⏹️ Magic fizzled.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.coin$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.coin(?:\s+\d+)?$"))
     @client.flood_safe
     async def _coin(event):
         await _play(event, COIN_FRAMES, delay=0.3, name="coin",
                     stop_text="⏹️ Coin stopped.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.typing$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.typing(?:\s+\d+)?$"))
     @client.flood_safe
     async def _typing(event):
         await _play(event, TYPING_FRAMES, delay=0.35, name="typing",
                     stop_text="⏹️ Typing stopped.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.tank$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.tank(?:\s+\d+)?$"))
     @client.flood_safe
     async def _tank(event):
         await _play(event, TANK_FRAMES, delay=0.5, loops=1, name="tank",
                     stop_text="⏹️ Tank retreated.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.pacman$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.pacman(?:\s+\d+)?$"))
     @client.flood_safe
     async def _pacman(event):
         await _play(event, PACMAN_FRAMES, delay=0.4, loops=1, name="pacman",
                     stop_text="⏹️ Pacman stopped.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.pong$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.pong(?:\s+\d+)?$"))
     @client.flood_safe
     async def _pong(event):
         await _play(event, PONG_FRAMES, delay=0.35, name="pong",
                     stop_text="⏹️ Pong stopped.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.coffee$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.coffee(?:\s+\d+)?$"))
     @client.flood_safe
     async def _coffee(event):
         await _play(event, COFFEE_FRAMES, delay=0.5, loops=1, name="coffee",
                     stop_text="⏹️ Coffee spilled.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.sunrise$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.sunrise(?:\s+\d+)?$"))
     @client.flood_safe
     async def _sunrise(event):
         await _play(event, SUNRISE_FRAMES, delay=0.6, loops=1, name="sunrise",
                     stop_text="⏹️ Sunrise stopped.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.car$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.car(?:\s+\d+)?$"))
     @client.flood_safe
     async def _car(event):
         await _play(event, CAR_FRAMES, delay=0.4, loops=1, name="car",
                     stop_text="⏹️ Car parked.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.ship$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.ship(?:\s+\d+)?$"))
     @client.flood_safe
     async def _ship(event):
         await _play(event, SHIP_FRAMES, delay=0.5, name="ship",
                     stop_text="⏹️ Ship anchored.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.ufo$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.ufo(?:\s+\d+)?$"))
     @client.flood_safe
     async def _ufo(event):
         await _play(event, UFO_FRAMES, delay=0.45, loops=1, name="ufo",
                     stop_text="⏹️ UFO escaped.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.portal$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.portal(?:\s+\d+)?$"))
     @client.flood_safe
     async def _portal(event):
         await _play(event, PORTAL_FRAMES, delay=0.45, loops=1, name="portal",
                     stop_text="⏹️ Portal closed.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.wizard$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.wizard(?:\s+\d+)?$"))
     @client.flood_safe
     async def _wizard(event):
         await _play(event, WIZARD_FRAMES, delay=0.6, loops=1, name="wizard",
                     stop_text="⏹️ The wizard vanished.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.galaxy$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.galaxy(?:\s+\d+)?$"))
     @client.flood_safe
     async def _galaxy(event):
         await _play(event, GALAXY_FRAMES, delay=0.5, name="galaxy",
                     stop_text="⏹️ Galaxy stopped spinning.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.fireworks$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.fireworks(?:\s+\d+)?$"))
     @client.flood_safe
     async def _fireworks(event):
         await _play(event, FIREWORKS_FRAMES, delay=0.35, name="fireworks",
                     stop_text="⏹️ Fireworks over.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.dj$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.dj(?:\s+\d+)?$"))
     @client.flood_safe
     async def _dj(event):
         await _play(event, DJ_FRAMES, delay=0.3, name="dj",
                     stop_text="⏹️ Music stopped.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.battery$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.battery(?:\s+\d+)?$"))
     @client.flood_safe
     async def _battery(event):
         await _play(event, BATTERY_FRAMES, delay=0.45, loops=1, name="battery",
@@ -1147,129 +1184,145 @@ def register_animations(client):
     # ---- .anims : aesthetic gallery ----
 
     # ---- v5.2 story packs ----
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.nuke$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.nuke(?:\s+\d+)?$"))
     @client.flood_safe
     async def _nuke(event):
         await _play(event, NUKE_FRAMES, delay=0.55, loops=1, name="nuke",
                     stop_text="⏹️ Nuke aborted.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.kill$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.kill(?:\s+\d+)?$"))
     @client.flood_safe
     async def _kill(event):
         await _play(event, KILL_FRAMES, delay=0.5, loops=1, name="kill",
                     stop_text="⏹️ Kill aborted.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.dragon$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.dragon(?:\s+\d+)?$"))
     @client.flood_safe
     async def _dragon(event):
         await _play(event, DRAGON_FRAMES, delay=0.45, name="dragon",
                     stop_text="⏹️ Dragon stopped.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.rose$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.rose(?:\s+\d+)?$"))
     @client.flood_safe
     async def _rose(event):
         await _play(event, ROSE_FRAMES, delay=0.55, loops=1, name="rose",
                     stop_text="⏹️ Rose stopped.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.moneyrain$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.moneyrain(?:\s+\d+)?$"))
     @client.flood_safe
     async def _moneyrain(event):
         await _play(event, MONEY_FRAMES, delay=0.4, name="moneyrain",
                     stop_text="⏹️ Money rain stopped.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.ocean$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.ocean(?:\s+\d+)?$"))
     @client.flood_safe
     async def _ocean(event):
         await _play(event, OCEAN_FRAMES, delay=0.4, name="ocean",
                     stop_text="⏹️ Ocean stopped.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.holi$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.holi(?:\s+\d+)?$"))
     @client.flood_safe
     async def _holi(event):
         await _play(event, HOLI_FRAMES, delay=0.45, loops=2, name="holi",
                     stop_text="⏹️ Holi stopped.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.diwali$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.diwali(?:\s+\d+)?$"))
     @client.flood_safe
     async def _diwali(event):
         await _play(event, DIWALI_FRAMES, delay=0.55, loops=1, name="diwali",
                     stop_text="⏹️ Diwali stopped.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.virus$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.virus(?:\s+\d+)?$"))
     @client.flood_safe
     async def _virus(event):
         await _play(event, VIRUS_FRAMES, delay=0.5, loops=1, name="virus",
                     stop_text="⏹️ Virus scan stopped.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.zombie$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.zombie(?:\s+\d+)?$"))
     @client.flood_safe
     async def _zombie(event):
         await _play(event, ZOMBIE_FRAMES, delay=0.45, loops=2, name="zombie",
                     stop_text="⏹️ Zombie horde stopped.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.race$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.race(?:\s+\d+)?$"))
     @client.flood_safe
     async def _race(event):
         await _play(event, _race_frames(), delay=0.5, loops=1, name="race",
                     stop_text="⏹️ Race cancelled.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.casino$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.casino(?:\s+\d+)?$"))
     @client.flood_safe
     async def _casino(event):
         await _play(event, _casino_frames(), delay=0.42, loops=1, name="casino",
                     stop_text="⏹️ Casino closed.")
 
     # ---- v5.3 showcase ----
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.bigoof$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.bigoof(?:\s+\d+)?$"))
     @client.flood_safe
     async def _bigoof(event):
         await _play(event, BIGOOF_FRAMES, delay=0.35, loops=1, name="bigoof",
                     stop_text="⏹️ OOF aborted.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.theart$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.theart(?:\s+\d+)?$"))
     @client.flood_safe
     async def _theart(event):
         await _play(event, THEART_FRAMES, delay=0.4, name="theart",
                     stop_text="⏹️ Heart stopped.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.police$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.police(?:\s+\d+)?$"))
     @client.flood_safe
     async def _police(event):
         await _play(event, POLICE_FRAMES, delay=0.35, name="police",
                     stop_text="⏹️ Police stopped.")
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.butterfly$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.butterfly(?:\s+\d+)?$"))
     @client.flood_safe
     async def _butterfly(event):
         await _play(event, BUTTERFLY_FRAMES, delay=0.4, name="butterfly",
                     stop_text="⏹️ Butterfly flew away.")
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.anims$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.anims(?:\s+(.*))?$"))
     @client.flood_safe
     async def _anims(event):
+        # compact premium gallery — 2 columns, paginated via .anims 2 etc
+        args = (event.pattern_match.group(1) if hasattr(event.pattern_match, 'group') else None)
+        # pattern doesn't have arg currently, so check raw text
+        txt = event.text.strip()
+        page = 1
+        parts = txt.split()
+        if len(parts) > 1 and parts[1].isdigit():
+            page = max(1, int(parts[1]))
+        all_anims = [
+            ".hack", ".matrix", ".bomb", ".shoot", ".loading", ".loader",
+            ".moon", ".clock", ".earth", ".stars", ".heart", ".love", ".kiss", ".slap",
+            ".fire", ".rocket", ".dance", ".wave", ".ghost", ".party", ".rain", ".snow",
+            ".storm", ".siren", ".snake", ".dino", ".ninja", ".fight", ".plane", ".train",
+            ".tank", ".run", ".dice", ".cointoss", ".coin", ".magic", ".brain", ".think",
+            ".sleep", ".typing", ".balloon", ".fuck", ".countdown", ".typewriter",
+            ".pacman", ".pong", ".coffee", ".sunrise", ".car", ".ship", ".ufo",
+            ".portal", ".wizard", ".galaxy", ".fireworks", ".dj", ".battery",
+            ".nuke", ".kill", ".dragon", ".zombie", ".rose", ".moneyrain", ".ocean",
+            ".holi", ".diwali", ".virus", ".race", ".casino", ".bigoof", ".theart",
+            ".police", ".butterfly"
+        ]
+        per_page = 20
+        pages = (len(all_anims) + per_page - 1) // per_page
+        page = max(1, min(page, pages))
+        chunk = all_anims[(page-1)*per_page : page*per_page]
+        # 2 columns
+        lines = []
+        for i in range(0, len(chunk), 2):
+            left = chunk[i]
+            right = chunk[i+1] if i+1 < len(chunk) else ""
+            if right:
+                lines.append(f"{left:<14} {right}")
+            else:
+                lines.append(left)
+        body = "\n".join(lines)
         await event.edit(
-            "✦ ━━━━〔 🎬 ANIMATIONS · 73 〕━━━━ ✦\n"
-            "┃ ⚡ `.hack` `.matrix` `.loading` `.loader`\n"
-            "┃ 🌙 `.moon` `.clock` `.earth` `.stars`\n"
-            "┃ ❤️ `.heart` `.love` `.kiss` `.slap`\n"
-            "┃ 🔥 `.fire` `.bomb` `.rocket` `.shoot`\n"
-            "┃ 🎭 `.dance` `.wave` `.ghost` `.party`\n"
-            "┃ 🌧️ `.rain` `.snow` `.storm` `.siren`\n"
-            "┃ 🐍 `.snake` `.dino` `.ninja` `.fight`\n"
-            "┃ ✈️ `.plane` `.train` `.tank` `.run`\n"
-            "┃ 🎲 `.dice` `.cointoss` `.coin` `.magic`\n"
-            "┃ 🧠 `.brain` `.think` `.sleep` `.typing`\n"
-            "┃ 🎈 `.balloon` `.fuck` `.countdown`\n"
-            "┃ ⌨️ `.typewriter`\n"
-            "┃ 🕹️ `.pacman` `.pong` `.coffee` `.sunrise`\n"
-            "┃ 🚗 `.car` `.ship` `.ufo`\n"
-            "┃ 🌀 `.portal` `.wizard` `.galaxy`\n"
-            "┃ 🎆 `.fireworks` `.dj` `.battery`\n"
-            "┃ 💣 `.nuke` `.kill` `.dragon` `.zombie`\n"
-            "┃ 🌹 `.rose` `.moneyrain` `.ocean` `.holi`\n"
-            "┃ 🪔 `.diwali` `.virus` `.race` `.casino`\n"
-            "┃ 🎪 `.bigoof` `.theart` `.police` `.butterfly`\n"
-            "✦ ━━━━━━━━━━━━━━━━━━━━━ ✦\n"
-            "⏹️ Stop any loop with `.stop`",
+            f"🎬 **Animations** — {len(all_anims)} total • Page {page}/{pages}\n"
+            f"{body}\n\n"
+            f"`.anims 2` next • `.anims <name>` play • `.stop` to stop\n"
+            f"👑 Sukuna: `.sukuna` `.domainx` `.khatarnak` `.tagra`",
             link_preview=False,
         )
 
