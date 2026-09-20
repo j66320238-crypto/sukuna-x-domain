@@ -34,6 +34,9 @@
 - `.premiumsticker off` → auto band
 - `.premiumsticker <text>` / `.pemoji <text>` → one-time premium message
 - `.pestatus` → mode + cached emoji documents
+- `.petest` → verify premium rendering on your account · `.pereset` → clear cached emoji docs (fixes black-dot emojis)
+- Emoji docs with `free=True` preferred — renders for every account, no placeholders
+- 1.5s anti-conflict cooldown + skips messages that already have custom entities
 - Tech: Telegram `SearchCustomEmoji` RPC se emoji→document mapping (permanent cache), `MessageEntityCustomEmoji` with correct UTF-16 offsets, ZWJ/flags/VS16 support, flood-safe
 
 ### 🎮 NEW: Mini Games plugin
@@ -180,6 +183,6 @@ cd sukuna-x-domain && bash termux-setup.sh
 | `.safemode fast\|normal\|paranoid` | anti-ban profile |
 
 ## ✅ Tested
-32 plugins · 420 handlers · 306 cmds in registry · 83 anims · **JioSaavn live test: search + 320kbps download + artwork + iTunes fallback chain** · flood-storm autopilot unit test (3 floods → paranoid + ×3 + cooldown) · raksha persistence · premium-emoji regex (7 cases: ZWJ/flags/VS16) + UTF-16 entity offsets unit-tested · idvault snapshot save/list helpers unit-tested · games RPS logic · 88 anims · DP pool add/list/get/set/delete/renumber unit-tested · smart pixel-match current-DP detection (recompression-safe) · live timer change (.dptime restart logic) · plugin type grouping · interval parser edge cases · all help renders <4096 chars · button menu + fallback · AI text+image endpoints · DDG image search · YouTube search regex · dictionary (2 sources) · PyPI · xkcd · dog.ceo · randomfox · compile + registration suite green.
+32 plugins · 420 handlers · 306 cmds in registry · 83 anims · **JioSaavn live test: search + 320kbps download + artwork + iTunes fallback chain** · tests/test_commands.py offline harness: 68 commands × fake client — 68/68 pass, 0 crashes · flood-storm autopilot unit test (3 floods → paranoid + ×3 + cooldown) · raksha persistence · premium-emoji regex (7 cases: ZWJ/flags/VS16) + UTF-16 entity offsets unit-tested · idvault snapshot save/list helpers unit-tested · games RPS logic · 88 anims · DP pool add/list/get/set/delete/renumber unit-tested · smart pixel-match current-DP detection (recompression-safe) · live timer change (.dptime restart logic) · plugin type grouping · interval parser edge cases · all help renders <4096 chars · button menu + fallback · AI text+image endpoints · DDG image search · YouTube search regex · dictionary (2 sources) · PyPI · xkcd · dog.ceo · randomfox · compile + registration suite green.
 
 Repo: https://github.com/j66320238-crypto/sukuna-x-domain.git

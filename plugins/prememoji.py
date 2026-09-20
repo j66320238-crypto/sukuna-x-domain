@@ -24,6 +24,7 @@ _PE_FILE = os.path.join(DATA_DIR, "prememoji.json")
 _PE_STATE = {"on": False}
 _PE_MAP = {}            # emoji → document_id
 _PE_SKIP = set()        # message ids we already premium-ified (no loops)
+_PE_LAST_AUTO = 0.0     # cooldown between auto conversions (anti-conflict)
 
 # common emojis incl. ZWJ sequences, variation selectors, flags, hearts…
 _EMOJI_CORE = (
@@ -81,14 +82,18 @@ async def _pe_resolve(client, emojis) -> dict:
         try:
             res = await client(SearchCustomEmojiRequest(emoticon=e, hash=0))
             docs = getattr(res, "documents", None) or []
-            doc_id = None
+            best_free, best_any = None, None
             for d in docs:
                 for attr in (getattr(d, "attributes", None) or []):
                     if attr.__class__.__name__ == "DocumentAttributeCustomEmoji" \
                             and getattr(attr, "alt", "") == e:
-                        doc_id = d.id
-            if doc_id is None and docs:
-                doc_id = docs[0].id
+                        # prefer FREE documents — they render for every
+                        # account (non-premium included); no black dots.
+                        if getattr(attr, "free", False) and best_free is None:
+                            best_free = d.id
+                        if best_any is None:
+                            best_any = d.id
+            doc_id = best_free or best_any or (docs[0].id if docs else None)
             if doc_id:
                 _PE_MAP[e] = doc_id
                 out[e] = doc_id
@@ -143,12 +148,16 @@ def register_prememoji(client):
     # ---- auto mode: outgoing messages ----
     @client.on(events.NewMessage(outgoing=True))
     async def _pe_auto(event):
+        global _PE_LAST_AUTO
         try:
             if not _PE_STATE["on"]:
                 return
-            if storm_active():      # 🚨 ban-storm me convert skip — ID safe
+            if storm_active():      # 🚨 during a ban-storm, skip — ID safe
                 return
             if event.id in _PE_SKIP:
+                return
+            now = time.time()
+            if now - _PE_LAST_AUTO < 1.5:   # anti-conflict cooldown
                 return
             text = event.text or ""
             if not text or text.startswith(".") or text.startswith("/"):
@@ -158,8 +167,13 @@ def register_prememoji(client):
             # only auto-convert plain user messages (no media, no fwd)
             if event.media or event.fwd_from or event.via_bot:
                 return
+            # already has custom-emoji entities? leave it alone (no fights)
+            for ent in (event.entities or []):
+                if ent.__class__.__name__ == "MessageEntityCustomEmoji":
+                    return
             ok = await _pe_send_premium(client, event, text, reply_to=event.reply_to_msg_id)
             if ok:
+                _PE_LAST_AUTO = now
                 log.info("[prememoji] auto-converted msg %s", event.id)
         except FloodWaitError as fw:
             note_flood(fw.seconds)
@@ -205,6 +219,28 @@ def register_prememoji(client):
                 "⚠️ These emojis have no premium documents (your account may be limited).\n"
                 "💡 Try simple emojis: 🙂 😂 ❤️ 🔥")
 
+    # ---- .petest : verify premium rendering on this account ----
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.petest$"))
+    @client.flood_safe
+    async def _pe_test(event):
+        sample = "Sukuna-X premium test 🙂 😂 ❤️ 🔥 😎 🎉"
+        await event.edit("✨ Testing premium emoji rendering…")
+        ok = await _pe_send_premium(client, event, sample, reply_to=None)
+        if not ok:
+            await event.edit(
+                "❌ Could not convert the test emojis.\n"
+                "💡 Run `.pereset` once, then try again. If it still fails, "
+                "this account cannot send custom emojis (Telegram restriction).")
+
+    # ---- .pereset : clear cached emoji documents ----
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.pereset$"))
+    @client.flood_safe
+    async def _pe_reset(event):
+        _PE_MAP.clear()
+        _pe_save()
+        await event.edit("🧹 Emoji document cache cleared — fresh documents "
+                         "will be fetched on next use. Try `.petest`.")
+
     # ---- .pestatus ----
     @client.on(events.NewMessage(outgoing=True, pattern=r"^\.pestatus$"))
     @client.flood_safe
@@ -228,6 +264,8 @@ COMMANDS_PREMEMOJI = {
         (".premiumsticker on|off", "AUTO premium emoji mode (no bot tag)"),
         (".premiumsticker <text>", "one-time premium emoji message"),
         (".pemoji <text>", "alias — one-time convert"),
+        (".petest", "test premium rendering on this account"),
+        (".pereset", "clear cached emoji documents"),
         (".pestatus", "mode + cached emoji documents"),
     ],
 }
