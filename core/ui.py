@@ -81,7 +81,7 @@ _MODULE_TYPES = {
     # 🔧 utility
     "tools": "Utility", "misc": "Utility", "util": "Utility", "net": "Utility",
     "info": "Utility", "texttools": "Utility", "remind": "Utility",
-    "safety": "Utility",
+    "safety": "Utility", "apis": "Utility",
     # 🎉 fun
     "fun": "Fun", "party": "Fun", "extra": "Fun", "games": "Fun", "prememoji": "Fun",
     # 📨 mass actions

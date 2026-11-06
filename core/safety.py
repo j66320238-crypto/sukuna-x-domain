@@ -137,6 +137,27 @@ def storm_left() -> int:
     return max(0, int(STORM_UNTIL - time.time()))
 
 
+def big_flood_guard(seconds: int) -> None:
+    """🚨 v7.2 — ek hi BADA FloodWait (≥120s) = instant paranoid brake.
+
+    Storm 3 chhote floods pe trigger hota hai; ye ek bade flood pe turant
+    lagta hai — kyunki itna bada wait matlab Telegram already naraz hai.
+    Cooldown = flood ka 2× (min 10 min, max 1 hour). Raksha off → no-op.
+    """
+    global STORM_UNTIL, _STORM_PREV_PROFILE
+    now = time.time()
+    if not RAKSHA or now < STORM_UNTIL:
+        return
+    secs = max(0, int(seconds or 0))
+    STORM_UNTIL = now + min(max(secs * 2, 600), 3600)
+    _STORM_PREV_PROFILE = SAFETY.get("profile", "normal")
+    SAFETY["profile"] = "paranoid"
+    SAFETY["mult"] = max(SAFETY["mult"], 2.5)
+    _log.warning("🚨 BIG FLOOD (%ds) → instant paranoid brake %ds. "
+                 "ID protection autopilot engaged.", secs,
+                 int(STORM_UNTIL - now))
+
+
 def hour_sends() -> int:
     cut = time.monotonic() - 3600
     while _HOUR_WINDOW and _HOUR_WINDOW[0] < cut:

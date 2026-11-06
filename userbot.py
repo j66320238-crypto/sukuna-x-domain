@@ -14,6 +14,7 @@ Core engine lives in core/ — split into config, safety, store, accounts, etc.
 Easy to update: `git pull` + `bash start.sh` or `.update` inside Telegram.
 """
 import asyncio
+import logging          # v7.2 fix: pehle yahan import nahi tha → file-log silently kaam nahi karta tha
 import os
 import sys
 import time
@@ -139,7 +140,10 @@ async def main() -> None:
         connection_retries=None,
         retry_delay=1,
         request_retries=5,
-        flood_sleep_threshold=60,
+        # 🛡 v7.2: 60 → 20 — chhote floods Telethon khud sambhalta hai,
+        # bade floods (20s+) ab raise hote hain → hamara engine unhe pakadta
+        # hai (note_flood + storm detect + adaptive backoff). Zyada protection.
+        flood_sleep_threshold=20,
     )
     try:
         client.parse_mode = "md"

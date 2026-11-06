@@ -138,6 +138,8 @@ from .safety import (
     safe_mode_on, safety_line,
     # v7.1 BAN-PROOF SHIELD
     raksha_on, raksha_set, storm_active, storm_left, hour_sends, day_sends,
+    # v7.2 big-flood instant brake
+    big_flood_guard,
 )
 from .accounts import ACCOUNT, _safe_name, _acc_cfg_load, _acc_cfg_save, resolve_credentials
 from .helpers import _web_get, _web_dl, _fmt_uptime

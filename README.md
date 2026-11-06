@@ -1,14 +1,57 @@
-# ⚡ SUKUNA-X DOMAIN v7.0 — PHANTOM EDITION 👑
+# ⚡ SUKUNA-X DOMAIN v7.2 — PHANTOM EDITION 👑
 
-**32 plugins · 420 handlers · 306 cmds · 88 animations · PREMIUM EMOJIS · v7.1 BAN-PROOF SHIELD · JioSaavn music · ID Backup/Restore · interactive button menu · AI tools · DP Auto-Rotator · plugin categories · zero-flood engine**
+**33 plugins · 440+ handlers · 320+ cmds · 88 animations · TYPE-X auto-typewriter · 13 naye API commands · v7.2 BAN-PROOF SHIELD+ · JioSaavn music · ID Backup/Restore · interactive button menu · AI tools · DP Auto-Rotator · zero-flood engine**
 
 ```
 ✦━━━━━━〔 ⚡ SUKUNA-X DOMAIN ⚡ 〕━━━━━━✦
-        👑 v7.0 PHANTOM EDITION 👑
-   Premium Help • Interactive Menu • AI Tools
-🛡️ 5-layer anti-ban shield · human delays · no flood
+        👑 v7.2 PHANTOM EDITION 👑
+   TYPE-X auto-typewriter · 13 new APIs
+🛡️ 6-layer anti-ban shield · human delays · no flood
 ✦ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ ✦
 ```
+
+---
+
+## 🔥 What's New in v7.2 (is update me)
+
+### ⌨️ TYPE-X — AUTO TYPEWRITER SYSTEM (sabse bada feature!)
+- `.type on` → ab tumhara **har message** automatic typewriter animation me jayega — bilkul `.type` jaisa, bas auto!
+- `.type off` (ya `.type of`) → auto mode band
+- **12 alag-alag styles** — `.type styles` dekho:
+  - `classic` ▌ cursor · `wave` bold wave · `glitch` ░▒▓ blocks resolve · `scramble` random letters decode · `matrix` binary bits · `pulse` 💓 · `fire` 🔥 · `hearts` ❤️ · `zoom` spacing se zoom-in · `eraser` type→erase→retype · `reverse` ulta type · `random` har message naya style
+- `.type glitch` → style set · `.type speed 0.2` → frame speed (0.05–1.0s) · `.type status` → full card
+- `.type <text>` → one-shot animation (purana behaviour, ab styles ke saath)
+- **Flood-proof design:** ≤48 frames/message cap, edit throttle + jitter, ek-waqt-me-ek-animation lock, storm/flood me auto-skip, bot-sent messages (raid/spam/echo) kabhi animate nahi hote, final frame me user ka exact original text wapas
+- Restart-proof — `data/typex.json` me state save hota hai
+- Premium-emoji auto mode ke saath conflict-free (dono ek saath ON rakh sakte ho)
+
+### 🌐 13 NAYE API COMMANDS (sab free, NO API keys, sab live-tested)
+| Command | Kya karta hai |
+|---|---|
+| `.age <name>` | naam se age guess (census data) |
+| `.gender <name>` | naam se gender probability |
+| `.nat <name>` | naam ke top nationalities |
+| `.horo <sign>` | daily horoscope — **desi naam bhi**: `.horo singh` `.horo mesh` |
+| `.news [topic]` | top headlines / topic search (BBC + Google News) |
+| `.dns <domain> [a\|aaaa\|mx\|txt]` | DNS records lookup |
+| `.riddle` | riddle + 10 second baad answer reveal |
+| `.catfact` | random cat fact |
+| `.uselessfact` | random useless fact |
+| `.kanye` | Kanye West quote |
+| `.duck` | random duck pic |
+| `.cafe` | random coffee pic |
+| `.nasa` | NASA astronomy picture of the day |
+
+### 🛡 FLOODWAIT PROTECTION v7.2 — ab aur tagra
+- **flood_safe retry-cap (5)**: pehle infinite retry loop tha jo hang kar sakta tha — ab 5 attempts ke baad graceful skip
+- **Big-flood guard**: 120s+ ka FloodWait aate hi **instant paranoid mode** (×2.5 slow + 10–60 min cooldown) — storm ka intezar nahi
+- **flood_sleep_threshold 60→20**: bade floods (20s+) ab Telethon se raise hoke hamare engine me aate hain → storm detection + adaptive backoff turant active
+- 900s+ flood pe bail-out — bot kabhi permanently block nahi hota
+
+### 🔧 BUG FIXES
+- **File logging fix**: `userbot.py` me `logging` import missing tha → rotating file log (data/userbot.log) silently kabhi kaam nahi karta tha. Ab fix.
+- **pytest fix**: `tests/conftest.py` add hua — `pytest tests/` ab async tests bhi chalata hai (pehle "async def not supported" error aata tha). Ab `pytest` = 15/15 pass
+- Sab purane commands waise ke waise — **kuch bhi remove NAHI hua** (306 → 320+ cmds, sirf add hua)
 
 ---
 
@@ -164,8 +207,8 @@ Protection: har upload se pehle throttle + human delay, FloodWait pe auto-sleep 
 ```
 sukuna-x-domain/
 ├── userbot.py          # bootstrapper only
-├── core/               # engine — config, safety (5-layer), accounts, ui (v7), banner…
-├── plugins/ (29)       # drop-in auto-load: profile, animations, ai, web, sukuna, farmer…
+├── core/               # engine — config, safety (6-layer), accounts, ui (v7), banner…
+├── plugins/ (33)       # drop-in auto-load: profile, animations, ai, web, apis, sukuna, farmer…
 ├── data/ (gitignored)  # sessions, logs, profiles, pfps — never overwritten on git pull
 ├── start.sh            # one-command launcher
 └── termux-setup.sh     # Termux one-command setup
@@ -200,6 +243,8 @@ cd sukuna-x-domain && bash termux-setup.sh
 |---|---|
 | `.alive` | premium online card |
 | `.help` / `.h` | premium help menu |
+| `.type on` / `.type off` | **AUTO typewriter — har message animated!** |
+| `.type styles` / `.type glitch` | 12 animation styles |
 | `.menu` | **interactive button menu** |
 | `.cmds` | full command list |
 | `.plist` / `.stats` | plugin table / deep stats |
@@ -218,6 +263,6 @@ cd sukuna-x-domain && bash termux-setup.sh
 | `.safemode fast\|normal\|paranoid` | anti-ban profile |
 
 ## ✅ Tested
-32 plugins · 420 handlers · 306 cmds in registry · 83 anims · **JioSaavn live test: search + 320kbps download + artwork + iTunes fallback chain** · tests/test_commands.py offline harness: 68 commands × fake client — 68/68 pass, 0 crashes · flood-storm autopilot unit test (3 floods → paranoid + ×3 + cooldown) · raksha persistence · premium-emoji regex (7 cases: ZWJ/flags/VS16) + UTF-16 entity offsets unit-tested · idvault snapshot save/list helpers unit-tested · games RPS logic · 88 anims · DP pool add/list/get/set/delete/renumber unit-tested · smart pixel-match current-DP detection (recompression-safe) · live timer change (.dptime restart logic) · plugin type grouping · interval parser edge cases · all help renders <4096 chars · button menu + fallback · AI text+image endpoints · DDG image search · YouTube search regex · dictionary (2 sources) · PyPI · xkcd · dog.ceo · randomfox · compile + registration suite green.
+33 plugins · 440+ handlers · 320+ cmds in registry · 88 anims · **JioSaavn live test: search + 320kbps download + artwork + iTunes fallback chain** · tests/test_commands.py offline harness: 68 commands × fake client — 68/68 pass, 0 crashes · **TYPE-X: 12 styles frame-valid + 300-char cap + persistence + auto-mode guards (commands/media/entities/bot-sent/OFF skip) + 3-fail break — sab unit-tested** · **APIs: horo resolve (western+desi) + RSS parse (CDATA/entities) + DNS rows mapping unit-tested** · flood-storm autopilot unit test (3 floods → paranoid + ×3 + cooldown) · big-flood guard (120s → instant paranoid) · raksha persistence · premium-emoji regex (7 cases: ZWJ/flags/VS16) + UTF-16 entity offsets unit-tested · idvault snapshot save/list helpers unit-tested · games RPS logic · 88 anims · DP pool add/list/get/set/delete/renumber unit-tested · smart pixel-match current-DP detection (recompression-safe) · live timer change (.dptime restart logic) · plugin type grouping · interval parser edge cases · all help renders <4096 chars · button menu + fallback · AI text+image endpoints · DDG image search · YouTube search regex · dictionary (2 sources) · PyPI · xkcd · dog.ceo · randomfox · 13 naye API endpoints live-verified (agify genderize nationalize catfact uselessfact kanye duck cafe riddle horoscope dns.google BBC-RSS NASA) · compile + registration suite green · pytest 15/15.
 
 Repo: https://github.com/j66320238-crypto/sukuna-x-domain.git

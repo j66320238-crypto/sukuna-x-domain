@@ -35,8 +35,293 @@ _8BALL = [
 ]
 
 
+# ============================================================================
+#  TYPE-X ⌨️ — auto typewriter system
+#  .type on          → ab HAR message automatic typewriter animation me jayega
+#  .type off         → auto mode band (".type of" bhi chalega)
+#  .type styles      → saare styles ki gallery
+#  .type <style>     → style set karo (classic wave glitch scramble matrix
+#                      pulse fire hearts zoom eraser reverse random)
+#  .type speed 0.2   → frame speed set (0.05–1.0s)
+#  .type status      → mode / style / speed card
+#  .type <text>      → one-shot animation (purana behaviour, ab styles ke saath)
+#  Flood-safe: edit throttle + jitter + frame cap + storm guard + single-lock
+# ============================================================================
+
+_TX_FILE = os.path.join(DATA_DIR, "typex.json")
+_TX_STATE = {"on": False, "style": "classic", "speed": 0.15}
+_TX_BUSY = set()        # message ids being animated (loop guard)
+_TX_BOT_SENT = set()    # ids sent via client.send_message → auto-mode skip
+_TX_LOCK = None         # single-animation lock (no edit storms)
+_TX_LAST_AUTO = 0.0     # cooldown between auto animations
+
+_TX_STYLES = ("classic", "wave", "glitch", "scramble", "matrix", "pulse",
+              "fire", "hearts", "zoom", "eraser", "reverse", "random")
+_TX_CURSORS = {
+    "pulse": ("💓", "❤️", "💗", "💖"),
+    "fire": ("🔥", "✨", "💥", "💨"),
+    "hearts": ("❤️", "💖", "💘", "💕"),
+}
+_GLITCH_CHARS = "░▒▓█▓▒░▒▓"
+_SCRAMBLE_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789"
+_TX_MAX_CHARS = 300     # isse lambe messages auto-animate nahi hote
+_TX_MAX_FRAMES = 24     # per-message frame cap (flood-safe)
+_TX_STYLE_HINTS = {
+    "classic":  "classi typewriter cursor ▌",
+    "wave":     "bold wave char-by-char",
+    "glitch":   "░▒▓ glitch blocks resolve hote hain",
+    "scramble": "random letters decode ho ke text bante hain",
+    "matrix":   "binary bits ke saath type",
+    "pulse":    "💓 heartbeat cursor",
+    "fire":     "🔥 fire cursor",
+    "hearts":   "❤️ love cursor",
+    "zoom":     "letters spacing se zoom-in hote hain",
+    "eraser":   "type → erase → retype story",
+    "reverse":  "ulta type phir snap flip",
+    "random":   "har message naya style 🎲",
+}
+
+
+def _tx_lock():
+    global _TX_LOCK
+    if _TX_LOCK is None:
+        _TX_LOCK = asyncio.Lock()
+    return _TX_LOCK
+
+
+def _tx_load():
+    global _TX_STATE
+    try:
+        with open(_TX_FILE, "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+        if isinstance(data, dict):
+            _TX_STATE["on"] = bool(data.get("on", False))
+            if data.get("style") in _TX_STYLES:
+                _TX_STATE["style"] = data["style"]
+            try:
+                _TX_STATE["speed"] = min(1.0, max(0.05, float(data.get("speed", 0.15))))
+            except (TypeError, ValueError):
+                pass
+    except Exception:
+        pass
+
+
+def _tx_save():
+    try:
+        with open(_TX_FILE, "w", encoding="utf-8") as fh:
+            json.dump(_TX_STATE, fh)
+    except OSError:
+        pass
+
+
+_tx_load()
+
+
+def _tx_steps(n: int) -> int:
+    """chars-per-frame so total frames stay under the flood-safe cap."""
+    if n <= 0:
+        return 1
+    return max(1, math.ceil(n / _TX_MAX_FRAMES))
+
+
+def _tx_frames(text: str, style: str = None) -> list:
+    """Build typewriter frames for a style. Last frame == original text."""
+    style = (style or _TX_STATE.get("style") or "classic").lower()
+    if style == "random":
+        style = random.choice([s for s in _TX_STYLES if s != "random"])
+    if style not in _TX_STYLES:
+        style = "classic"
+    n = len(text)
+    if n <= 1:
+        return [text]
+    step = _tx_steps(n)
+    frames = []
+
+    if style == "classic":
+        frames = [text[:i] + "▌" for i in range(1, n + 1, step)]
+
+    elif style == "wave":
+        for i in range(1, n + 1, step):
+            head, tail = text[:i - 1], text[i - 1]
+            if tail.isalnum():
+                frames.append(f"{head}**{tail}**")
+            else:
+                frames.append(f"{head}{tail}")
+
+    elif style == "glitch":
+        frames.append("".join(random.choice(_GLITCH_CHARS)
+                              for _ in range(min(n, 12))))
+        for i in range(1, n + 1, step):
+            rest = min(n - i, 14)
+            tail = "".join(random.choice(_GLITCH_CHARS) for _ in range(max(rest, 0)))
+            frames.append(text[:i] + tail)
+
+    elif style == "scramble":
+        for i in range(1, n + 1, step):
+            pad = "".join(random.choice(_SCRAMBLE_CHARS) for _ in range(n - i))
+            frames.append(text[:i] + pad)
+
+    elif style == "matrix":
+        for i in range(1, n + 1, step):
+            bits = "".join(random.choice("01") for _ in range(4))
+            frames.append(text[:i] + "▌" + bits)
+
+    elif style in _TX_CURSORS:
+        cyc = _TX_CURSORS[style]
+        for j, i in enumerate(range(1, n + 1, step)):
+            frames.append(text[:i] + cyc[j % len(cyc)])
+
+    elif style == "zoom":
+        frames.append(" ".join(list(text)))
+        g = n
+        while g > 1:
+            g = max(1, g // 2)
+            frames.append(" ".join(text[k:k + g] for k in range(0, n, g)))
+
+    elif style == "eraser":
+        full = [text[:i] for i in range(1, n + 1, step)]
+        cut = max(1, int(n * 0.6))
+        back = [text[:i] for i in range(cut, 0, -(step * 2))]
+        redo = [text[:i] for i in range(1, n + 1, step * 2)]
+        frames = full + back + redo
+
+    elif style == "reverse":
+        for i in range(1, n + 1, step):
+            frames.append(text[:i][::-1])
+
+    # dedupe consecutive + cap + guarantee the exact original as final frame
+    out = []
+    for f in frames:
+        if not out or f != out[-1]:
+            out.append(f)
+    out = out[:_TX_MAX_FRAMES * 2]
+    if not out or out[-1] != text:
+        out.append(text)
+    return out
+
+
+async def _tx_animate(msg, text: str, style: str = None,
+                      speed: float = None, plain: bool = False) -> bool:
+    """Play typewriter frames on an existing message (flood-safe).
+
+    plain=True → final edit raw text with NO entities (auto-mode: message
+    bilkul waise hi dikhta hai jaise user ne type kiya tha).
+    """
+    frames = _tx_frames(text, style)
+    if len(frames) < 2:
+        return False
+    speed = float(speed if speed is not None else _TX_STATE.get("speed", 0.15))
+    floor = anim_floor() if safe_mode_on() else 0.05
+    delay = max(speed, floor)
+    last = None
+    fails = 0
+    for frame in frames:
+        if frame == last:
+            continue
+        try:
+            await throttle("edit")
+            await msg.edit(frame, link_preview=False)
+            last = frame
+            fails = 0
+        except MessageNotModifiedError:
+            pass
+        except FloodWaitError as e:
+            note_flood(e.seconds)
+            await asyncio.sleep(min(int(e.seconds or 0), 60) + 1)
+            try:
+                await throttle("edit")
+                await msg.edit(frame, link_preview=False)
+                last = frame
+            except Exception:
+                fails += 1
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            fails += 1
+        if fails >= 3:
+            break
+        await safe_sleep(delay + random.uniform(0, 0.05), floor=0.0)
+    # final frame — user ka exact original text
+    if last != text:
+        try:
+            await throttle("edit")
+            await msg.edit(text, link_preview=False,
+                           parse_mode=None if plain else "md")
+        except Exception:
+            pass
+    return True
+
+
 def register_fun(client):
     """Fun text, games and web toys."""
+
+    # ── mark bot-sent messages so TYPE-X auto-mode never animates them ────
+    if not getattr(client, "_tx_patched", False):
+        _orig_send = client.send_message
+
+        async def _tx_marked_send(*args, **kwargs):
+            msg = await _orig_send(*args, **kwargs)
+            try:
+                _TX_BOT_SENT.add(getattr(msg, "id", 0))
+                if len(_TX_BOT_SENT) > 800:
+                    _TX_BOT_SENT.clear()
+            except Exception:
+                pass
+            return msg
+
+        try:
+            client.send_message = _tx_marked_send
+            client._tx_patched = True
+        except Exception:
+            pass
+
+    # ── TYPE-X auto mode: har outgoing plain message typewriter me ─────────
+    @client.on(events.NewMessage(outgoing=True))
+    async def _type_auto(event):
+        global _TX_LAST_AUTO
+        try:
+            if not _TX_STATE["on"]:
+                return
+            text = (event.text or "").strip()
+            if not text or text[0] in "./!#":
+                return
+            if len(text) < 2 or len(text) > _TX_MAX_CHARS:
+                return
+            if event.media or event.fwd_from or event.via_bot \
+                    or getattr(event, "buttons", None):
+                return
+            if event.entities:
+                return
+            if event.id in _TX_BUSY or event.id in _TX_BOT_SENT:
+                return
+            if storm_active():       # 🚨 ban-storm → ID protection first
+                return
+            now = time.time()
+            if now - _TX_LAST_AUTO < 1.5:
+                return
+            # premium-emoji auto mode ON + emoji text? → unko karne do
+            try:
+                from plugins.prememoji import _PE_STATE, EMOJI_RE
+                if _PE_STATE.get("on") and EMOJI_RE.search(text):
+                    return
+            except Exception:
+                pass
+            lock = _tx_lock()
+            if lock.locked():
+                return               # ek waqt me ek animation — no edit storm
+            async with lock:
+                _TX_LAST_AUTO = time.time()
+                _TX_BUSY.add(event.id)
+                if len(_TX_BUSY) > 300:
+                    _TX_BUSY.clear()
+                try:
+                    await _tx_animate(event, text, plain=True)
+                finally:
+                    _TX_BUSY.discard(event.id)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            pass
 
     # ---- .mock ----
     @client.on(events.NewMessage(outgoing=True, pattern=r"^\.mock\s+(.+)$"))
@@ -135,30 +420,96 @@ def register_fun(client):
         await event.delete()
         await client.send_message(await event.get_input_chat(), text)
 
-    # ---- .type ----  (self-contained typewriter — no cross-plugin dependency)
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.type\s+([\s\S]+)$"))
+    # ---- .type — TYPE-X master command (on/off/styles/speed/status/text) ----
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.type(?:\s+([\s\S]+))?$"))
     @client.flood_safe
     async def _type(event):
-        text = event.pattern_match.group(1).strip()[:200]
-        if not text:
-            return await event.edit("❌ Usage: `.type <text>`")
-        frames = [text[:i] + "▌" for i in range(1, len(text) + 1)] + [text]
-        last = None
-        for frame in frames:
-            if frame == last:
-                continue
+        arg = (event.pattern_match.group(1) or "").strip()
+        low = arg.lower()
+
+        if not arg:
+            return await event.edit(
+                "✦ ━━━〔 ⌨️ **TYPE-X SYSTEM** 〕━━━ ✦\n"
+                "┃ `.type on` — har message auto animation me\n"
+                "┃ `.type off` — auto mode band\n"
+                "┃ `.type styles` — 12 animation styles\n"
+                "┃ `.type <style>` — style set (`.type glitch`)\n"
+                "┃ `.type speed 0.2` — frame speed (0.05–1.0s)\n"
+                "┃ `.type status` — mode/style/speed card\n"
+                "┃ `.type <text>` — one-shot animation\n"
+                "✦ ━━━━━━━━━━━━━━━━━━ ✦\n"
+                "_🛡 Flood-safe: frame cap + throttle + storm guard_",
+                link_preview=False)
+
+        if low in ("on", "enable"):
+            _TX_STATE["on"] = True
+            _tx_save()
+            return await event.edit(
+                "✦ ━━━〔 ⌨️ **TYPE-X: ON** 〕━━━ ✦\n"
+                "✅ Ab tumhara **har message** automatic typewriter animation\n"
+                "   me jayega — jaise `.type` hota hai, bas auto!\n\n"
+                f"🎬 Style: **{_TX_STATE['style']}** · ⚡ Speed: `{_TX_STATE['speed']}s`\n"
+                "💡 `.type styles` — 12 styles · `.type off` — band karo\n"
+                "_🛡 Storm/flood me auto-skip (ID safe)_",
+                link_preview=False)
+
+        if low in ("off", "disable", "of"):
+            _TX_STATE["on"] = False
+            _tx_save()
+            return await event.edit(
+                "⏹ **TYPE-X auto mode OFF** — messages ab normal jayenge.\n"
+                "💡 `.type on` — dobara chalu · `.type <text>` — one-shot",
+                link_preview=False)
+
+        if low in ("status", "info"):
+            return await event.edit(
+                "✦ ━━━〔 ⌨️ **TYPE-X STATUS** 〕━━━ ✦\n"
+                f"┃ Mode  : {'🟢 ON — har message animated' if _TX_STATE['on'] else '⛔ OFF'}\n"
+                f"┃ Style : **{_TX_STATE['style']}**\n"
+                f"┃ Speed : `{_TX_STATE['speed']}s` per frame\n"
+                f"┃ Frames: ≤{_TX_MAX_FRAMES * 2}/message (flood-safe cap)\n"
+                f"┃ Saved : restart ke baad bhi yaad ✅\n"
+                "✦ ━━━━━━━━━━━━━━━━━━ ✦",
+                link_preview=False)
+
+        if low in ("styles", "list"):
+            style_list = "\n".join(
+                f"┃ `{s:<10}` {_TX_STYLE_HINTS[s]}" for s in _TX_STYLES)
+            return await event.edit(
+                f"✦ ━━━〔 ⌨️ **TYPE-X STYLES ({len(_TX_STYLES)})** 〕━━━ ✦\n"
+                f"{style_list}\n"
+                "✦ ━━━━━━━━━━━━━━━━━━ ✦\n"
+                "💡 `.type glitch` — set karo · `.type on` — auto mode\n"
+                "_`random` = har message naya style_",
+                link_preview=False)
+
+        if low.split()[0] in ("speed", "spd") and len(low.split()) == 2:
             try:
-                await throttle("edit")
-                await event.edit(frame)
-                last = frame
-            except MessageNotModifiedError:
-                pass
-            except FloodWaitError as e:
-                note_flood(e.seconds)
-                await asyncio.sleep(e.seconds + 1)
-            except Exception:
-                break
-            await safe_sleep(0.12, floor=0.0)
+                v = min(1.0, max(0.05, float(low.split()[1])))
+            except ValueError:
+                v = None
+            if v is not None:
+                _TX_STATE["speed"] = v
+                _tx_save()
+                return await event.edit(
+                    f"⚡ TYPE-X speed set: **{v}s** per frame "
+                    f"({'tez 🚀' if v <= 0.1 else 'smooth 🙂'})\n"
+                    "_Range 0.05–1.0 · `.type speed 0.2`_",
+                    link_preview=False)
+
+        if low in _TX_STYLES:
+            _TX_STATE["style"] = low
+            _tx_save()
+            return await event.edit(
+                f"🎬 TYPE-X style set: **{low}** {_TX_STYLE_HINTS[low]}\n"
+                f"⚡ Speed: `{_TX_STATE['speed']}s` · Mode: "
+                f"{'🟢 ON' if _TX_STATE['on'] else '⛔ OFF'}\n"
+                "_`.type on` se auto mode chalu karo_",
+                link_preview=False)
+
+        # ---- one-shot animation (purana behaviour — ab styles ke saath) ----
+        text = arg[:_TX_MAX_CHARS]
+        await _tx_animate(event, text)
 
     # ---- .joke ----
     @client.on(events.NewMessage(outgoing=True, pattern=r"^\.joke$"))
@@ -309,7 +660,10 @@ COMMANDS_FUN = {
         (".choose a | b | c", "random picker"),
         (".roll [N|XdY]", "dice roller"),
         (".echo / .say <text>", "repeat text (deletes command)"),
-        (".type <text>", "typewriter effect with your text"),
+        (".type on / .type off", "AUTO typewriter mode — har message animated"),
+        (".type styles / <style>", "12 styles: glitch wave matrix scramble…"),
+        (".type speed 0.2 / status", "frame speed / TYPE-X status card"),
+        (".type <text>", "one-shot typewriter (current style me)"),
         (".joke .quote .ud <word>", "joke / quote / urban dictionary"),
         (".meme .dog .cat", "random meme / dog / cat pics"),
     ],
