@@ -1,14 +1,57 @@
-# ⚡ SUKUNA-X DOMAIN v7.2 — PHANTOM EDITION 👑
+# ⚡ SUKUNA-X DOMAIN v7.3 — PHANTOM EDITION + BOTCONTROLLER 👑🤖
 
-**33 plugins · 440+ handlers · 320+ cmds · 88 animations · TYPE-X auto-typewriter · 13 naye API commands · v7.2 BAN-PROOF SHIELD+ · JioSaavn music · ID Backup/Restore · interactive button menu · AI tools · DP Auto-Rotator · zero-flood engine**
+**34 plugins · 460+ handlers · 350+ cmds · 88 animations · BOTCONTROLLER MULTI-BOT ARMY 🤖 · TYPE-X auto-typewriter · 13 naye API commands · v7.2 BAN-PROOF SHIELD+ · JioSaavn music · ID Backup/Restore · interactive button menu · AI tools · DP Auto-Rotator · zero-flood engine**
 
 ```
 ✦━━━━━━〔 ⚡ SUKUNA-X DOMAIN ⚡ 〕━━━━━━✦
-        👑 v7.2 PHANTOM EDITION 👑
-   TYPE-X auto-typewriter · 13 new APIs
+        👑 v7.3 PHANTOM + BOTCONTROLLER 🤖
+   Multi-Bot Army · .revert pahle-jaisa fix
 🛡️ 6-layer anti-ban shield · human delays · no flood
 ✦ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ ✦
 ```
+
+---
+
+## 🤖👑 What's New in v7.3 — BOTCONTROLLER (sabse bada feature!)
+
+**Ek main account se pura BOT ARMY control karo** — @BotFather se jitne chahe bot tokens add karo, sab **1st / 2nd / 3rd** slots me manage hote hain:
+
+| Command | Kya karta hai |
+|---|---|
+| `.addbottoken <token>` | bot register — token live validate hota hai, dead token reject |
+| `.delbottoken <n>` | nth bot delete — **slots automatic shift** (3rd → 2nd ban jata hai) |
+| `.listbots` | sab bots list + ❄️ frozen (dead-token) bots mark |
+| `.monitorb` | LIVE status — kaun online 💚, kaun frozen ❄️ |
+| `.addallb` | **sab bots current group me add** (jo ho sake, add ho jata hai) |
+| `.addall 1-3` | sirf 1st-3rd bots add (single: `.addall 2`) |
+| `.removeallb` | sab bots group se remove |
+| `.spamb <n> <sec> <text>` | sab bots text spam — **interval float, NO lower limit** (0.1 / 0.5 / 0 sab ok) |
+| `.spamb1-2 <n> <sec> <txt>` | sirf specific bots spam |
+| `.sspam <n> <sec>` | USER sticker spam (reply to sticker) |
+| `.sspamb <n> <sec>` | BOTS sticker spam (reply to sticker) |
+| `.raidb [slots] <n> <txt>` | bot raid — bina text diye to saved slots rotate hote hain |
+| `.cloneb [slots]` | bots replied-user ka profile clone (name + bio + DP) |
+| `.revertb [slots]` | **bots pahle jaise** — pre-clone state restore |
+| `.botsay [slots] <text>` | bots se message bulwao |
+| `.<anim>b [slots] [sec]` | **koi bhi animation bots par** — `.roseb`, `.hackb1-2 15`, `.stormb2` |
+| `.saverm <text>` | raid message slots — 1st, 2nd, 3rd… save |
+| `.listrm / .delrm <n>` | slots list / delete (delete pe slots auto-shift) |
+| `.stopb` | sab bot tasks STOP (`.stop` bhi kaam karta hai) |
+| `.bchelp` | poora help card |
+
+**Frozen bot system:** token dead/revoked hone par bot ❄️ FROZEN mark hota hai — `.listbots` / `.monitorb` me dikhta hai, kabhi crash nahi hota.
+
+### ↩️ `.revert` FIX — ab sach me "pahle jaisa"
+- **Pehle:** `.revert` sirf default "Userbot" naam pe set karta tha — tumhara asli profile LOST hota tha.
+- **Ab:** `.clone` / `.fclone` / `.rclone` se **pehle** tumhara original naam + bio + DP auto-backup hota hai — `.revert` likho aur **bilkul pahle jaisa** ho jao (naam + bio + DP sab wapas).
+- Chain-of-clones safe: `.clone A → .clone B → .revert` = original (backup kabhi overwrite nahi hota)
+- `.revertb [slots]` — bots ka bhi same system (pre-clone state saved rehta hai)
+
+### 💥 `.raid` UPGRADE — saved message slots
+- `.saverm <text>` se jitne chahe raid messages save karo (1st, 2nd, 3rd…)
+- `.raid` ab **har message agli slot se** bhejta hai — ek hi text repeat nahi hota
+- `.delrm 3` karo → 4th slot automatically 3rd ban jata hai
+- Purana `.setraid` system bhi waise kaam karta hai (agar koi slot save nahi)
 
 ---
 

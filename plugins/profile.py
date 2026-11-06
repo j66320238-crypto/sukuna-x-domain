@@ -177,9 +177,83 @@ async def _upload_pfp_file(client, file_path: str, is_video: bool = False):
         print(f"[profile] upload pfp failed: {e}")
         return False
 
+# ─── v7.3 PRE-CLONE BACKUP — .revert isi se "pahle jaisa" restore karta hai ──
+
+PRECLONE_DIR = os.path.join(DATA_DIR, "pre_clone")
+
+
+def _preclone_meta_path() -> str:
+    return os.path.join(PRECLONE_DIR, "meta.json")
+
+
+def _preclone_photo_path() -> str:
+    return os.path.join(PRECLONE_DIR, "pfp.jpg")
+
+
+def _load_preclone_meta():
+    """Saved pre-clone state padho (dict) ya None."""
+    try:
+        with open(_preclone_meta_path(), "r", encoding="utf-8") as fh:
+            meta = json.load(fh)
+            return meta if isinstance(meta, dict) else None
+    except Exception:
+        return None
+
+
+def _clear_preclone():
+    """Restore hone ke baad backup hata do (agli clone fresh banegi)."""
+    try:
+        import shutil as _shutil
+        _shutil.rmtree(PRECLONE_DIR, ignore_errors=True)
+    except Exception:
+        pass
+
+
+async def _save_preclone_backup(client):
+    """Clone se PEHLE original profile ka snapshot (sirf pehli baar — kabhi overwrite nahi).
+
+    Isse .revert hamesha asli original pe le jaata hai, chahe kitni bhi
+    chain-of-clones ho (.clone A → .clone B → .revert = original wapas).
+    """
+    try:
+        if _load_preclone_meta():
+            return  # original backup already saved hai — overwrite kabhi nahi
+        os.makedirs(PRECLONE_DIR, exist_ok=True)
+        me = await client.get_me()
+        bio = ""
+        try:
+            full = await client(GetFullUserRequest("me"))
+            bio = getattr(full.full_user, "about", None) or ""
+        except Exception:
+            pass
+        has_photo = False
+        try:
+            photos = await client.get_profile_photos("me", limit=1)
+            if photos:
+                p = await client.download_media(photos[0], file=_preclone_photo_path())
+                has_photo = bool(p and os.path.exists(p))
+        except Exception:
+            pass
+        meta = {
+            "ts": time.time(),
+            "first_name": me.first_name or "",
+            "last_name": me.last_name or "",
+            "username": me.username or "",
+            "bio": bio[:250],
+            "has_photo": has_photo,
+        }
+        with open(_preclone_meta_path(), "w", encoding="utf-8") as fh:
+            json.dump(meta, fh, ensure_ascii=False)
+        print("[profile] pre-clone backup saved — .revert isi ko restore karega")
+    except Exception as e:
+        print(f"[profile] pre-clone backup failed: {e}")
+
+
 async def _clone_profile(client, event, target, full: bool = False):
     """Core clone logic. full=True => all photos/videos."""
     await event.edit(f"`{'🔥 Full' if full else '👤'} Cloning {'full profile' if full else 'profile'}...`")
+    # 🤖 v7.3: clone se PEHLE backup — taaki .revert pahle jaisa kar sake
+    await _save_preclone_backup(client)
     temp_dir = os.path.join(DATA_DIR, f"clone_temp_{event.id}")
     try:
         os.makedirs(temp_dir, exist_ok=True)
@@ -312,15 +386,45 @@ def register_profile(client):
             return
         await _clone_profile(client, event, target, full=True)
 
-    # .revert — back to default
+    # .revert — PEHLE JaisA (pre-clone state restore) — v7.3 fix
     @client.flood_safe
     async def revert_handler(event):
-        await event.edit("`➤ Reverting to default...`")
+        meta = _load_preclone_meta()
+        if not meta:
+            # fallback: koi backup nahi → purana default behaviour
+            await event.edit("`➤ No pre-clone backup found — reverting to default...`")
+            try:
+                await client(UpdateProfileRequest(first_name=DEFAULT_NAME, last_name="", about=""))
+                await safe_sleep(0.6, floor=0.3)
+                await _delete_all_profile_photos(client)
+                await event.edit(
+                    f"`✅ Reverted to {DEFAULT_NAME}`\n"
+                    "⚠️ Backup nahi tha — agli baar `.clone` se pehle backup auto-save ho jayega.")
+            except FloodWaitError as e:
+                await event.edit(f"`⏳ FloodWait: {e.seconds}s`")
+            except Exception as e:
+                await event.edit(f"`❌ Revert error: {e}`")
+            return
+        await event.edit("`➤ Restoring pre-clone state...`")
         try:
-            await client(UpdateProfileRequest(first_name=DEFAULT_NAME, last_name="", about=""))
+            first = (meta.get("first_name") or DEFAULT_NAME)[:64]
+            last = (meta.get("last_name") or "")[:64]
+            bio = (meta.get("bio") or "")[:70]
+            await client(UpdateProfileRequest(first_name=first, last_name=last, about=bio))
             await safe_sleep(0.6, floor=0.3)
             await _delete_all_profile_photos(client)
-            await event.edit(f"`✅ Reverted to {DEFAULT_NAME}`")
+            photo_note = "removed"
+            if meta.get("has_photo") and os.path.exists(_preclone_photo_path()):
+                await safe_sleep(0.8, floor=0.4)
+                if await _upload_pfp_file(client, _preclone_photo_path()):
+                    photo_note = "restored"
+            _clear_preclone()
+            await event.edit(
+                "`✅ Reverted to pre-clone state!`\n"
+                f"Name: `{first} {last}`\n"
+                f"Bio: `{bio or '—'}`\n"
+                f"DP: `{photo_note}`\n"
+                "💡 Ab profile bilkul pahle jaisa hai.")
         except FloodWaitError as e:
             await event.edit(f"`⏳ FloodWait: {e.seconds}s`")
         except Exception as e:
@@ -1026,7 +1130,7 @@ COMMANDS_PROFILE = {
         (".clone [full]", "clone main profile (reply) — add 'full' for all photos"),
         (".fclone", "full clone — all photos/videos (reply)"),
         (".rclone [full]", "group me RANDOM member ka clone — bina reply ke"),
-        (".revert", "revert to default"),
+        (".revert", "pahle jaisa — pre-clone state wapas restore"),
         (".saveprofile <name>", "save full profile (all pfps)"),
         (".loadprofile <name>", "load main photo + name/bio"),
         (".floadprofile <name> / .loadprofile <name> full", "load full copy (all photos)"),

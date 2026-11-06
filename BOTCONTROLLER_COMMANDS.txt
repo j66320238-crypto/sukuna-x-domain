@@ -1,0 +1,154 @@
+════════════════════════════════════════════════════════════════════
+  🤖 BOTCONTROLLER v7.3 — POORI COMMAND LIST (Hinglish)
+════════════════════════════════════════════════════════════════════
+
+📦 INSTALL (kuch nahi karna — ye zip poora ready-made hai):
+  1. Zip extract karo
+  2. python userbot.py (ya bash start.sh) — pehli baar API_ID/HASH + OTP
+  3. .bchelp likho — BotController ka poora menu
+
+  ⚠️ Bot tokens restart ke baad bhi safe rehte hain (data/ me saved)
+     — dobara add karne ki zaroorat nahi.
+
+──────────────────────────────────────────────────────────────────────
+ 1️⃣  BOT ADD / MANAGE
+──────────────────────────────────────────────────────────────────────
+  .addbottoken <token>   — token LIVE verify karke bot add
+                            (1st, phir 2nd, 3rd... jaise jaise add karoge)
+     ex:  .addbottoken 123456789:AAHxyz...
+     ❌ dead/revoked token apne aap reject ho jata hai
+
+  .delbottoken <n>       — nth bot delete
+  .delbot <n>            — same ka short alias
+                            (aage wale apne aap shift:
+                             2nd delete → purana 3rd ab 2nd ban jayega)
+
+  .listbots              — saare bots ki list (❄️ frozen bhi dikhta hai)
+  .botlist                — same ka alias
+
+  .monitorb              — LIVE status: kaun online 💚 kaun frozen ❄️
+                            (connect karke check karta hai)
+
+  ❄️ FROZEN = jiska token dead/revoked hai. Kabhi crash nahi hota,
+     list me dikhta rehta hai. Naya token add karke purana delbot karo.
+
+──────────────────────────────────────────────────────────────────────
+ 2️⃣  GROUP ME ADD / REMOVE
+──────────────────────────────────────────────────────────────────────
+  .addallb               — SAB bots current group me add
+  .addallb1-3            — sirf 1st se 3rd wale
+  .addall 1-3            — same ka doosra tarika
+  .addall 2              — sirf 2nd wala
+  .addall 1,3            — 1st aur 3rd
+
+  .removeallb            — sab bots group se remove
+
+  💡 "jo ho sake, add ho jata hai" — har bot ka result alag dikhta
+     hai (added ✅ / already in group / ❌ reason)
+
+──────────────────────────────────────────────────────────────────────
+ 3️⃣  SPAM (interval ka KOI lower limit nahi — 0.1, 0.5 sab ok)
+──────────────────────────────────────────────────────────────────────
+  .spamb <count> <interval> <text>
+                          — SAB bots text spam
+     ex:  .spamb 20 0.5 hello yaar     (20 msg, 0.5s gap)
+
+  .spamb1-3 <count> <interval> <text>
+                          — sirf 1st-3rd bots
+     ex:  .spamb1-2 10 0.1 namma
+
+  .sspamb <count> [interval]
+                          — BOTS se replied STICKER ka spam
+     (sticker par reply karke bhejo)
+     ex:  .sspamb 30 0.3
+
+  .sspam <count> [interval]
+                          — USER version sticker spam (khud ka)
+     ex:  .sspam 50 0.2
+
+──────────────────────────────────────────────────────────────────────
+ 4️⃣  RAID (v7.3 UPGRADED)
+──────────────────────────────────────────────────────────────────────
+  .raid                   — ab reply OPTIONAL hai:
+     .raid                → 10 msgs saved slots ya raid text se
+     .raid 20             → 20 baar
+     .raid 20 hello yaar  → apne custom text se
+     reply + .raid 20    → victim ke naam + mention ke saath
+
+  .raidb <count> <text>   — BOTS se raid karwao
+  .raidb2 20             — sirf 2nd bot raid kare
+  .raidb 20              — text na do to SAVED slots rotate hote hain
+
+  .saverm <text>          — raid message save (1st, 2nd, 3rd... slots)
+  .saverm                 — reply karke bhejo → replied msg ka text save
+  .listrm                 — saved slots dikhao
+  .delrm <n>              — nth slot delete (aage wale shift ho jate
+                             hain: 3rd delete → 4th ab 3rd)
+
+──────────────────────────────────────────────────────────────────────
+ 5️⃣  PROFILE CLONE / REVERT (pahle jaisa system)
+──────────────────────────────────────────────────────────────────────
+  .cloneb                 — bots replied-user ka profile clone karein
+  .cloneb2-3              — sirf 2nd-3rd bots
+  .revertb                — bots PEHLE JAISE ho jayein (pre-clone
+                             state se restore — name+bio+DP)
+  .revertb / .uncloneb    — dono same kaam karte hain
+  .revertb2               — sirf 2nd bot revert
+
+  👤 USER ke liye (profile.py):
+  .revert                 — tum khud pahle jaise ho jao
+     (har .clone se PEHLE tumhara original naam+bio+DP backup
+      hota hai — kabhi overwrite nahi hota, chain-of-clones safe)
+
+──────────────────────────────────────────────────────────────────────
+ 6️⃣  ANIMATION DELEGATION (88 animations bots par!)
+──────────────────────────────────────────────────────────────────────
+  .<animation>b           — koi bhi animation SAB bots par chalao
+     ex:  .roseb   .hackb   .moonb   .fireb   .bombb
+  .<animation>b1-2        — sirf specific bots par
+     ex:  .roseb1-2    (1st aur 2nd par)
+  .<animation>b 20        — 20 second tak (default 25s, max 60s)
+     ex:  .hackb 20
+  .<animation>b2 15       — sirf 2nd bot, 15 second
+
+  ⚠️ Jo animation ka naam ho uske aage bas 'b' laga do:
+     .rose → .roseb   |   .hack → .hackb   |   .bomb → .bombb
+
+──────────────────────────────────────────────────────────────────────
+ 7️⃣  MISC / CONTROL
+──────────────────────────────────────────────────────────────────────
+  .botsay <text>          — bots se message bulwao
+  .botsay2 hello          — sirf 2nd bot bole
+  .stopb                  — SAB bot tasks stop (spam/raid/anim)
+  .stop                   — poora userbot ke saare loops stop
+  .bchelp / .bch / .bothelp — BotController ka menu
+
+════════════════════════════════════════════════════════════════════
+  🧊 FROZEN BOTS KA MATLAB
+════════════════════════════════════════════════════════════════════
+  Token in cases me frozen maana jata hai:
+  • token revoke kar diya (BotFather me /revoke)
+  • bot delete kar diya
+  • account deactivated
+  ❄️ Frozen bot .spamb/.raidb me automatically skip ho jata hai —
+     kabhi crash/hang nahi hoga. .monitorb se exact reason dekho.
+
+════════════════════════════════════════════════════════════════════
+  ⚡ QUICK START (example flow)
+════════════════════════════════════════════════════════════════════
+  1. @BotFather se 2-3 bots banao, tokens lo
+  2. .addbottoken <token1>     → 1st bot
+  3. .addbottoken <token2>     → 2nd bot
+  4. .addbottoken <token3>     → 3rd bot
+  5. .monitorb                 → sab online? ✓
+  6. group me jao → .addallb   → sab bots add
+  7. .saverm kya kar rhe ho    → raid slot 1st
+  8. .saverm oye suno zara     → raid slot 2nd
+  9. reply karke .raid 20      → rotation raid shuru!
+ 10. .roseb1-2                 → 1st-2nd bots par rose animation
+ 11. .cloneb                   → sab bots victim ke clone
+ 12. .revertb                  → sab bots wapas original
+ 13. .stopb                    → sab stop
+
+  ✅ 25/25 tests pass · 21 handlers · zero pattern conflicts
+════════════════════════════════════════════════════════════════════

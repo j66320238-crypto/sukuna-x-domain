@@ -99,6 +99,10 @@ async def main() -> None:
         print("\n\n👋 Setup cancelled. Bye!")
         sys.exit(1)
 
+    # 🤖 v7.3 BotController: bot sessions ke liye resolved creds share karo
+    _core_state.ACTIVE_API_ID = api_id or 0
+    _core_state.ACTIVE_API_HASH = api_hash or ""
+
     try:
         os.makedirs(DATA_DIR, exist_ok=True)
         fh = RotatingFileHandler(os.path.join(DATA_DIR, "userbot.log"),

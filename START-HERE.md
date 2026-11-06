@@ -1,4 +1,6 @@
-# ⚡ SUKUNA-X DOMAIN v7.0 — START HERE (well-structured)
+# ⚡ SUKUNA-X DOMAIN v7.3 — START HERE (well-structured)
+
+**🤖 NEW: BotController** — `.addbottoken <token>` se bots add karo, phir `.spamb` / `.raidb` / `.roseb` / `.cloneb` se army control karo. Poora list: `.bchelp`
 
 ## 0. What changed? (well-structured)
 
@@ -6,7 +8,7 @@ Old versions were single-file `userbot.py` (10k lines). v7.0 is **fully modular*
 
 - `userbot.py` = 255 lines bootstrapper only
 - `core/` = 11 files (config, safety, store, accounts, helpers, decorators, banner, ui, client, state, __init__)
-- `plugins/` = 23 plugins (including new `farmer.py` from baka12.py)
+- `plugins/` = 24 plugins (including new `farmer.py` + **`botcontroller.py` — Multi-Bot Army control**)
 - `data/` auto-created, gitignored — sessions & logs never overwritten on `git pull`
 
 **Easy upgrade:** just `git pull` — your data stays safe.
@@ -93,7 +95,7 @@ Then `.restart` → `.help hello`
 sukuna-x-domain/
 ├── userbot.py (255 lines)
 ├── core/ (11 files)
-├── plugins/ (23 files)
+├── plugins/ (24 files)
 ├── data/ (gitignored, auto-created)
 ├── start.sh, termux-setup.sh, bot.py, requirements.txt, .gitignore
 └── README.md, START-HERE.md

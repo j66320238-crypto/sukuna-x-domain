@@ -19,3 +19,9 @@ PLUGIN_LOAD_TIMES: dict = {}
 
 # owner user id (cached after login) — used by interactive menus
 OWNER_ID: int = 0
+
+# 🤖 v7.3 BotController: resolved api_id/api_hash (userbot.py startup pe bhar
+# deta hai) — bot sessions INHI se banti hain, config me manually bharne ki
+# zaroorat nahi.
+ACTIVE_API_ID: int = 0
+ACTIVE_API_HASH: str = ""

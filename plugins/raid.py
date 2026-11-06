@@ -64,6 +64,21 @@ def _has_saved_raid_text():
         return False
 
 
+# ─── v7.3: .saverm slots — .raid inhe rotate karta hai ─────────────────────
+
+def _load_raid_messages():
+    """`.saverm` se saved raid-message slots (list). BotController se manage hote hain."""
+    try:
+        d = load_store("raid_messages")
+        if isinstance(d, dict):
+            msgs = d.get("messages")
+            if isinstance(msgs, list):
+                return [str(m) for m in msgs if str(m).strip()]
+    except Exception:
+        pass
+    return []
+
+
 def _save_raid_text(text):
     """Persist raid text.  Return ``True`` on success."""
     try:
@@ -193,19 +208,31 @@ def register_raid(client):
             await event.edit("❌ <b>Failed to delete raid text.</b>", parse_mode="html")
 
     # ── .raid <count> ────────────────────────────────────────────────────
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.raid\s*(\d+)?\s*$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.raid(?:\s+([\s\S]+))?$"))
     @client.flood_safe
     async def raid_handler(event):
-        """Raid the replied user with the saved text."""
+        """Raid v7.3 — reply OPTIONAL + custom text + saved slots rotation.
+
+        Formats:
+          .raid               → 10 msgs, saved slots ya raid text (chat raid)
+          .raid 20            → 20 msgs
+          .raid 20 hello yaar  → 20 msgs custom text se
+          reply + .raid 20    → victim ke naam+mention ke saath
+        """
         # ── Raid text (default fallback, never blocks a raid) ────────────
         text = _load_raid_text()
 
         # ── Parse count ──────────────────────────────────────────────────
-        count_str = event.pattern_match.group(1)
-        try:
-            count = int(count_str) if count_str else 10
-        except ValueError:
-            count = 10
+        raw_arg = (event.pattern_match.group(1) or "").strip()
+        count = 10
+        custom_text = None
+        if raw_arg:
+            parts = raw_arg.split(maxsplit=1)
+            if parts[0].isdigit():
+                count = int(parts[0])
+                custom_text = parts[1].strip() if len(parts) > 1 else None
+            else:
+                custom_text = raw_arg
         if count <= 0:
             await event.edit(
                 "❌ <b>Count must be a positive integer.</b>",
@@ -221,22 +248,25 @@ def register_raid(client):
         count = safe_cap(count)  # 🛡️ burst cap in safe mode
 
         # ── Resolve target user ──────────────────────────────────────────
-        target = await event.get_reply_message()
-        if not target:
-            await event.edit(
-                "❌ <b>Reply to a user to raid them.</b>",
-                parse_mode="html",
-            )
-            return
-        # FIX: Message objects have no get_input_entity() in Telethon.
+        user_id = None
+        display_name = None
         try:
-            target_entity = await target.get_input_sender()
+            target = await event.get_reply_message()
         except Exception:
-            await event.edit(
-                "❌ <b>Could not resolve target user.</b>",
-                parse_mode="html",
-            )
-            return
+            target = None
+        if target:
+            try:
+                target_entity = await target.get_input_sender()
+                user_obj = await client.get_entity(target_entity)
+                user_id = user_obj.id
+                display_name = (
+                    getattr(user_obj, "first_name", None)
+                    or getattr(user_obj, "title", None)
+                    or "User"
+                )
+            except Exception:
+                user_id = None
+                display_name = None
 
         # ── Resolve chat (avoid Peer ID errors) ──────────────────────────
         try:
@@ -248,46 +278,60 @@ def register_raid(client):
             )
             return
 
-        # ── Fetch user details for mention ───────────────────────────────
-        try:
-            user_obj = await client.get_entity(target_entity)
-            user_id = user_obj.id
-            display_name = (
-                getattr(user_obj, "first_name", None)
-                or getattr(user_obj, "title", None)
-                or "User"
-            )
-        except Exception:
+
+        # 🤖 v7.3: .saverm slots — raid inhe rotate karta hai (1st → 2nd → 3rd…)
+        saved_msgs = _load_raid_messages()
+
+        # ── Usage card (jab koi content nahi) ──────
+        if user_id is None and custom_text is None and not saved_msgs:
             await event.edit(
-                "❌ <b>Could not fetch target user details.</b>",
+                "💥 <b>RAID — Usage:</b>\n"
+                "┃ <code>.raid</code> — saved messages se (pehle <code>.saverm</code> karo)\n"
+                "┃ <code>.raid 20</code> — 20 baar\n"
+                "┃ <code>.raid 20 hello</code> — apne text se\n"
+                "┃ reply karke <code>.raid 20</code> — us user ka naam+mention lagega\n"
+                "┃ text me <code>{name}</code> <code>{tag}</code> use kar sakte ho\n"
+                "┃ <code>.raidb</code> — BOTS se raid karwao (BotController)",
                 parse_mode="html",
             )
             return
 
-        # ── Build raid message: "<name> <text> <mention>" ────────────────
-        raid_msg = _build_raid_message(text, user_id, display_name)
-
+        # ── Start card ──────
+        if user_id is not None:
+            whom = f'<a href="tg://user?id={user_id}">{_escape_html(display_name)}</a>'
+        else:
+            whom = "<b>chat</b>"
+        slot_note = f" | slots: <b>{len(saved_msgs)}</b>" if (saved_msgs and custom_text is None) else ""
         await event.edit(
-            f"💥 <b>Raid started</b> on "
-            f'<a href="tg://user?id={user_id}">{_escape_html(display_name)}</a> '
-            f"| Count: <b>{count}</b>",
+            f"💥 <b>Raid started</b> on {whom} | Count: <b>{count}</b>{slot_note}",
             parse_mode="html",
         )
 
         # ── Background raid loop ─────────────────────────────────────────
         async def _raid_loop():
             try:
-                for _ in range(count):
+                for i in range(count):
+                    # v7.3: saved slots rotate — har message agli slot se
+                    if custom_text is not None:
+                        raw = custom_text
+                    elif saved_msgs:
+                        raw = saved_msgs[i % len(saved_msgs)]
+                    else:
+                        raw = text
+                    if user_id is not None:
+                        raid_msg_i = _build_raid_message(raw, user_id, display_name)
+                    else:
+                        raid_msg_i = _escape_html(raw)
                     try:
                         await client.send_message(
-                            chat, raid_msg, parse_mode="html"
+                            chat, raid_msg_i, parse_mode="html"
                         )
                     except FloodWaitError as fw:
                         note_flood(fw.seconds)  # 🛡️ auto slow-down
                         await asyncio.sleep(fw.seconds + 1)
                         try:
                             await client.send_message(
-                                chat, raid_msg, parse_mode="html"
+                                chat, raid_msg_i, parse_mode="html"
                             )
                         except Exception:
                             pass
@@ -449,11 +493,13 @@ def register_raid(client):
 COMMANDS_RAID = {
     "description": "Raid Tools",
     "commands": [
-        (".raid [n]", "raid replied user — saved text + name (mintu kya kar rhe ho mintu style)"),
+        (".raid [n]", "raid replied user — saved slots rotate + naam (saverm wale slots 1st/2nd/3rd…)"),
         (".setraid <text>", "save raid text ({name} / {tag} placeholders optional)"),
         (".listraid", "view saved raid text"),
         (".delraid / .clrraid", "delete raid text (default text used)"),
         (".drraid", "auto-reply raid on user"),
         (".stopraid", "stop reply-raids"),
+        (".saverm <text>", "raid message slot save — 1st, 2nd, 3rd… (BotController)"),
+        (".listrm / .delrm <n>", "saved slots list / delete (slots auto-shift)"),
     ],
 }
