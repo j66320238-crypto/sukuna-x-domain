@@ -819,7 +819,7 @@ def register_farmer(client: TelegramClient) -> None:
             "┃ Farming runs as THIS account.\n"
             "✦ ━━━━━━━━━━━━━━━━━━━━━━━━━ ✦", link_preview=False)
 
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.ping$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.mping$"))
     async def _mping(event):
         state = "🟢 running" if FARM["running"] else "🔴 idle"
         await event.edit(
@@ -899,7 +899,7 @@ COMMANDS_FARMER = {
         (".mdepth <n>", "scan depth 100-1000 (older members too)"),
         (".mbot <username>", "set the game bot (default im_bakabot)"),
         (".mid", "show logged-in identity"),
-        (".ping", "farmer alive check"),
+        (".mping", "farmer alive check"),
         (".mhelp", "full farmer menu"),
     ],
 }

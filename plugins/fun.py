@@ -376,10 +376,10 @@ def register_fun(client):
         await event.edit(f"🙃 {text[::-1].translate(_FLIP_TABLE)}")
 
     # ---- .8ball ----
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.8ball\s+(.+)$"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.8ball(?:\s+([\s\S]+))?$"))
     @client.flood_safe
     async def _8ball(event):
-        q = event.pattern_match.group(1).strip()
+        q = (event.pattern_match.group(1) or "Will I be lucky?").strip()
         await event.edit(f"🎱 **Q:** {q}\n**A:** {random.choice(_8BALL)}")
 
     # ---- .choose ----

@@ -1,0 +1,124 @@
+╔══════════════════════════════════════════════════════════════════════╗
+║        SUKUNA-X DOMAIN v7.4.2 — NAYE / PURANE COMMANDS KI LIST        ║
+╚══════════════════════════════════════════════════════════════════════╝
+
+━━━ 🚨 IS UPDATE (v7.4.2) ME KYA-KYA FIX HUA ━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  1. ⛔ SUDO-GATE FATAL BUG: `_bc_allow` galat attribute (`is_outgoing`)
+     check karta tha — wo Telethon me exist HI nahi karta → OWNER ke
+     apne commands bhi SILENTLY reject ho rahe the. Ab sahi (`out`).
+     → Yahi "bot ke commands kaam nahi kar rahe" ka ASLI ROOT CAUSE tha.
+  2. ⛔ AUTODELETE RACE: command ka apna output usi ke dispatch me
+     khud delete ho jata tha (instant-vanish). Ab protect_id guard.
+  3. ⛔ DOUBLE-START LOCK: do instances ek hi session par = "database
+     is locked" + session corruption (edits galat chat par jaate the).
+     Ab instance-lock — dusri instance turant clear message ke saath exit.
+  4. ⛔ .revert STALE-BACKUP: sirf pehli-baar backup hota tha — purana
+     (stale) profile restore ho jata tha. Ab HAR .clone se pehle FRESH
+     backup → .revert hamesha "pichla" state restore karta hai.
+  5. ⛔ .revertb PHOTO LEAK: bot ka original state photo-less tha to
+     cloned photo revert ke baad bhi lagi reh jaati thi. Ab clear hoti hai.
+  6. 🧹 DUPLICATE COMMANDS: .ping/.sysinfo/.matrix/.fire/.8ball/.wiki
+     do-do baar register the (double responses). Ab ek hi sahi version.
+  7. 🧹 .autodelete CONFLICT: admin.py ka user-autobl feature vs
+     botcontroller ka output-autodelete — dono same naam. Admin wala
+     ab `.autobl` hai.
+  8. 🔍 SILENT ERRORS: _Ev.edit/reply ke chhupe exceptions ab log me
+     dikhte hain (invisible failures khatam).
+  9. 🔑 SESSION/ACCOUNT FIX: userbot.py stale ACCOUNT import — ab
+     account-name session sahi use hota hai (live check).
+ 10. 🤖 BOTS: `Bots can't send messages to other bots` jaise errors ke
+     saath BotFather automation (addnewbotauto / cloneb / revertb)
+     live-tested & working. Bot clients ka lazy-connect bhi tested.
+
+━━━ 🆕 NAYE COMMANDS (BotController — bot ARMY) ━━━━━━━━━━━━━━━━━━━━━━━
+
+  BOT MANAGEMENT
+    .addbottoken <token>      bot add karo (validate + list + frozen check)
+    .addnewbotauto [n]         BotFather se KHUD naya bot banao
+                              (name: worker, username auto …bot, retry ke saath)
+    .botlist / .listbots       saare bots + frozen status
+    .monitorb                  LIVE online/frozen status + naam
+    .refreshb                  sab bots reconnect
+    .delbottoken/.delbot <n>   bot delete + slots auto-shift
+    .bccheck                   🩺 self-diagnosis (versions/creds/dirs/bots)
+
+  GROUP ADD/REMOVE
+    .addallb [slots]           sab bots current group me add
+    .addall 1-3                specific bots add
+    .removeallb                sab bots group se hatao
+
+  BOT DELEGATION (b = sab bots, b1-2 = specific)
+    .spamb <n> <gap> <text>    bots se spam      (.spamb1-2 = sirf 1st-2nd)
+    .sspamb <n> <gap> <text>   user + bots dono se spam
+    .raidb [n] <text>          bots se raid (reply = victim mention ke saath)
+    .rrt                       reply-raid turbo (user version)
+    .rrtb [slots]              bots reply-raid (target ke har msg ka reply)
+    .ctb                       bots replied message ka copy bhejein
+    .botsay <text>             bots bolein
+    .<animation>b              koi bhi animation bots se
+                              (.roseb .hackb .matrixb .countdownb …)
+    .<animation>b1-2           specific bots se animation
+
+  CLONE SYSTEM
+    .cloneb [slots]            bots = replied user ka clone
+                              (name+bio BotFather se, pfp MTProto se)
+    .revertb/.uncloneb [slots] bots wapas ORIGINAL state
+    .loadprofileb [slots] <nm> saved profile bots par
+
+  RAID MESSAGE SLOTS
+    .saverm <text>             raid message slot save (1st, 2nd, 3rd…)
+    .listrm                    saved slots dekho
+    .delrm <n>                 slot delete + baaki AUTO-SHIFT
+    .delallrm                  sab slots delete
+
+  SUDO (bot control in logon ko bhi)
+    .addsudo (reply/id)        sudo user add
+    .delsudo (reply/id)        sudo user remove
+    .listsudo                  sudo list
+
+  AUTODELETE (output self-cleanup — default ON)
+    .autodelete on/off/status  naya command = pichla output khud delete
+
+  STOP FAMILY (sab kuch band karne ke liye)
+    .stop                      current chat ke tasks
+    .stopall                   SAB tasks (har jagah)
+    .stopb                     bot tasks
+    .spamstop / .sspamstop     user/user+bot spam
+    .stopraid / .raidstop      raid + RRT
+    .raidbstop / .stopraidb    bot raid
+    .stoprrt                   RRT (user+bots)
+    .animstop                  animations
+    .tasks                     running tasks list
+
+━━━ 🔄 BADLE HUE / RENAMED COMMANDS ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  .autobl on/off/list     ← PEHLE .autodelete (admin wala — user blacklist)
+                           (botcontroller ka .autodelete alag hai — output cleanup)
+  .mping                  ← PEHLE .ping (farmer) — ab misc ka .ping hi sahi
+  .sysinfo                → ab sirf tools.py version (full CPU/RAM/disk)
+  .matrix / .fire         → ab sirf animations.py (count arg ke saath)
+  .8ball [sawal]          → ab fun.py (bina sawal ke bhi chalta hai)
+  .wiki <topic>           → ab extra.py (usage card + summary)
+
+━━━ ✅ TEST GROUP ME LIVE-TESTED (v7.4.2, 53 tests) ━━━━━━━━━━━━━━━━━━━
+
+  .alive .ping .help .menu .cmds .plist .stats .uptime .sysinfo
+  .autodelete status .listsudo .bccheck .botlist .monitorb .addallb
+  .botsay .spamb .stopb .raid .raidb .stopraid .spamstop .stopall
+  .saverm .listrm .delrm .delallrm .ct .ctb .rrt .rrtb .stoprrt
+  .cloneb .revertb .clone .revert .matrix .stop .8ball .random
+  .addbottoken (error-path) .addsudo .delsudo .addnewbotauto
+  (REAL bot banaya: @worker428025_bot) .refreshb + PRODUCTION E2E
+  (bot → sudo → .saverm/.delallrm — file-proof verified)
+
+  Bots army me ab: @worker0202bot + @worker428025_bot (dono tested)
+
+━━━ 📦 DEPLOY / TEST / RESTART ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  START   :  screen -dmS sukuna bash sukuna_run.sh
+  STOP    :  bash sukuna_stop.sh
+  LOGS    :  screen -r sukuna   (detach: Ctrl+A, D)  ·  tail -f run.out
+  TEST    :  python3 selftest.py   (poora 53-command live test + report)
+  NOTE    :  bash start.sh se double-start ab BLOCK hoga (lock) —
+             ek hi instance chalta hai, warna session corrupt hoti hai.

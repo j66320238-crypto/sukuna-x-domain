@@ -198,15 +198,6 @@ def register_sukuna(client: TelegramClient) -> None:
             await event.edit(fr, link_preview=False)
             await safe_sleep(0.35, floor=0.2)
 
-    # ---- .matrix ----
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.matrix$"))
-    async def _matrix(event):
-        chars = "01"
-        for _ in range(8):
-            line = "".join(random.choice(chars) for _ in range(20))
-            await event.edit(f"`{line}`\n`{line[::-1]}`\n`{line}`", link_preview=False)
-            await safe_sleep(0.25, floor=0.15)
-        await event.edit("🟩 Matrix rain — SUKUNA-X DOMAIN hacked the system", link_preview=False)
 
     # ---- .glitch ----
     @client.on(events.NewMessage(outgoing=True, pattern=r"^\.glitch$"))
@@ -218,13 +209,6 @@ def register_sukuna(client: TelegramClient) -> None:
             await safe_sleep(0.25, floor=0.15)
         await event.edit(f"**{base}** — glitch cleared, domain stable", link_preview=False)
 
-    # ---- .fire ----
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.fire$"))
-    async def _fire(event):
-        fires = ["🔥", "🔥🔥", "🔥🔥🔥", "🔥🔥🔥🔥", "🔥🔥🔥🔥🔥\n🔥 SUKUNA-X DOMAIN is on fire! 🔥"]
-        for f in fires:
-            await event.edit(f, link_preview=False)
-            await safe_sleep(0.3, floor=0.18)
 
     # ---- .lightning ----
     @client.on(events.NewMessage(outgoing=True, pattern=r"^\.lightning$"))
@@ -262,13 +246,6 @@ def register_sukuna(client: TelegramClient) -> None:
         res = "💰 JACKPOT!" if a == b == c else "😢 Try again" if len({a, b, c}) == 3 else "😏 Small win"
         await event.edit(f"🎰 | {a} | {b} | {c} | — {res} — SUKUNA-X DOMAIN", link_preview=False)
 
-    # ---- .8ball ----
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.8ball(?:\s+([\s\S]+))?$"))
-    async def _8ball(event):
-        q = (event.pattern_match.group(1) or "Will I be lucky?").strip()
-        answers = ["Yes 💯", "No 💀", "Maybe 🤔", "Definitely 🔥", "Ask again later 😏",
-                   "Without a doubt 👑", "Don't count on it 😂", "It is certain ⚡", "Very doubtful 🩸"]
-        await event.edit(f"🎱 **Q:** {q}\n🎱 **A:** {random.choice(answers)}", link_preview=False)
 
     log.info("Sukuna registered: 20 khatarnak commands (domain expansion, cursed techniques)")
 
@@ -288,13 +265,10 @@ COMMANDS_SUKUNA = {
         (".khatarnak", "Khatarnak mode — next-level power"),
         (".tagra", "Tagra (strong) mode — SUKUNA-X DOMAIN"),
         (".boom", "Boom explosion"),
-        (".matrix", "Matrix rain hack"),
         (".glitch", "Glitch text effect"),
-        (".fire", "Fire animation"),
         (".lightning", "Lightning fast"),
         (".domain", "Domain info + stats"),
         (".bingo", "Bingo lucky draw"),
         (".slots", "Slot machine"),
-        (".8ball <q>", "8ball magic answer"),
     ],
 }

@@ -14,6 +14,7 @@ Core engine lives in core/ — split into config, safety, store, accounts, etc.
 Easy to update: `git pull` + `bash start.sh` or `.update` inside Telegram.
 """
 import asyncio
+import fcntl               # v7.4.2: instance-lock (double-start guard)
 import logging          # v7.2 fix: pehle yahan import nahi tha → file-log silently kaam nahi karta tha
 import os
 import sys
@@ -32,6 +33,7 @@ from core import (
     log, _safety_save,
 )
 from core import state as _core_state
+from core import accounts as _accounts_mod   # v7.4.2: LIVE ACCOUNT (stale-import fix)
 from core.ui import register_builtin_commands, _total_commands
 from core.client import _step, _shutdown_panel, _run_forever, _interactive_login
 
@@ -81,7 +83,45 @@ def register_all(client) -> int:
 
 
 # ── main ─────────────────────────────────────────────────────────────────
+def _acquire_instance_lock():
+    """v7.4.2 — DOUBLE-START GUARD.
+
+    Problem: agar do userbot instances ek hi session file par chalein toh
+    (a) 'database is locked' errors aate hain
+    (b) session ki entity-cache CORRUPT ho jaati hai → edits galat chat par
+        jaate hain ('message id invalid') → commands chupchap fail
+    Ab: ek hi instance chalega — doosra turant clear message ke saath exit.
+    """
+    try:
+        os.makedirs(DATA_DIR, exist_ok=True)
+        fh = open(os.path.join(DATA_DIR, "sukuna.lock"), "w")
+        try:
+            fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except (OSError, BlockingIOError):
+            fh.close()
+            return None
+        fh.write(str(os.getpid()))
+        fh.flush()
+        return fh                     # fd open rakho — process exit par lock release
+    except Exception:
+        return None                   # lock lag nahi paya (FS support?) — warn bhi mat
+
+
 async def main() -> None:
+    _lock_fh = _acquire_instance_lock()
+    if _lock_fh is None:
+        print(
+            "\n⛔  SUKUNA-X DOMAIN ALREADY RUNNING hai (dusri instance lock rakhti hai).\n"
+            "   ──────────────────────────────────────────────\n"
+            "   • Ek hi account par EK instance hi chalta hai —\n"
+            "     do instances = session corruption + 'database is locked'.\n"
+            "   • Status dekhne ke liye:   ps aux | grep userbot\n"
+            "   • Band karne ke liye:      bash sukuna_stop.sh\n"
+            "   • Phir start:              screen -dmS sukuna bash sukuna_run.sh\n"
+        )
+        log.critical("Double-start BLOCKED by instance lock (pid %s)", os.getpid())
+        sys.exit(77)                  # supervisor isko 60s backoff samajhta hai
+
     print_banner()
     TOTAL_STEPS = 5
     print("   ⚙️  Starting up…")
@@ -117,7 +157,11 @@ async def main() -> None:
                                         ctx.get("exception") or ctx.get("message")))
     except Exception:
         pass
-    who = f"account '{acc_name}'" if ACCOUNT else "built-in API_ID/API_HASH"
+    # v7.4.2 FIX: pehle `ACCOUNT` by-value import hota tha jo hamesha None
+    # reh jata tha (resolve_credentials ke baad bhi) → session hamesha
+    # SESSION_NAME hi banta tha. Ab LIVE module attribute dekha jata hai.
+    _live_account = getattr(_accounts_mod, "ACCOUNT", None)
+    who = f"account '{acc_name}'" if _live_account else "built-in API_ID/API_HASH"
     _step(2, TOTAL_STEPS, f"Credentials ready ({who})" +
           (f" · phone {acc_phone}" if acc_phone else ""))
 
@@ -130,7 +174,7 @@ async def main() -> None:
             log.critical("SESSION_STRING is invalid (not a valid Telethon string).")
             sys.exit(1)
     else:
-        session_obj = acc_name if ACCOUNT else SESSION_NAME
+        session_obj = acc_name if _live_account else SESSION_NAME
 
     client = TelegramClient(
         session=session_obj,

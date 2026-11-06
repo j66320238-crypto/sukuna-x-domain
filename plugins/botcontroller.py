@@ -212,13 +212,22 @@ def _ad_track(chat_id, msg_id):
         pass
 
 
-async def _ad_delete_previous(client, chat_id):
-    """Chat ke pichle output ko khud delete karo (naya command aane par)."""
+async def _ad_delete_previous(client, chat_id, protect_id=None):
+    """Chat ke pichle output ko khud delete karo (naya command aane par).
+
+    v7.4.2 RACE FIX: protect_id = current command ka message id. Agar
+    pichla tracked output HI current command hai (handler ne abhi-abhi
+    edit kiya hai), toh use delete NAHI karna — warna command ka apna
+    output usi ke dispatch me ud jaata tha (isliye botcommands ke cards
+    user ko dikh hi nahi rahe the!). Sirf sach me PURANA output jayega.
+    """
     if not _AD.get("on"):
         return
     mid = _AD_LAST.get(chat_id)
     if mid is None:
         return
+    if protect_id is not None and mid == protect_id:
+        return              # ye CURRENT command ka output hai — rehne do
     _AD_LAST.pop(chat_id, None)
     try:
         await client.delete_messages(chat_id, mid)
@@ -885,7 +894,12 @@ def register_botcontroller(client):
 
     def _bc_allow(ev):
         try:
-            if getattr(ev, "is_outgoing", False):
+            # v7.4.2 CRITICAL FIX: pehle `is_outgoing` check hota tha — wo
+            # attribute Telethon me EXIST nahi karta (sirf `out` hota hai)
+            # → getattr hamesha False deta → OWNER ke apne commands bhi
+            # reject ho rahe the (yahi "bot commands not working" ka
+            # asli root cause tha!). Ab sahi attribute + message fallback.
+            if getattr(ev, "out", False) or getattr(getattr(ev, "message", None), "out", False):
                 return True
             sid = ev.sender_id
             return bool(sid) and sid in _sudo_ids()
@@ -908,16 +922,22 @@ def register_botcontroller(client):
 
         async def edit(self, text, *args, **kwargs):
             ev = self._ev
-            if getattr(ev, "is_outgoing", True):
+            # v7.4.2: `is_outgoing` → `out` (Telethon me asli attribute)
+            if getattr(ev, "out", False) or getattr(getattr(ev, "message", None), "out", False):
                 try:
                     m = await ev.edit(text, *args, **kwargs)
-                    # 🧹 autodelete: owner ke edited outputs bhi track ho
-                    _ad_track(getattr(ev, "chat_id", None), getattr(ev, "id", None))
+                    # v7.4.2 RACE FIX: yahan _ad_track HATA diya —
+                    # autodelete-listener khud event.id track karta hai;
+                    # yahan track karne se listener usi message ko 'purana
+                    # output' samajh kar delete kar deta tha (instant-vanish
+                    # bug). Sirf fallback/reply wale NAYE ids track hote hain.
                     return m
                 except MessageNotModifiedError:
                     return None
-                except Exception:
-                    pass   # purana/deleted message — reply se aage badho
+                except Exception as e:
+                    # v7.4.2: silent swallow khatam — exact reason log me dikhega
+                    log.warning("[botcontroller] _Ev.edit fallback → %s: %s",
+                                type(e).__name__, str(e)[:140])
             kwargs.pop("buttons", None)
             try:
                 m = await self._cl.send_message(ev.chat_id, text, *args, **kwargs)
@@ -929,11 +949,14 @@ def register_botcontroller(client):
         async def reply(self, text, *args, **kwargs):
             try:
                 m = await self._ev.reply(text, *args, **kwargs)
-            except Exception:
+            except Exception as e:
+                log.warning("[botcontroller] _Ev.reply fallback → %s: %s",
+                            type(e).__name__, str(e)[:140])
                 try:
                     m = await self._cl.send_message(self._ev.chat_id, text,
                                                     *args, **kwargs)
-                except Exception:
+                except Exception as e2:
+                    log.error("[botcontroller] _Ev.reply bhi fail: %s", e2)
                     return None
             _ad_track(self._ev.chat_id, m.id)
             return m
@@ -2021,6 +2044,11 @@ def register_botcontroller(client):
                         done.append("pfp ✅" if ok2 else f"pfp❌ {why2[:32]}")
                 else:
                     done.append("pfp⚠️ file missing")
+            elif not pre.get("has_photo"):
+                # v7.4.2 FIX: pre-clone state me photo thi NAHI → cloned
+                # photo revert ke baad bhi bot par lagi reh jaati thi.
+                cleared = await _bc_clear_bot_photos(bc)
+                done.append("pfp ✅ (cleared)" if cleared else "pfp⚠️ clear failed")
             rows.append(f"┃ {_ord(s)} @{uname} ✅ reverted ({', '.join(done)})")
         _bc_save(data)
         await event.edit(
@@ -2599,8 +2627,8 @@ def register_botcontroller(client):
     async def _autodel_listener(event):
         try:
             chat_id = event.chat_id
-            # sudo-reply outputs bhi track hote hain (_Ev proxy se)
-            await _ad_delete_previous(client, chat_id)
+            # v7.4.2: protect_id — current command ka apna output kabhi delete nahi
+            await _ad_delete_previous(client, chat_id, protect_id=event.id)
             if _AD.get("on"):
                 _ad_track(chat_id, event.id)
         except Exception:

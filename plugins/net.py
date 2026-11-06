@@ -8,7 +8,6 @@ from core import *  # noqa: F401,F403 — shared engine
 COMMANDS_NET = {
     "description": "Web Lookups (10)",
     "commands": [
-        (".wiki <topic>", "Wikipedia summary"),
         (".weather [city]", "live weather (no city = your area)"),
         (".lyrics artist - title", "song lyrics"),
         (".ipinfo [ip]", "IP / ISP / country lookup"),
@@ -40,27 +39,6 @@ def _net_resolve(url: str, timeout: int = 12) -> str:
 def register_net(client):
     """Free web lookups."""
 
-    # ---- .wiki ----
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.wiki\s+([\s\S]+)$"))
-    @client.flood_safe
-    async def _wiki(event):
-        query = event.pattern_match.group(1).strip()
-        await event.edit("🔎 Searching Wikipedia…")
-        try:
-            url = ("https://en.wikipedia.org/api/rest_v1/page/summary/"
-                   + urllib.parse.quote(query.replace(" ", "_")))
-            data = json.loads(await _web_get(url))
-            if data.get("type", "").endswith("not_found") or "extract" not in data:
-                return await event.edit(f"❌ Nothing found for “{html.escape(query)}”.")
-            link = (data.get("content_urls", {}).get("desktop", {}).get("page") or "")
-            await event.edit(
-                f"✦ ━━━〔 📚 {html.escape(data.get('title', query))} 〕━━━ ✦\n"
-                f"{html.escape(data['extract'][:2200])}\n"
-                + (f"\n🔗 {link}" if link else ""),
-                parse_mode="html", link_preview=False,
-            )
-        except Exception as exc:
-            await event.edit(f"❌ Wikipedia error: `{exc}`")
 
     # ---- .weather ----
     @client.on(events.NewMessage(outgoing=True, pattern=r"^\.weather(?:\s+([\s\S]+))?$"))

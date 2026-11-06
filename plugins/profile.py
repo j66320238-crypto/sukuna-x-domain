@@ -210,14 +210,15 @@ def _clear_preclone():
 
 
 async def _save_preclone_backup(client):
-    """Clone se PEHLE original profile ka snapshot (sirf pehli baar — kabhi overwrite nahi).
+    """Clone se PEHLE original profile ka snapshot — HAR .clone par FRESH.
 
-    Isse .revert hamesha asli original pe le jaata hai, chahe kitni bhi
-    chain-of-clones ho (.clone A → .clone B → .revert = original wapas).
+    v7.4.2 FIX: pehle ye backup SIRF PEHLI BAAR save hota tha aur kabhi
+    overwrite nahi hota — isliye .revert purane-purane (stale) profile
+    par le jaata tha (e.g. subah ka naam shaam me restore ho jata).
+    Ab: .revert = "pichla undo" (last clone se pehle wala state),
+    jo user ki expectation bhi hai. Fresh backup har .clone se pehle.
     """
     try:
-        if _load_preclone_meta():
-            return  # original backup already saved hai — overwrite kabhi nahi
         os.makedirs(PRECLONE_DIR, exist_ok=True)
         me = await client.get_me()
         bio = ""

@@ -16,7 +16,7 @@ Handles group administration commands:
     .pin  .unpin  .unpinall
     .del  .purge [n]
     .lock <type>  .unlock <type>
-    .autodelete on|off|list
+    .autobl on|off|list — user messages auto-delete (admin)
     .admins
     .warn <reason>  .warnings  .resetwarn
     .gban  .ungban
@@ -422,9 +422,10 @@ def register_admin(client):
         except Exception as e:
             await event.reply(f"⚠️ Error: `{e}`")
 
-    # ════════════════════════════ .autodelete ════════════════════════════
+    # ════════════════════════════ .autobl (user auto-blacklist) ════════════════════════════
+    # v7.4.2: naam badla — .autodelete ab BotController ka output-cleanup hai
     @client.on(events.NewMessage(outgoing=True,
-        pattern=r"^[\.!]autodelete(?:\s+(on|off|list))?(?:\s+(\S+))?$"))
+        pattern=r"^[\.!]autobl(?:\s+(on|off|list))?(?:\s+(\S+))?$"))
     @client.flood_safe
     async def autodelete_handler(event):
         try:
@@ -445,9 +446,9 @@ def register_admin(client):
             if action not in ("on", "off"):
                 return await event.reply(
                     "❌ Usage:\n"
-                    "• `.autodelete on` (reply to user, or `.autodelete on @username`)\n"
-                    "• `.autodelete off` (same)\n"
-                    "• `.autodelete list`"
+                    "• `.autobl on` (reply to user, or `.autobl on @username`)\n"
+                    "• `.autobl off` (same)\n"
+                    "• `.autobl list`"
                 )
 
             # ── Resolve target user id ──
@@ -740,7 +741,7 @@ COMMANDS_ADMIN = {
         (".pin / .unpin / .unpinall", "manage pins"),
         (".del", "delete replied msg"), (".purge [n]", "mass delete"),
         (".lock <type> / .unlock <type>", "chat locks"),
-        (".autodelete on|off|list", "auto-delete a user's msgs"),
+        (".autobl on|off|list — user messages auto-delete (admin)", "auto-delete a user's msgs"),
         (".admins", "list chat admins"),
         (".warn / .warnings / .resetwarn", "warn system (3=ban)"),
         (".gban / .ungban", "global ban across chats"),

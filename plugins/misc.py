@@ -119,7 +119,6 @@ COMMANDS_MISC = {
     "commands": [
         (".ping", "measure Telegram latency"),
         (".uptime", "bot uptime"),
-        (".sysinfo", "server system report"),
         (".calc <expr>", "safe calculator"),
         (".google <query>", "Google search link"),
         (".time", "server date & time"),
@@ -162,37 +161,8 @@ def register_misc(client):
             link_preview=False,
         )
 
-    # ---- .sysinfo ----
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.sysinfo$"))
-    async def _sysinfo(event):
-        lines = [
-            "🖥  **System Info**",
-            "━━━━━━━━━━━━━━━━━━━━━━",
-            f"**OS:**       {platform.system()} {platform.release()}",
-            f"**Arch:**     {platform.machine()}",
-            f"**Python:**   {platform.python_version()}",
-            f"**Telethon:** {telethon_version}",
-            f"**Uptime:**   {_fmt_uptime(time.time() - START_TIME)}",
-        ]
-        if _HAS_PSUTIL:
-            vm = psutil.virtual_memory()
-            swap = psutil.swap_memory()
-            lines += [
-                f"**CPU:**      {psutil.cpu_count()} cores — "
-                f"{psutil.cpu_percent(interval=0.3)}% used",
-                f"**RAM:**      {_fmt_bytes(vm.used)} / {_fmt_bytes(vm.total)} "
-                f"({vm.percent}%)",
-                f"**Swap:**     {_fmt_bytes(swap.used)} / {_fmt_bytes(swap.total)}",
-            ]
-            try:
-                load1, load5, load15 = os.getloadavg()
-                lines.append(f"**Load:**     {load1:.2f} / {load5:.2f} / {load15:.2f}")
-            except Exception:
-                pass
-        else:
-            lines.append("_Install `psutil` for CPU/RAM stats._")
-        lines.append("━━━━━━━━━━━━━━━━━━━━━━")
-        await event.edit("\n".join(lines), link_preview=False)
+    # ---- .sysinfo : tools.py me full version hai (yahan duplicate tha —
+    # dono chalte the aur ek hi message par race lagti thi)
 
     # ---- .calc ----
     @client.on(events.NewMessage(outgoing=True, pattern=r"^\.calc\s+(.+)$"))
