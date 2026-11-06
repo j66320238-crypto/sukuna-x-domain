@@ -1,4 +1,4 @@
-# ⚡ SUKUNA-X DOMAIN v7.3 — PHANTOM EDITION + BOTCONTROLLER 👑🤖
+# ⚡ SUKUNA-X DOMAIN v7.3.1 — PHANTOM EDITION + BOTCONTROLLER 👑🤖
 
 **34 plugins · 460+ handlers · 350+ cmds · 88 animations · BOTCONTROLLER MULTI-BOT ARMY 🤖 · TYPE-X auto-typewriter · 13 naye API commands · v7.2 BAN-PROOF SHIELD+ · JioSaavn music · ID Backup/Restore · interactive button menu · AI tools · DP Auto-Rotator · zero-flood engine**
 
@@ -37,6 +37,13 @@
 | `.saverm <text>` | raid message slots — 1st, 2nd, 3rd… save |
 | `.listrm / .delrm <n>` | slots list / delete (delete pe slots auto-shift) |
 | `.stopb` | sab bot tasks STOP (`.stop` bhi kaam karta hai) |
+| `.rrt` | 🆕 **Reply-Raid Turbo** — target ka har message → reply me saved slots se ek-ek (rotation) |
+| `.rrtb [slots]` | 🆕 BOTS bhi reply-raid karein (`.rrtb2-3` custom slots) |
+| `.stoprrt` | 🆕 sab RRT band (user + bots) |
+| `.ct on/off` | 🆕 **COPYCAT** — jo text/sticker bhejoge wahi SAME dobara jayega |
+| `.ctb [slots] on/off` | 🆕 BOTS copycat — bots tumhare messages ka copy bhejein (custom slots) |
+| `.refreshb` | 🆕 sab bots reconnect + frozen flags clear attempt |
+| `.delallrm` | 🆕 sab saved raid slots ek saath delete |
 | `.bchelp` | poora help card |
 
 **Frozen bot system:** token dead/revoked hone par bot ❄️ FROZEN mark hota hai — `.listbots` / `.monitorb` me dikhta hai, kabhi crash nahi hota.

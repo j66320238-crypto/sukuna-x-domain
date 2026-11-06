@@ -1,154 +1,178 @@
 ════════════════════════════════════════════════════════════════════
-  🤖 BOTCONTROLLER v7.3 — POORI COMMAND LIST (Hinglish)
+  🤖 BOTCONTROLLER v7.4 — POORI COMMAND LIST (Hinglish)
 ════════════════════════════════════════════════════════════════════
 
-📦 INSTALL (kuch nahi karna — ye zip poora ready-made hai):
+📦 INSTALL (zip poora ready-made hai):
   1. Zip extract karo
-  2. python userbot.py (ya bash start.sh) — pehli baar API_ID/HASH + OTP
-  3. .bchelp likho — BotController ka poora menu
+  2. pip install -r requirements.txt   (telethon >= 1.34 zaroori)
+  3. python userbot.py (ya bash start.sh) — pehli baar API_ID/HASH + OTP
+  4. .bchelp likho — BotController ka poora menu
 
-  ⚠️ Bot tokens restart ke baad bhi safe rehte hain (data/ me saved)
-     — dobara add karne ki zaroorat nahi.
+  ⚠️ Bot tokens restart ke baad bhi safe rehte hain (data/ me saved).
+
+🆕 = v7.4 me NEW ya bada-badla hua · ✅ = pehle se tha, ab bug-free
 
 ──────────────────────────────────────────────────────────────────────
  1️⃣  BOT ADD / MANAGE
 ──────────────────────────────────────────────────────────────────────
-  .addbottoken <token>   — token LIVE verify karke bot add
-                            (1st, phir 2nd, 3rd... jaise jaise add karoge)
-     ex:  .addbottoken 123456789:AAHxyz...
-     ❌ dead/revoked token apne aap reject ho jata hai
+  .addbottoken <token>  ✅ token LIVE verify karke bot add
+                          (1st, phir 2nd, 3rd... slots)
+     ex: .addbottoken 123456789:AAHxyz...
+     ❌ dead/revoked token apne aap reject (FROZEN detect)
 
-  .delbottoken <n>       — nth bot delete
-  .delbot <n>            — same ka short alias
-                            (aage wale apne aap shift:
-                             2nd delete → purana 3rd ab 2nd ban jayega)
+  .addnewbotauto [n]    🆕 BotFather se KHUD naya bot bana deta hai
+                          — name: worker · username khud generate
+                            (hamesha 'bot' par khatam, e.g. worker482913_bot)
+                          — username taken ho toh dobara try karta hai
+                          — token auto-register + bot ko /start bhi
+     ex: .addnewbotauto      → 1 naya bot
+          .addnewbotauto 3   → 3 naye bots ek saath
 
-  .listbots              — saare bots ki list (❄️ frozen bhi dikhta hai)
-  .botlist                — same ka alias
+  .delbottoken <n>      ✅ nth bot delete (slots auto-shift: 2nd delete
+  .delbot <n>              → purana 3rd ab 2nd ban jayega)
 
-  .monitorb              — LIVE status: kaun online 💚 kaun frozen ❄️
-                            (connect karke check karta hai)
-
-  ❄️ FROZEN = jiska token dead/revoked hai. Kabhi crash nahi hota,
-     list me dikhta rehta hai. Naya token add karke purana delbot karo.
-
-──────────────────────────────────────────────────────────────────────
- 2️⃣  GROUP ME ADD / REMOVE
-──────────────────────────────────────────────────────────────────────
-  .addallb               — SAB bots current group me add
-  .addallb1-3            — sirf 1st se 3rd wale
-  .addall 1-3            — same ka doosra tarika
-  .addall 2              — sirf 2nd wala
-  .addall 1,3            — 1st aur 3rd
-
-  .removeallb            — sab bots group se remove
-
-  💡 "jo ho sake, add ho jata hai" — har bot ka result alag dikhta
-     hai (added ✅ / already in group / ❌ reason)
+  .listbots / .botlist  ✅ saare bots ki list (❄️ frozen bhi dikhta hai)
+  .monitorb             ✅ LIVE status: kaun online 💚 + SAB KA NAAM
+  .refreshb             ✅ sab bots reconnect (frozen clear attempt)
 
 ──────────────────────────────────────────────────────────────────────
- 3️⃣  SPAM (interval ka KOI lower limit nahi — 0.1, 0.5 sab ok)
+ 2️⃣  GROUP ME ADD / REMOVE — ImportError FIXED 🆕
 ──────────────────────────────────────────────────────────────────────
-  .spamb <count> <interval> <text>
-                          — SAB bots text spam
-     ex:  .spamb 20 0.5 hello yaar     (20 msg, 0.5s gap)
+  .addallb             ✅ SAB bots current group me add
+  .addallb1-3          ✅ sirf 1st se 3rd wale
+  .addall 1-3          ✅ specific bots
+  .removeallb          ✅ SAB bots group se remove
 
-  .spamb1-3 <count> <interval> <text>
-                          — sirf 1st-3rd bots
-     ex:  .spamb1-2 10 0.1 namma
-
-  .sspamb <count> [interval]
-                          — BOTS se replied STICKER ka spam
-     (sticker par reply karke bhejo)
-     ex:  .sspamb 30 0.3
-
-  .sspam <count> [interval]
-                          — USER version sticker spam (khud ka)
-     ex:  .sspam 50 0.2
+  🛠 v7.4 FIX: pehle "@worker0202bot ❌ ImportError" aata tha — asli wajah
+     ye thi ki galat telethon class (AddChatMembersRequest) use hoti thi
+     jo EXIST hi nahi karti. Ab sahi class (AddChatUserRequest) + har
+     error ka ASLI REASON dikhta hai:
+     ❗ tum admin nahi ho / bot ko /start karo / group limit — sab clear.
 
 ──────────────────────────────────────────────────────────────────────
- 4️⃣  RAID (v7.3 UPGRADED)
+ 3️⃣  SPAM SYSTEM
 ──────────────────────────────────────────────────────────────────────
-  .raid                   — ab reply OPTIONAL hai:
-     .raid                → 10 msgs saved slots ya raid text se
-     .raid 20             → 20 baar
-     .raid 20 hello yaar  → apne custom text se
-     reply + .raid 20    → victim ke naam + mention ke saath
-
-  .raidb <count> <text>   — BOTS se raid karwao
-  .raidb2 20             — sirf 2nd bot raid kare
-  .raidb 20              — text na do to SAVED slots rotate hote hain
-
-  .saverm <text>          — raid message save (1st, 2nd, 3rd... slots)
-  .saverm                 — reply karke bhejo → replied msg ka text save
-  .listrm                 — saved slots dikhao
-  .delrm <n>              — nth slot delete (aage wale shift ho jate
-                             hain: 3rd delete → 4th ab 3rd)
+  .spamb <n> <sec> <text>   ✅ SAB bots text spam
+     ex: .spamb 10 1 hello   → 10 baar, 1 second gap
+          .spamb 50 0.1 yo   → 0.1s gap bhi (NO lower limit)
+  .spamb1-2 <n> <sec> <txt> ✅ sirf specific bots
+     ex: .spamb1-2 10 1 hi  → sirf 1st + 2nd bot
+  .sspam <n> [sec]          ✅ USER sticker spam (sticker par reply karke)
+  .sspamb <n> [sec]         ✅ BOTS sticker spam (reply karke)
+     ex: sticker par reply + .sspamb 10 .1
 
 ──────────────────────────────────────────────────────────────────────
- 5️⃣  PROFILE CLONE / REVERT (pahle jaisa system)
+ 4️⃣  RAID SYSTEM — v3 REWRITE 🆕
 ──────────────────────────────────────────────────────────────────────
-  .cloneb                 — bots replied-user ka profile clone karein
-  .cloneb2-3              — sirf 2nd-3rd bots
-  .revertb                — bots PEHLE JAISE ho jayein (pre-clone
-                             state se restore — name+bio+DP)
-  .revertb / .uncloneb    — dono same kaam karte hain
-  .revertb2               — sirf 2nd bot revert
+  .raid [n] [text]      ✅ user raid — reply optional, custom text,
+                          saved slots rotate (1st → 2nd → 3rd…)
+     ex: .raid 20  ·  .raid 20 hello  ·  reply + .raid 20
 
-  👤 USER ke liye (profile.py):
-  .revert                 — tum khud pahle jaise ho jao
-     (har .clone se PEHLE tumhara original naam+bio+DP backup
-      hota hai — kabhi overwrite nahi hota, chain-of-clones safe)
+  .raidb [slots] <n> [txt] 🆕 BOT raid — ab reply OPTIONAL hai
+     ex: reply + .raidb 10     → victim par bot raid
+          .raidb 10 hello      → pura chat raid (bina reply)
+          .raidb1-3 10         → sirf 1st-3rd bots
+
+  📜 RAID MESSAGE SLOTS (saverm system):
+  .saverm <text>        ✅ slot save — 1st, phir 2nd, 3rd...
+     ex: .saverm kya kar rhe ho   → 1st slot
+          .saverm oye {name}       → 2nd slot
+  .listrm               ✅ sab saved slots list
+  .delrm <n>            ✅ nth slot delete → AUTO-SHIFT
+     (3rd delete karo → purana 4th ab 3rd ban jayega)
+  .delallrm             🆕 sab slots ek saath delete
+
+  .rrt                  ✅ REPLY-RAID TURBO (user): kisi par reply karke
+                          likho → uska HAR message reply me saved slots
+                          me se ek-ek aayega
+  .rrtb [slots]         ✅ BOTS wala RRT  · ex: .rrtb  /  .rrtb2-3
+  .stoprrt              ✅ sab RRT band
+
+  🛠 v7.4 NOTE: purane error-wale .drraid + uska listener HATA diye gaye.
+     Ab sirf .rrt / .rrtb hai (better + bots support).
+
+  .setraid <text>       ✅ raid text template ({name}/{tag} placeholders)
+  .listraid / .delraid  ✅ saved text dekho / delete
 
 ──────────────────────────────────────────────────────────────────────
- 6️⃣  ANIMATION DELEGATION (88 animations bots par!)
+ 5️⃣  PROFILE / CLONE — BotFather ENGINE se 🆕
 ──────────────────────────────────────────────────────────────────────
-  .<animation>b           — koi bhi animation SAB bots par chalao
-     ex:  .roseb   .hackb   .moonb   .fireb   .bombb
-  .<animation>b1-2        — sirf specific bots par
-     ex:  .roseb1-2    (1st aur 2nd par)
-  .<animation>b 20        — 20 second tak (default 25s, max 60s)
-     ex:  .hackb 20
-  .<animation>b2 15       — sirf 2nd bot, 15 second
-
-  ⚠️ Jo animation ka naam ho uske aage bas 'b' laga do:
-     .rose → .roseb   |   .hack → .hackb   |   .bomb → .bombb
+  .cloneb [slots]       🆕 bots replied-user ka FULL clone
+                          — naam + bio BotFather automation se (2-4s/bot)
+                          — pfp MTProto se + BotFather fallback
+     🛠 v7.4 FIX: pehle "name❌ BotMethodInvalidEr" aata tha — Telegram
+        bots ko account.updateProfile USE KARNE HI NAHI deta (official
+        limit). Ab BotFather /setname + /setdescription se hota hai =
+        guaranteed kaam karega.
+  .revertb [slots]      ✅ bots wapas ORIGINAL (pre-clone) state me
+  .uncloneb [slots]     ✅ same ka alias
+  .loadprofileb [slots] <name> 🆕 .saveprofile wala SAVED profile
+                          bots par load karo (naam + bio + photos)
+     ex: .loadprofileb mintu     → sab bots par
+          .loadprofileb2-3 mintu → sirf 2nd-3rd bots
+  .botsay [slots] <text> ✅ bots se koi bhi message bulwao
 
 ──────────────────────────────────────────────────────────────────────
- 7️⃣  MISC / CONTROL
+ 6️⃣  ANIMATION DELEGATION
 ──────────────────────────────────────────────────────────────────────
-  .botsay <text>          — bots se message bulwao
-  .botsay2 hello          — sirf 2nd bot bole
-  .stopb                  — SAB bot tasks stop (spam/raid/anim)
-  .stop                   — poora userbot ke saare loops stop
-  .bchelp / .bch / .bothelp — BotController ka menu
+  .<anim>b [sec]        ✅ koi bhi animation SAB bots par
+     ex: .roseb  ·  .hackb 30
+  .<anim>b1-2 [sec]     ✅ specific bots par
+     ex: .roseb1-2  ·  .bombb1-1  ·  .moonyb2-3 15
+  (jo bhi animation userbot me hai — sab chalega)
 
-════════════════════════════════════════════════════════════════════
-  🧊 FROZEN BOTS KA MATLAB
-════════════════════════════════════════════════════════════════════
-  Token in cases me frozen maana jata hai:
-  • token revoke kar diya (BotFather me /revoke)
-  • bot delete kar diya
-  • account deactivated
-  ❄️ Frozen bot .spamb/.raidb me automatically skip ho jata hai —
-     kabhi crash/hang nahi hoga. .monitorb se exact reason dekho.
+──────────────────────────────────────────────────────────────────────
+ 7️⃣  COPYCAT — .ct / .ctb
+──────────────────────────────────────────────────────────────────────
+  reply + .ct          🆕 replied text/sticker/photo SAME dobara bhejo
+  .ct on / .ct off     ✅ mode: jo bhi bhejoge wahi same dobara jayega
+  reply + .ctb [slots] 🆕 BOTS replied content bhejein
+     ex: reply + .ctb      → sab bots ne copy bheja
+          reply + .ctb2-3 → sirf 2nd-3rd
+  .ctb on / .ctb2-3 on / .ctb off  ✅ bots copycat mode (custom slots)
 
-════════════════════════════════════════════════════════════════════
-  ⚡ QUICK START (example flow)
-════════════════════════════════════════════════════════════════════
-  1. @BotFather se 2-3 bots banao, tokens lo
-  2. .addbottoken <token1>     → 1st bot
-  3. .addbottoken <token2>     → 2nd bot
-  4. .addbottoken <token3>     → 3rd bot
-  5. .monitorb                 → sab online? ✓
-  6. group me jao → .addallb   → sab bots add
-  7. .saverm kya kar rhe ho    → raid slot 1st
-  8. .saverm oye suno zara     → raid slot 2nd
-  9. reply karke .raid 20      → rotation raid shuru!
- 10. .roseb1-2                 → 1st-2nd bots par rose animation
- 11. .cloneb                   → sab bots victim ke clone
- 12. .revertb                  → sab bots wapas original
- 13. .stopb                    → sab stop
+──────────────────────────────────────────────────────────────────────
+ 8️⃣  STOP SYSTEM — har attack ka apna stop 🆕
+──────────────────────────────────────────────────────────────────────
+  .stop                 ✅ sab tasks stop (builtin)
+  .stopall              🆕 FULL STOP: tasks + RRT + CopyCat sab band
+  .stopb                ✅ sab BOT tasks stop
+  .spamstop             🆕 text spam tasks stop
+  .sspamstop            🆕 sticker spam tasks stop
+  .stopraid             🆕 raid tasks + RRT band
+  .raidstop             🆕 same ka alias
+  .raidbstop            🆕 sirf BOT raid stop
+  .stopraidb            🆕 same ka alias
+  .animstop             🆕 animations stop
 
-  ✅ 25/25 tests pass · 21 handlers · zero pattern conflicts
+──────────────────────────────────────────────────────────────────────
+ 9️⃣  UX SYSTEM
+──────────────────────────────────────────────────────────────────────
+  🧹 AUTO-DELETE (DEFAULT ON 🆕):
+     naya command likho → usi chat me pichle command ka output
+     KHUD delete ho jayega. Chat hamesha saaf rehta hai.
+     ex: .help likha → output aaya → .help 1 likha → pichla gaya
+  .autodelete on/off   🆕 system band/chalu (status ke liye bas .autodelete)
+
+  🛡 SUDO (bots ka control kisi aur ko do 🆕):
+  .addsudo             🆕 reply karke ya .addsudo <id> — ab wo user
+                         bhi SAB BotController commands chala sakta hai
+  .delsudo             🆕 sudo remove  ·  .listsudo — sab sudo list
+     (sudo ke commands ka jawab REPLY me aata hai — apne aap)
+
+──────────────────────────────────────────────────────────────────────
+ 📋 purane vs naye (SHORT SUMMARY)
+──────────────────────────────────────────────────────────────────────
+  ❌ HATA YE (error-wale): .drraid (purana reply-raid), purana .stopraid
+  🆕 NAYE: .addnewbotauto · .loadprofileb · .ct (one-shot) · .ctb
+      (one-shot) · .stopall · .spamstop · .sspamstop · .stopraid ·
+      .raidstop · .raidbstop · .stopraidb · .animstop · .autodelete ·
+      .addsudo · .delsudo · .listsudo · .delallrm
+  🛠 FIX HUE: .addallb (ImportError) · .cloneb/.revertb
+      (BotMethodInvalid) · .raidb (reply optional) · .help auto-upgrade
+  ✅ PEHLE SE THE (ab solid): .addbottoken .delbottoken .listbots
+      .monitorb .refreshb .addallb .addall .removeallb .spamb .spamb1-2
+      .sspam .sspamb .raid .raidb .setraid .listraid .delraid .saverm
+      .listrm .delrm .rrt .rrtb .stoprrt .cloneb .revertb .botsay
+      .<anim>b .<anim>b1-2 .stopb .bchelp
 ════════════════════════════════════════════════════════════════════

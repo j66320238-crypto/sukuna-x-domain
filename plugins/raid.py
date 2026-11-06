@@ -2,25 +2,30 @@
 from core import *  # noqa: F401,F403 — shared engine
 
 ############################################################################
-#  SECTION: RAID  (ported from worker_bot/modules/raid.py)
+#  SECTION: RAID v3 — CLEAN REWRITE
 ############################################################################
-
-# worker_bot/modules/raid.py
 """
-Raid module for the Telegram Userbot.
-Dynamically loaded by userbot.py via ``register(client)``.
+Raid v3 — purane error-wale commands (.drraid + uska listener) HATA diye
+gaye hain. Reply-raid ab BotController ka `.rrt` / `.rrtb` karta hai
+(better: saved slots rotation + bots support + `.stoprrt`).
 
-Raid message format (v2):
+Raid message format:
     • Default  : "<name> <saved text> <mention>"
                  e.g. saved "kya kar rhe ho" + target "Mintu"
                       → "Mintu kya kar rhe ho Mintu"
-    • Template : if saved text contains {name} / {mention} / {tag},
-                 it is used as a template:
-                 .setraid kya kar rhe ho {name}   → "kya kar rhe ho Mintu"
-                 .setraid {name} kya kar rhe ho {tag} → "Mintu kya kar rhe ho Mintu"
-    • Fallback : no .setraid needed — default text "kya kar rhe ho" is used.
-"""
+    • Template : saved text me {name} / {mention} / {tag} ho to template:
+                 .setraid kya kar rhe ho {name} → "kya kar rhe ho Mintu"
+    • Fallback : .setraid ki bina bhi chalega — default "kya kar rhe ho"
 
+Commands (user version — bots ke liye BotController me .raidb hai):
+    .raid [n] [text]    raid — saved slots rotate + reply → victim
+    .setraid <text>     raid text save ({name}/{tag} placeholders)
+    .listraid           saved text dekho
+    .delraid/.clrraid   saved text delete
+Raid messages (.saverm slots) BotController (`plugins/botcontroller.py`)
+manage karta hai — `.raid` inhe rotate karta hai (1st → 2nd → 3rd…).
+Stop: `.stop` (sab) · `.stopraid` / `.raidstop` (raid+RRT) — BotController me.
+"""
 
 # ─── Module-level constants & state ───────────────────────────────────────
 
@@ -31,9 +36,6 @@ RAID_DATA_FILE = os.path.join(
 
 # Default raid text — .raid works even if nothing was saved via .setraid
 DEFAULT_RAID_TEXT = "kya kar rhe ho"
-
-# In-memory store of user IDs with active reply-raid.
-active_reply_raids = []
 
 
 # ─── File I/O helpers ─────────────────────────────────────────────────────
@@ -64,21 +66,6 @@ def _has_saved_raid_text():
         return False
 
 
-# ─── v7.3: .saverm slots — .raid inhe rotate karta hai ─────────────────────
-
-def _load_raid_messages():
-    """`.saverm` se saved raid-message slots (list). BotController se manage hote hain."""
-    try:
-        d = load_store("raid_messages")
-        if isinstance(d, dict):
-            msgs = d.get("messages")
-            if isinstance(msgs, list):
-                return [str(m) for m in msgs if str(m).strip()]
-    except Exception:
-        pass
-    return []
-
-
 def _save_raid_text(text):
     """Persist raid text.  Return ``True`` on success."""
     try:
@@ -99,6 +86,24 @@ def _delete_raid_text():
     except OSError:
         return False
 
+
+# ─── v7.3: .saverm slots — .raid inhe rotate karta hai ─────────────────────
+# (slots BotController me .saverm se bhar te hain — same store)
+
+def _load_raid_messages():
+    """`.saverm` se saved raid-message slots (list)."""
+    try:
+        d = load_store("raid_messages")
+        if isinstance(d, dict):
+            msgs = d.get("messages")
+            if isinstance(msgs, list):
+                return [str(m) for m in msgs if str(m).strip()]
+    except Exception:
+        pass
+    return []
+
+
+# ─── HTML helpers ─────────────────────────────────────────────────────────
 
 def _escape_html(text):
     """Escape HTML special characters for safe display inside ``<code>``."""
@@ -207,11 +212,11 @@ def register_raid(client):
         else:
             await event.edit("❌ <b>Failed to delete raid text.</b>", parse_mode="html")
 
-    # ── .raid <count> ────────────────────────────────────────────────────
+    # ── .raid <count> [text] ────────────────────────────────────────────
     @client.on(events.NewMessage(outgoing=True, pattern=r"^\.raid(?:\s+([\s\S]+))?$"))
     @client.flood_safe
     async def raid_handler(event):
-        """Raid v7.3 — reply OPTIONAL + custom text + saved slots rotation.
+        """Raid v3 — reply OPTIONAL + custom text + saved slots rotation.
 
         Formats:
           .raid               → 10 msgs, saved slots ya raid text (chat raid)
@@ -247,7 +252,7 @@ def register_raid(client):
             return
         count = safe_cap(count)  # 🛡️ burst cap in safe mode
 
-        # ── Resolve target user ──────────────────────────────────────────
+        # ── Resolve target user (reply OPTIONAL) ─────────────────────────
         user_id = None
         display_name = None
         try:
@@ -278,8 +283,7 @@ def register_raid(client):
             )
             return
 
-
-        # 🤖 v7.3: .saverm slots — raid inhe rotate karta hai (1st → 2nd → 3rd…)
+        # 🤖 .saverm slots — raid inhe rotate karta hai (1st → 2nd → 3rd…)
         saved_msgs = _load_raid_messages()
 
         # ── Usage card (jab koi content nahi) ──────
@@ -291,7 +295,8 @@ def register_raid(client):
                 "┃ <code>.raid 20 hello</code> — apne text se\n"
                 "┃ reply karke <code>.raid 20</code> — us user ka naam+mention lagega\n"
                 "┃ text me <code>{name}</code> <code>{tag}</code> use kar sakte ho\n"
-                "┃ <code>.raidb</code> — BOTS se raid karwao (BotController)",
+                "┃ <code>.raidb</code> — BOTS se raid (BotController)\n"
+                "┃ <code>.rrt</code> — reply-raid turbo · <code>.stopraid</code> — stop",
                 parse_mode="html",
             )
             return
@@ -311,7 +316,7 @@ def register_raid(client):
         async def _raid_loop():
             try:
                 for i in range(count):
-                    # v7.3: saved slots rotate — har message agli slot se
+                    # saved slots rotate — har message agli slot se
                     if custom_text is not None:
                         raw = custom_text
                     elif saved_msgs:
@@ -347,159 +352,17 @@ def register_raid(client):
         task = asyncio.create_task(_raid_loop())
         client.stop_processes[f"raid_{event.id}"] = task
 
-    # ── .drraid  (activate reply-raid) ───────────────────────────────────
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.drraid\s*$"))
-    @client.flood_safe
-    async def drraid_handler(event):
-        """Activate reply-raid on the replied user."""
-        text = _load_raid_text()
 
-        target = await event.get_reply_message()
-        if not target:
-            await event.edit(
-                "❌ <b>Reply to a user to enable reply-raid.</b>",
-                parse_mode="html",
-            )
-            return
-        # FIX: Message objects have no get_input_entity() in Telethon.
-        try:
-            target_entity = await target.get_input_sender()
-        except Exception:
-            await event.edit(
-                "❌ <b>Could not resolve target user.</b>",
-                parse_mode="html",
-            )
-            return
-
-        try:
-            user_obj = await client.get_entity(target_entity)
-            user_id = user_obj.id
-            display_name = (
-                getattr(user_obj, "first_name", None)
-                or getattr(user_obj, "title", None)
-                or "User"
-            )
-        except Exception:
-            await event.edit(
-                "❌ <b>Could not fetch target user details.</b>",
-                parse_mode="html",
-            )
-            return
-
-        if user_id in active_reply_raids:
-            await event.edit(
-                "⚠️ <b>Reply-raid is already active on this user.</b>",
-                parse_mode="html",
-            )
-            return
-
-        active_reply_raids.append(user_id)
-        await event.edit(
-            f"✅ <b>Reply-raid activated</b> on "
-            f'<a href="tg://user?id={user_id}">{_escape_html(display_name)}</a>.\n'
-            "Every message they send will be replied to with the raid text.",
-            parse_mode="html",
-        )
-
-    # ── .stopraid  (deactivate reply-raid) ───────────────────────────────
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.stopraid\s*$"))
-    @client.flood_safe
-    async def stopraid_handler(event):
-        """Deactivate reply-raid on the replied user (or all if no reply)."""
-        target = await event.get_reply_message()
-        if not target:
-            # No reply → clear every active reply-raid
-            if active_reply_raids:
-                cleared = len(active_reply_raids)
-                active_reply_raids.clear()
-                await event.edit(
-                    f"✅ <b>Cleared {cleared} active reply-raid(s).</b>",
-                    parse_mode="html",
-                )
-            else:
-                await event.edit(
-                    "❌ <b>No reply-raid is currently active.</b>",
-                    parse_mode="html",
-                )
-            return
-
-        # FIX: Message objects have no get_input_entity() in Telethon.
-        try:
-            target_entity = await target.get_input_sender()
-        except Exception:
-            await event.edit(
-                "❌ <b>Could not resolve target user.</b>",
-                parse_mode="html",
-            )
-            return
-
-        try:
-            user_obj = await client.get_entity(target_entity)
-            user_id = user_obj.id
-        except Exception:
-            await event.edit(
-                "❌ <b>Could not fetch target user details.</b>",
-                parse_mode="html",
-            )
-            return
-
-        if user_id in active_reply_raids:
-            active_reply_raids.remove(user_id)
-            await event.edit(
-                f"✅ <b>Reply-raid stopped</b> on user <code>{user_id}</code>.",
-                parse_mode="html",
-            )
-        else:
-            await event.edit(
-                "⚠️ <b>Reply-raid was not active on this user.</b>",
-                parse_mode="html",
-            )
-
-    # ── Reply-raid listener (fires on every incoming message) ────────────
-    @client.on(events.NewMessage(incoming=True))
-    async def reply_raid_listener(event):
-        """Reply with raid text whenever a reply-raid target sends a message."""
-        if not active_reply_raids:
-            return
-        sender_id = event.sender_id
-        if sender_id is None or sender_id not in active_reply_raids:
-            return
-
-        text = _load_raid_text()
-
-        try:
-            sender = await event.get_sender()
-            display_name = (
-                getattr(sender, "first_name", None)
-                or getattr(sender, "title", None)
-                or "User"
-            )
-        except Exception:
-            display_name = "User"
-
-        raid_msg = _build_raid_message(text, sender_id, display_name)
-
-        try:
-            await event.reply(raid_msg, parse_mode="html")
-        except FloodWaitError as fw:
-            note_flood(fw.seconds)  # 🛡️ auto slow-down
-            await asyncio.sleep(fw.seconds + 1)
-            try:
-                await event.reply(raid_msg, parse_mode="html")
-            except Exception:
-                pass
-        except Exception:
-            pass
 COMMANDS_RAID = {
     "description": "Raid Tools",
     "commands": [
-        (".raid [n]", "raid replied user — saved slots rotate + naam (saverm wale slots 1st/2nd/3rd…)"),
+        (".raid [n] [text]", "raid — reply optional, saved slots rotate (saverm wale 1st/2nd/3rd…)"),
         (".setraid <text>", "save raid text ({name} / {tag} placeholders optional)"),
         (".listraid", "view saved raid text"),
         (".delraid / .clrraid", "delete raid text (default text used)"),
-        (".drraid", "auto-reply raid on user"),
-        (".stopraid", "stop reply-raids"),
         (".saverm <text>", "raid message slot save — 1st, 2nd, 3rd… (BotController)"),
-        (".listrm / .delrm <n>", "saved slots list / delete (slots auto-shift)"),
+        (".listrm / .delrm <n> / .delallrm", "saved slots list / delete (auto-shift) / sab delete"),
+        (".rrt / .rrtb", "reply-raid turbo — user + bots (BotController)"),
+        (".stopraid / .raidstop / .raidbstop / .stopraidb", "raid stop commands (BotController)"),
     ],
 }
