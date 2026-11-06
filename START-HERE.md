@@ -2,6 +2,19 @@
 
 **🤖 NEW: BotController** — `.addbottoken <token>` se bots add karo, phir `.spamb` / `.raidb` / `.roseb` / `.cloneb` se army control karo. Poora list: `.bchelp`
 
+## 🩺 Commands kaam nahi kar rahe? (READ THIS FIRST)
+
+1. **`python userbot.py` chalao** — `bot.py` sirf TEST-BOT mode hai, usme
+   BotController commands **NAHI** hote. (`bash start.sh` bhi sahi hai.)
+2. **Update ke baad RESTART karo** — naya code tabhi load hota hai.
+3. Telegram me **`.bccheck`** likho — 30 sec me poora diagnosis:
+   Python/Telethon version, API creds, data dirs, kitne bots + kaun online,
+   RRT/CopyCat state. Jo line ❌ hai uska fix hint wahi likha hai.
+4. v7.4.1 se koi command crash ho to chat me **❌ error reply** dikhta hai —
+   uska screenshot bhejo, saath me `.bccheck` ka output bhi.
+5. Purane error-wale commands (`.drraid`, purana `.stopraid`) hata diye gaye —
+   ab **`.rrt` / `.rrtb`** (reply-raid) aur **`.stopraid`** use karo.
+
 ## 0. What changed? (well-structured)
 
 Old versions were single-file `userbot.py` (10k lines). v7.0 is **fully modular**:

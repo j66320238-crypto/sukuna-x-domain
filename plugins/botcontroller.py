@@ -2,7 +2,7 @@
 from core import *  # noqa: F401,F403 — shared engine
 
 ############################################################################
-#  SECTION: BOTCONTROLLER — 👑 v7.4 MULTI-BOT ARMY COMMAND CENTER
+#  SECTION: BOTCONTROLLER — 👑 v7.4.1 MULTI-BOT ARMY COMMAND CENTER
 ############################################################################
 """
 BotController — apne MAIN account (ya SUDO users) se pura BOT ARMY control karo.
@@ -72,7 +72,12 @@ BotController — apne MAIN account (ya SUDO users) se pura BOT ARMY control kar
                                 naya command = pichla output khud delete)
   • .addsudo (reply/id)      — SUDO user add → wo bhi bots control kar sake
   • .delsudo / .listsudo     — sudo remove / list (sirf owner ke liye)
+  • .bccheck                 — 🩺 self-diagnosis: versions/API creds/dirs/
+                                bots/RRT/CopyCat/tasks — EK card me sab
   • .bchelp / .bch           — ye help card
+
+  v7.4.1: command crash ho to chat me VISIBLE ❌ error reply aata hai
+  (pehle flood_safe silently kha jata tha — isliye "kuch nahi hota tha").
 
 Frozen bot = jiska token dead/revoked/deactivated — sab lists me ❄️ dikhta hai.
 Bots profile change: MTProto bots account.updateProfile use NAHI kar sakte
@@ -905,7 +910,10 @@ def register_botcontroller(client):
             ev = self._ev
             if getattr(ev, "is_outgoing", True):
                 try:
-                    return await ev.edit(text, *args, **kwargs)
+                    m = await ev.edit(text, *args, **kwargs)
+                    # 🧹 autodelete: owner ke edited outputs bhi track ho
+                    _ad_track(getattr(ev, "chat_id", None), getattr(ev, "id", None))
+                    return m
                 except MessageNotModifiedError:
                     return None
                 except Exception:
@@ -931,10 +939,32 @@ def register_botcontroller(client):
             return m
 
     def _on(pattern, sudo_ok=True):
-        """Handler register karo: pattern + (owner|sudo) + event proxy."""
+        """Handler register karo: pattern + (owner|sudo) + event proxy.
+
+        v7.4.1: handler crash par chat me VISIBLE error reply hota hai —
+        flood_safe ka silent-swallow khatam, user ko turant pata chalega
+        ki kya fail hua aur kyun (pehle "kuch bhi nahi hota tha")."""
         def deco(fn):
             async def _wrapped(ev):
-                return await fn(_Ev(ev, client))
+                try:
+                    return await fn(_Ev(ev, client))
+                except asyncio.CancelledError:
+                    raise
+                except events.StopPropagation:
+                    raise
+                except Exception as e:
+                    log.error("[botcontroller] %s failed: %s",
+                              getattr(fn, "__name__", "handler"), e, exc_info=True)
+                    # 🚨 VISIBLE error — silent failure NO MORE
+                    try:
+                        await ev.reply(
+                            f"❌ **Command failed:** `{type(e).__name__}`\n"
+                            f"`┃ {str(e)[:140]}`\n"
+                            "┃ 🛠 `.bccheck` se full diagnosis chalao",
+                            link_preview=False)
+                    except Exception:
+                        pass
+                    raise
             _wrapped.__name__ = getattr(fn, "__name__", "bc_handler")
             fs = getattr(client, "flood_safe", None)
             wrapped = fs(_wrapped) if callable(fs) else _wrapped
@@ -2682,14 +2712,93 @@ def register_botcontroller(client):
             link_preview=False)
 
     # ════════════════════════════════════════════════════════════════════
-    #  K) HELP CARD
+    #  K) HELP CARD + SELF-DIAGNOSIS
     # ════════════════════════════════════════════════════════════════════
+
+    # ── .bccheck — SELF-DIAGNOSIS (kya galat hai, ek card me sab) ────────
+    @_on(r"^\.bccheck\s*$")
+    async def _bccheck(event):
+        import platform
+        try:
+            import telethon as _tg
+            tg_ver = getattr(_tg, "__version__", "?")
+        except Exception:
+            tg_ver = "?"
+        rows = []
+
+        def _mark(ok):
+            return "✅" if ok else "❌"
+
+        # 1) runtime versions
+        rows.append(f"┃ 🐍 Python `{platform.python_version()}` · "
+                    f"Telethon `{tg_ver}` (need ≥1.34)")
+
+        # 2) API creds
+        api_id, api_hash = _api_creds(client)
+        rows.append(f"┃ 🔑 API_ID/API_HASH: "
+                    f"{_mark(bool(api_id and api_hash))}"
+                    + ("" if api_id and api_hash
+                       else " — core/config.py ya first-run setup bharo"))
+
+        # 3) data dirs writable
+        w_ok = os.access(DATA_DIR, os.W_OK) and os.access(BC_DIR, os.W_OK)
+        rows.append(f"┃ 📂 data dirs writable: {_mark(w_ok)}")
+
+        # 4) bots registered
+        data = _bc_load()
+        bots = data["bots"]
+        if bots:
+            frozen = sum(1 for b in bots if b.get("frozen"))
+            rows.append(f"┃ 🤖 Bots: `{len(bots)}` · ❄️ frozen: `{frozen}`")
+        else:
+            rows.append("┃ 🤖 Bots: `0` ❗ — pehle `.addbottoken <token>` "
+                        "ya `.addnewbotauto` chalao")
+
+        # 5) live connect check (sirf pehle 3 bots — fast rakhne ke liye)
+        if bots:
+            await event.edit("🔍 **BC-CHECK:** bots connect ho rahe hain…")
+            for i, rec in enumerate(bots[:3], 1):
+                uname = rec.get("username") or rec.get("id")
+                try:
+                    bc = await asyncio.wait_for(
+                        _bot_client(client, i, data), timeout=25)
+                except asyncio.TimeoutError:
+                    bc = None
+                if bc is None:
+                    err = (rec.get("frozen_error") or "connect failed")[:40]
+                    rows.append(f"┃    {_ord(i)} @{uname} ❌ {err}")
+                else:
+                    try:
+                        me = await bc.get_me()
+                        rows.append(f"┃    {_ord(i)} @{uname} ✅ online "
+                                    f"({me.first_name or 'Bot'})")
+                    except Exception:
+                        rows.append(f"┃    {_ord(i)} @{uname} ✅ online")
+
+        # 6) states
+        rows.append(f"┃ 📡 RRT: users `{len(RRT_USERS)}` · bots `{len(RRT_BOTS)}` · "
+                    f"CopyCat: {'🟢' if (CT_STATE['user'] or CT_STATE['bots']) else 'off'}")
+        rows.append(f"┃ 📜 Raid slots: `{len(_rm_load())}` · "
+                    f"Autodelete: {'🟢 ON' if _AD.get('on') else '🔴 off'} · "
+                    f"Sudo: `{len(_sudo_ids())}`")
+        try:
+            n_tasks = len(client.stop_processes or {})
+        except Exception:
+            n_tasks = 0
+        rows.append(f"┃ ⏳ Active tasks: `{n_tasks}`")
+
+        await event.edit(
+            "✦ ━━━〔 🩺 **BOTCONTROLLER SELF-CHECK** 〕━━━ ✦\n" + "\n".join(rows) +
+            "\n┃ 💡 Agar sab ✅ hai → commands chal rahe hain. Jo ❌ hai"
+            "\n┃    uska hint usi line me likha hai."
+            "\n✦ ━━━━━━━━━━━━━━━━━━━━ ✦",
+            link_preview=False)
 
     # ── .bchelp — full help card ──────────────────────────────────────────
     @_on(r"^\.(?:bchelp|bch|bothelp)$")
     async def _bchelp(event):
         await event.edit(
-            "✦ ━━━〔 🤖 **BOTCONTROLLER v7.4** 〕━━━ ✦\n"
+            "✦ ━━━〔 🤖 **BOTCONTROLLER v7.4.1** 〕━━━ ✦\n"
             "**📐 Setup**\n"
             "┃ `.addbottoken <token>` — bot add (1st/2nd/3rd…)\n"
             "┃ `.addnewbotauto [n]` — BotFather se KHUD naya bot banao\n"
@@ -2721,6 +2830,7 @@ def register_botcontroller(client):
             "┃ `.spamstop` · `.sspamstop` · `.stopraid`/`.raidstop`\n"
             "┃ `.raidbstop` / `.stopraidb`\n"
             "**🛠 UX**\n"
+            "┃ `.bccheck` — self-diagnosis (kya kharab hai, ek card me)\n"
             "┃ `.autodelete on/off` — pichla output auto-delete (default ON)\n"
             "┃ `.addsudo`/`.delsudo`/`.listsudo` — bots ka control sudo ko do\n"
             "✦ ━━━━━━━━━━━━━━━━━━━━ ✦",
@@ -2771,6 +2881,7 @@ COMMANDS_BOTCONTROLLER = {
         # ux
         (".autodelete on/off", "pichla command output auto-delete — DEFAULT ON"),
         (".addsudo / .delsudo / .listsudo", "bots ka control SUDO users ko do"),
+        (".bccheck", "self-diagnosis — versions/API/bots/dirs/st Sab ek card me"),
         (".bchelp / .bch / .bothelp", "ye help card"),
     ],
 }

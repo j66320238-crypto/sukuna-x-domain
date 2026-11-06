@@ -1,5 +1,5 @@
 ════════════════════════════════════════════════════════════════════
-  🤖 BOTCONTROLLER v7.4 — POORI COMMAND LIST (Hinglish)
+  🤖 BOTCONTROLLER v7.4.1 — POORI COMMAND LIST (Hinglish)
 ════════════════════════════════════════════════════════════════════
 
 📦 INSTALL (zip poora ready-made hai):
@@ -9,8 +9,10 @@
   4. .bchelp likho — BotController ka poora menu
 
   ⚠️ Bot tokens restart ke baad bhi safe rehte hain (data/ me saved).
+  ⚠️ hamesha python userbot.py chalao — bot.py sirf TEST-BOT mode hai
+     (usme BotController ke commands NAHI hote!)
 
-🆕 = v7.4 me NEW ya bada-badla hua · ✅ = pehle se tha, ab bug-free
+🆕 = v7.4/7.4.1 me NEW ya bada-badla hua · ✅ = pehle se tha, ab bug-free
 
 ──────────────────────────────────────────────────────────────────────
  1️⃣  BOT ADD / MANAGE
@@ -160,6 +162,14 @@
   .delsudo             🆕 sudo remove  ·  .listsudo — sab sudo list
      (sudo ke commands ka jawab REPLY me aata hai — apne aap)
 
+  🩺 SELF-CHECK (v7.4.1 🆕 — "kuch bhi nahi chal raha" ka jawab):
+  .bccheck             🆕 EK command me poora diagnosis — Python/Telethon
+                         version · API creds ✅/❌ · data dirs · kitne bots
+                         + kaun online · RRT/CopyCat state · active tasks
+     ex: .bccheck  → jo bhi line ❌ hai, uska fix hint wahi likha hai
+  ⚠️ v7.4.1: command crash ho to chat me ❌ error reply dikhta hai
+     (pehle silent tha) — saath me .bccheck chalao, cause wahi milega
+
 ──────────────────────────────────────────────────────────────────────
  📋 purane vs naye (SHORT SUMMARY)
 ──────────────────────────────────────────────────────────────────────
@@ -167,7 +177,7 @@
   🆕 NAYE: .addnewbotauto · .loadprofileb · .ct (one-shot) · .ctb
       (one-shot) · .stopall · .spamstop · .sspamstop · .stopraid ·
       .raidstop · .raidbstop · .stopraidb · .animstop · .autodelete ·
-      .addsudo · .delsudo · .listsudo · .delallrm
+      .addsudo · .delsudo · .listsudo · .delallrm · .bccheck
   🛠 FIX HUE: .addallb (ImportError) · .cloneb/.revertb
       (BotMethodInvalid) · .raidb (reply optional) · .help auto-upgrade
   ✅ PEHLE SE THE (ab solid): .addbottoken .delbottoken .listbots
