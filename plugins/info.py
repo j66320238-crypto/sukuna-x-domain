@@ -12,7 +12,7 @@ Info Module — User information, name history, and related utilities.
 Commands:
     .id           — Basic user info (ID, name, username, premium).
     .info         — Detailed user info (bio, flags, DC, common chats count).
-    .sg           — Name history via @SangMata_BOT (alias: .namehistory).
+    .sg           — Name & username history (alias: .namehistory).
     .namehistory  — Alias for .sg.
     .common       — Common chats with the replied user.
     .pfp / .pp    — Fetch and send the replied user's profile photo.
@@ -155,6 +155,63 @@ async def _fetch_full_user(client, target):
         return None
 
 
+# ── .sg internals (lookup bot is internal — NEVER shown in chat) ────────
+_SG_BOT = "@SangMata_BOT"
+
+_MD_LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
+_HTML_LINK_RE = re.compile(r'<a\s+href="[^"]+">([^<]+)</a>')
+# branding / promo lines that get stripped from the raw result
+_BRAND_LINE_PAT = re.compile(
+    r"(?i)(sang[\s_-]?mata|forward[\s_-]?bot|powered\s+by|t\.me/\S+)"
+)
+
+
+def _clean_history_text(text):
+    """Strip bot branding / promo links from raw history text.
+
+    Keeps the actual data (names, usernames, dates), removes lines that
+    reveal which service the data came from.
+    """
+    if not text:
+        return ""
+    out = []
+    for line in text.splitlines():
+        line = _MD_LINK_RE.sub(r"\1", line)          # [x](url) → x
+        line = _HTML_LINK_RE.sub(r"\1", line)        # <a>x</a> → x
+        stripped = line.strip()
+        if not stripped:
+            out.append("")
+            continue
+        if _BRAND_LINE_PAT.search(stripped):
+            continue  # drop branding / promo lines
+        out.append(stripped)
+    # collapse consecutive blank lines
+    cleaned = []
+    for ln in out:
+        if ln == "" and (not cleaned or cleaned[-1] == ""):
+            continue
+        cleaned.append(ln)
+    return "\n".join(cleaned).strip()
+
+
+# module-level busy flag so two .sg queries don't fight over the conversation
+_sg_busy = {"on": False}
+
+# transient "please wait" notices that should NOT be delivered as history
+_WAIT_NOTICE_RE = re.compile(
+    r"(?i)(please\s+wait|wait\s+a\s+(second|moment|bit|sec)|processing|"
+    r"loading|sabar|tunggu|moment\s please)"
+)
+
+
+def _is_wait_notice(text):
+    """True for short single-line 'please wait' pings (not real data)."""
+    t = (text or "").strip()
+    if not t or "\n" in t or len(t) > 90:
+        return False
+    return bool(_WAIT_NOTICE_RE.search(t))
+
+
 # ──────────────────────────────────────────────────────────────
 #  Register
 # ──────────────────────────────────────────────────────────────
@@ -229,84 +286,139 @@ def register_info(client):
             try:
                 user = await client.get_entity(target)
                 user_id = str(user.id)
+                display = getattr(user, "first_name", None) \
+                    or getattr(user, "title", None) or "User"
             except Exception as e:
                 await event.reply(f"❌ **Could not fetch user:**\n`{e}`")
                 return
 
-            status_msg = await event.reply(
-                "⏳ **Querying @SangMata_BOT …**"
-            )
-
-            # Resolve SangMata entity (fall back to raw username).
-            try:
-                sm_entity = await client.get_entity("@SangMata_BOT")
-            except Exception:
-                sm_entity = "@SangMata_BOT"
-
-            # Send the user-ID to SangMata.
-            try:
-                await client.send_message(sm_entity, user_id)
-            except Exception as e:
-                await status_msg.edit(
-                    f"❌ **Cannot reach @SangMata_BOT.**\n`{e}`"
-                )
+            if _sg_busy["on"]:
+                await event.reply(
+                    "⏳ **Ek query already chal rahi hai — thoda ruk ke try karo.**")
                 return
+            _sg_busy["on"] = True
 
-            # Wait for SangMata's reply (10 s timeout).
             try:
-                async with client.conversation(sm_entity, timeout=10) as conv:
-                    try:
-                        resp = await conv.get_response(timeout=10)
-                    except asyncio.TimeoutError:
-                        await status_msg.edit(
-                            "⏰ **@SangMata_BOT did not reply within 10 s. "
-                            "It may be offline or rate-limited.**"
-                        )
-                        return
+                status_msg = await event.reply("🔍 **Checking name history …**")
 
-                    if not resp or not resp.message:
-                        await status_msg.edit(
-                            "❌ **SangMata returned an empty response.**"
-                        )
-                        return
+                # resolve the internal lookup service (never shown in chat)
+                try:
+                    sg_entity = await client.get_entity(_SG_BOT)
+                except Exception:
+                    sg_entity = _SG_BOT
 
-                    text = resp.message.strip()
+                texts = []
+                media_msgs = []
 
-                    # If SangMata asks to /start first, do it & retry once.
-                    low = text.lower()
-                    if ("/start" in low
-                            and len(text) < 300
-                            and "name" not in low
-                            and "history" not in low):
+                async def _collect(conv, first_timeout=14, more_timeout=3.5,
+                                   max_msgs=8):
+                    """Collect every reply message (text + media)."""
+                    got_texts, got_media = [], []
+                    timeout = first_timeout
+                    while len(got_texts) + len(got_media) < max_msgs:
                         try:
-                            await conv.send_message("/start")
-                            await asyncio.sleep(1.5)
-                            await conv.send_message(user_id)
-                            resp2 = await conv.get_response(timeout=10)
-                            if resp2 and resp2.message:
-                                text = resp2.message.strip()
-                        except Exception:
-                            pass  # keep the original text
+                            resp = await conv.get_response(timeout=timeout)
+                        except asyncio.TimeoutError:
+                            break
+                        timeout = more_timeout
+                        if resp is None:
+                            continue
+                        body = (resp.message or "").strip()
+                        if _is_wait_notice(body):
+                            continue  # transient "please wait" ping — skip
+                        if resp.media is not None and not body:
+                            got_media.append(resp)
+                        elif body:
+                            got_texts.append(body)
+                    return got_texts, got_media
 
+                try:
+                    # FIX: enter the conversation FIRST, then send the query —
+                    # the old code sent the ID before listening, so fast replies
+                    # were missed and never copied back to the chat.
+                    async with client.conversation(sg_entity, timeout=60) as conv:
+                        await conv.send_message(user_id)
+                        texts, media_msgs = await _collect(conv)
+
+                        joined = "\n".join(texts).lower()
+                        needs_start = (
+                            ("/start" in joined and "history" not in joined
+                             and "name" not in joined
+                             and "username" not in joined)
+                            or (not texts and not media_msgs)
+                        )
+                        if needs_start:
+                            # service wants /start first → do it & retry once
+                            try:
+                                await conv.send_message("/start")
+                                await asyncio.sleep(2.0)
+                                await conv.send_message(user_id)
+                                texts, media_msgs = await _collect(conv)
+                            except Exception:
+                                pass
+                except YouBlockedUserError:
                     await status_msg.edit(
-                        f"📜 **Name History** — `{user_id}`\n\n{text}",
-                        link_preview=False,
-                    )
+                        "❌ **History service blocked hai — unblock karke dobara try karo.**")
+                    return
+                except asyncio.TimeoutError:
+                    await status_msg.edit(
+                        "⏰ **History service timeout — thodi der baad try karo.**")
+                    return
+                except Exception:
+                    await status_msg.edit(
+                        "❌ **History service se contact nahi ho paya — thodi der baad try karo.**")
+                    return
 
-            except asyncio.TimeoutError:
-                await status_msg.edit(
-                    "⏰ **Timed out waiting for @SangMata_BOT.**"
+                # ── "no records" style replies ──────────────────────────
+                joined = "\n".join(texts).lower()
+                if texts and any(
+                        k in joined for k in
+                        ("no records", "not found", "tidak ditemukan",
+                         "no data", "doesn't have")):
+                    await status_msg.edit(
+                        f"❓ **No history records found for** {display}.")
+                    return
+                if not texts and not media_msgs:
+                    await status_msg.edit(
+                        "⏰ **History service timeout — thodi der baad try karo.**")
+                    return
+
+                # ── deliver as OUR OWN copied message (no source shown) ──
+                header = (
+                    f"📜 **Name History** — "
+                    f"[{display}](tg://user?id={user.id})\n"
+                    f"🆔 `{user.id}`"
                 )
-            except Exception as e:
-                msg = str(e).lower()
-                if "timeout" in msg or "wait" in msg:
-                    await status_msg.edit(
-                        "⏰ **Timed out waiting for @SangMata_BOT.**"
-                    )
-                else:
-                    await status_msg.edit(
-                        f"❌ **SangMata conversation failed:**\n`{e}`"
-                    )
+                cleaned = [c for c in (_clean_history_text(t) for t in texts)
+                           if c.strip()]
+                try:
+                    await status_msg.delete()
+                except Exception:
+                    pass
+                delivered = False
+                if cleaned:
+                    body = "\n\n".join(cleaned)[:3500]
+                    try:
+                        await throttle("send")
+                        await client.send_message(
+                            chat, f"{header}\n\n{body}", link_preview=False)
+                        delivered = True
+                    except Exception:
+                        pass
+                for m in media_msgs[:3]:
+                    try:
+                        await throttle("send")
+                        await client.send_file(
+                            chat, m,
+                            caption=header if not delivered else None)
+                        delivered = True
+                    except Exception:
+                        pass
+                if not delivered:
+                    await event.reply(
+                        "❌ **History fetch failed — thodi der baad try karo.**")
+            finally:
+                _sg_busy["on"] = False
         except FloodWaitError as fe:
             await asyncio.sleep(fe.seconds + 1)
         except Exception as e:
@@ -529,7 +641,7 @@ COMMANDS_INFO = {
     "commands": [
         (".id", "quick user card (reply)"),
         (".info", "detailed user card (reply)"),
-        (".sg / .namehistory", "name history via SangMata"),
+        (".sg / .namehistory", "name & username history (reply)"),
         (".common", "common chats (reply)"),
         (".pfp / .pp", "send profile photo (reply)"),
         (".uname", "just the username (reply)"),

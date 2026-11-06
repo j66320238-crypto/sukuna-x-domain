@@ -312,6 +312,7 @@ def register_profile(client):
             return
         await _clone_profile(client, event, target, full=True)
 
+    # .revert — back to default
     @client.flood_safe
     async def revert_handler(event):
         await event.edit("`➤ Reverting to default...`")
@@ -324,6 +325,53 @@ def register_profile(client):
             await event.edit(f"`⏳ FloodWait: {e.seconds}s`")
         except Exception as e:
             await event.edit(f"`❌ Revert error: {e}`")
+
+    # .rclone — RANDOM CLONE: group me kisi bhi random member ka clone
+    @client.flood_safe
+    async def rclone_handler(event):
+        arg = (event.pattern_match.group(1) or "").strip().lower()
+        is_full = arg in ("full", "f", "all")
+
+        try:
+            chat = await event.get_input_chat()
+        except Exception as e:
+            return await event.edit(f"`➤ Failed: {e}`")
+
+        # collect members of the group (exclude me + bots)
+        try:
+            me = await client.get_me()
+        except Exception:
+            me = None
+        members = []
+        try:
+            async for u in client.iter_participants(chat, limit=400):
+                if getattr(u, "bot", False):
+                    continue
+                if me is not None and u.id == me.id:
+                    continue
+                members.append(u)
+        except Exception:
+            return await event.edit(
+                "`➤ .rclone sirf group/chat me chalega — participants fetch nahi hue.`")
+
+        if not members:
+            return await event.edit(
+                "`➤ Group me clone karne layak koi member nahi mila.`")
+
+        victim = random.choice(members)
+        disp = " ".join(x for x in (
+            getattr(victim, "first_name", None),
+            getattr(victim, "last_name", None)) if x).strip()
+        disp = disp or str(victim.id)
+
+        try:
+            target = await client.get_input_entity(victim.id)
+        except Exception:
+            target = victim  # full User object also works as entity
+
+        await event.edit(
+            f"`🎲 Random target mil gaya: {disp} — cloning...`")
+        await _clone_profile(client, event, target, full=is_full)
 
     # .saveprofile <name> — save replied user's full profile
     @client.flood_safe
@@ -949,7 +997,7 @@ def register_profile(client):
     client.add_event_handler(clone_handler, events.NewMessage(outgoing=True, pattern=r"^\.clone(?:\s+(.*))?$"))
     client.add_event_handler(fclone_handler, events.NewMessage(outgoing=True, pattern=r"^\.fclone(?:\s+(.*))?$"))
     client.add_event_handler(revert_handler, events.NewMessage(outgoing=True, pattern=r"^\.revert(?:\s+(.*))?$"))
-    client.add_event_handler(revert_handler, events.NewMessage(outgoing=True, pattern=r"^\.rclone(?:\s+(.*))?$"))
+    client.add_event_handler(rclone_handler, events.NewMessage(outgoing=True, pattern=r"^\.rclone(?:\s+(full|f|all))?\s*$"))
     client.add_event_handler(saveprofile_handler, events.NewMessage(outgoing=True, pattern=r"^\.saveprofile(?:\s+(.*))?$"))
     client.add_event_handler(loadprofile_handler, events.NewMessage(outgoing=True, pattern=r"^\.loadprofile(?:\s+(.*))?$"))
     client.add_event_handler(floadprofile_handler, events.NewMessage(outgoing=True, pattern=r"^\.floadprofile(?:\s+(.*))?$"))
@@ -970,14 +1018,15 @@ def register_profile(client):
     client.add_event_handler(autopfp_handler, events.NewMessage(outgoing=True, pattern=r"^\.pfprotate(?:\s+(.*))?$"))
     client.add_event_handler(stopautopfp_handler, events.NewMessage(outgoing=True, pattern=r"^\.stopautopfp$"))
 
-    print("[Module] profile.py v6.7 loaded — .clone .fclone .saveprofile .loadprofile .floadprofile .pfpsave .getpfp .setpfp .pfplist .autopfp .stopautopfp .delpfp")
+    print("[Module] profile.py v6.8 loaded — .clone .fclone .rclone .revert .saveprofile .loadprofile .floadprofile .pfpsave .getpfp .setpfp .pfplist .autopfp .stopautopfp .delpfp")
 
 COMMANDS_PROFILE = {
     "description": "Profile & PFP Tools (Full Clone + Video)",
     "commands": [
         (".clone [full]", "clone main profile (reply) — add 'full' for all photos"),
         (".fclone", "full clone — all photos/videos (reply)"),
-        (".revert / .rclone", "revert to default"),
+        (".rclone [full]", "group me RANDOM member ka clone — bina reply ke"),
+        (".revert", "revert to default"),
         (".saveprofile <name>", "save full profile (all pfps)"),
         (".loadprofile <name>", "load main photo + name/bio"),
         (".floadprofile <name> / .loadprofile <name> full", "load full copy (all photos)"),

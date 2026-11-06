@@ -236,6 +236,7 @@ def _dp_start_rotator(client, mins: float, shuffle: bool) -> None:
     state["interval_min"] = mins
     state["mode"] = "shuffle" if shuffle else "order"
     state["rot_started"] = time.time()
+    state["autodp_on"] = True          # 🔄 survives restarts (boot auto-resume)
     _dp_save_state(state)
 
     async def _rotate_loop():
@@ -251,6 +252,7 @@ def _dp_start_rotator(client, mins: float, shuffle: bool) -> None:
                 pool = _dp_files()
                 if len(pool) < 2:
                     log.info("[dp] autodp stopped — pool has <2 images")
+                    _dp_save_state({**_dp_load_state(), "autodp_on": False})
                     break
                 st = _dp_load_state()
                 cur = st.get("current") or 0
@@ -488,6 +490,7 @@ def register_dp(client):
                 except OSError:
                     pass
             state.pop("current", None)
+            state["autodp_on"] = False      # 🔄 no resume with an empty pool
             _dp_save_state(state)
             old = client.stop_processes.get(_autodp_task_key())
             if old and not old.done():
@@ -536,7 +539,8 @@ def register_dp(client):
             f"✦ ━━━〔 🔄 AUTO DP ROTATOR 〕━━━ ✦\n"
             f"✅ every **{_fmt_interval(mins)}** your DP will change every interval!\n"
             f"📚 Pool: `{len(files2)}` DP • Mode: {mode_txt}\n"
-            f"🛡 Flood-safe + human jitter + auto-retry\n\n"
+            f"🛡 Flood-safe + human jitter + auto-retry\n"
+            f"♻️ Restart-proof — bot restart hone par bhi rotation continue rahegi\n\n"
             f"⏱ `.dptime <new time>` live change · `.dpstatus` for details\n"
             f"`.stopautodp` stop · `.nextdp` manual",
             link_preview=False)
@@ -546,9 +550,17 @@ def register_dp(client):
     @client.flood_safe
     async def _stopautodp(event):
         task = client.stop_processes.get(_autodp_task_key())
+        stopped_now = False
         if task and not task.done():
             task.cancel()
             client.stop_processes.pop(_autodp_task_key(), None)
+            stopped_now = True
+        # 🔄 clear the persistent flag too, so it does NOT resume after restart
+        state = _dp_load_state()
+        if state.get("autodp_on") or stopped_now:
+            state["autodp_on"] = False
+            _dp_save_state(state)
+        if stopped_now:
             await event.edit("⏹ Auto DP rotator stopped. 🛡️ The current DP stays as is.")
         else:
             await event.edit("ℹ️ The rotator is not running. Start it with `.autodp 2h`.")
@@ -612,6 +624,45 @@ def register_dp(client):
         lines.append("─" * 26)
         lines.append("💡 `.dptime 2h` timer change · `.nextdp` manual · `.dplist` pool")
         await event.edit("\n".join(lines), link_preview=False)
+
+    # ---- ♻️ BOOT AUTO-RESUME (restart-proof autodp) ----
+    # Fires once on the very first message after startup (e.g. the online
+    # card we send to Saved Messages) and resumes the rotator if it was
+    # running before the restart.  No task is created at import time, so
+    # this is safe in offline tests too.
+    @client.on(events.NewMessage())
+    async def _autodp_boot(event):
+        # one-shot: remove this handler immediately
+        try:
+            client.remove_event_handler(_autodp_boot)
+        except Exception:
+            pass
+        try:
+            state = _dp_load_state()
+            if not state.get("autodp_on"):
+                return
+            # let the account settle a bit before touching the profile
+            await asyncio.sleep(25)
+            # user may have stopped it / started manually meanwhile
+            state = _dp_load_state()
+            if not state.get("autodp_on"):
+                return
+            running = client.stop_processes.get(_autodp_task_key())
+            if running and not running.done():
+                return  # already rotating
+            if len(_dp_files()) < 2:
+                log.info("[dp] autodp resume skipped — pool has <2 images")
+                state["autodp_on"] = False
+                _dp_save_state(state)
+                return
+            mins = float(state.get("interval_min") or 120)
+            shuffle = (state.get("mode") == "shuffle")
+            _dp_start_rotator(client, mins, shuffle)
+            log.info("[dp] ♻️ autodp auto-resumed after restart "
+                     "(every %.0f min, %s)", mins,
+                     "shuffle" if shuffle else "order")
+        except Exception as e:
+            log.debug("[dp] boot resume failed: %s", e)
 
 
 COMMANDS_DP = {

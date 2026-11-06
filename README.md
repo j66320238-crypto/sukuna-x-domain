@@ -12,6 +12,38 @@
 
 ---
 
+## 🔥 What's New in v7.0.1 (fix update)
+
+### ⚔️ RAID FIX — saved message + naam wala format
+- `.raid [n]` ab target ke **naam ke saath** saved message bhejta hai — bilkul **"Mintu kya kar rhe ho Mintu"** style (mention clickable)
+- `.setraid` bina kiye bhi chalega — default text `kya kar rhe ho` built-in
+- Placeholders: `{name}` = plain naam, `{tag}` / `{mention}` = clickable tag
+  - `.setraid kya kar rhe ho {name}` → "kya kar rhe ho Mintu"
+  - `.setraid {name} oye {tag}` → "Mintu oye Mintu"
+- `.drraid` (auto reply-raid) bhi same format use karta hai
+
+### 📜 SG FIX — name history ab reliably copy hoke aata hai
+- Purana bug: query bhejne ke baad conversation start hoti thi — fast reply miss ho jati thi. Ab pehle listen, phir send
+- Multi-message support: "please wait" ping filter + saari history messages (names + usernames) collect hote hain
+- Result apne message ke roop me aata hai — **source bot ka naam/branding kahin nahi dikhta** (status, errors, output — sab clean)
+- Media reply aaye to copy hoke chat me jata hai
+
+### 🖼 AUTO DP FIX — restart-proof rotator
+- `.autodp` start karne ke baad bot **restart ho jaye to bhi rotation auto-resume** hoti hai (state disk pe saved)
+- `.stopautodp` ab flag bhi clear karta hai — restart ke baad wapas start NAHI hoti jab tak tum na kaho
+- Pool < 2 DPs ho to rotator khud band + state clean
+
+### 🎲 NEW: `.rclone` — RANDOM GROUP CLONE
+- Group me `.rclone` chalao → kisi bhi **random member ka profile clone** (name + bio + DP) — reply ki zaroorat nahi
+- `.rclone full` → random member ka FULL clone (saare photos)
+- Bots aur khud ke account ko random me se exclude kiya jata hai
+
+### 🔧 Other
+- `.revert` ab sirf revert ke liye (pehle `.rclone` galati se revert se bind tha)
+- raid_data.json clean (purana "6" text reset)
+
+---
+
 ## 🔥 What's New in v7.0 (bada upgrade)
 
 ### 🔐 ID BACKUP & RESTORE — "pehle jaisa ID wapas" system
@@ -173,7 +205,10 @@ cd sukuna-x-domain && bash termux-setup.sh
 | `.plist` / `.stats` | plugin table / deep stats |
 | `.song <name>` / `.songs <name>` | **JioSaavn music** direct chat me (3-API fallback) |
 | `.adddp` / `.dplist` / `.getdp n` | DP pool system |
-| `.autodp 2h` / `.dptime` / `.dpstatus` | auto-rotator / live timer / full status |
+| `.autodp 2h` / `.dptime` / `.dpstatus` | auto-rotator (restart-proof) / live timer / full status |
+| `.rclone [full]` | **group me random member ka clone** |
+| `.raid [n]` / `.setraid <text>` | raid (naam + saved text) / custom raid text |
+| `.sg` / `.namehistory` | name + username history (reply) |
 | `.ai <q>` / `.imagine <q>` | AI chat / AI image |
 | `.img <q> [n]` | image search album |
 | `.gc` / `.speed` | memory sweep / speed test |
