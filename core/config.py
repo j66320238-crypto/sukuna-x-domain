@@ -31,7 +31,7 @@ STORM_FLOODS = 3           # FloodWaits in window = storm
 STORM_WINDOW = 600         # 10 min window for storm detection
 STORM_COOLDOWN = 1800      # 30 min paranoid cooldown after a storm
 
-BOT_VERSION = "7.8"
+BOT_VERSION = "7.9"
 
 SAFETY_PROFILES = {
     "paranoid": dict(gap=0.80, edit_gap=0.60, per_min=12, chat_per_min=8,

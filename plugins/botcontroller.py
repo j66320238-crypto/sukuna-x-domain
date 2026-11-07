@@ -4261,6 +4261,56 @@ def register_botcontroller(client):
         await event.edit(
             f"✅ **SUDO removed:** `{uid}`\n┃ 🧩 Remaining sudos: `{len(ids)}`")
 
+    # ── .sudo <cmd> — REMOTE RELAY (v7.9) ─────────────────────────────────
+    # A sudo user sends `.sudo .help` in any chat → the userbot sends the
+    # command AS ITSELF and DIRECTLY DISPATCHES it through every NewMessage
+    # handler. Direct dispatch is required because Telegram does NOT echo
+    # own outgoing messages back to the sending connection when another
+    # auth key (the owner's phone app) is online — a plain self-send would
+    # never reach the outgoing handler chain. Incoming-only listener, so
+    # the synthetic outgoing event can never re-trigger the relay.
+    @client.on(events.NewMessage(incoming=True))
+    async def _sudo_relay(event):
+        try:
+            sid = event.sender_id
+            if not sid or sid not in _sudo_ids():
+                return
+            txt = (event.raw_text or "").strip()
+            if not txt.startswith(".sudo "):
+                return
+            cmd_txt = txt[6:].strip()
+            if not cmd_txt or not cmd_txt.startswith("."):
+                return
+            await asyncio.sleep(0.4)
+            msg = await event.respond(cmd_txt[:4000])
+            try:
+                # refresh the message + entities so handlers get a fully
+                # resolved event (server-side edit needs the exact peer)
+                try:
+                    fresh = await client.get_messages(event.chat_id,
+                                                      ids=msg.id)
+                    if fresh:
+                        msg = fresh
+                except Exception:
+                    pass
+                ent = {}
+                try:
+                    if _tlutils is not None:
+                        ent = {int(_tlutils.get_peer_id(event.chat_id)):
+                               await event.get_chat()}
+                except Exception:
+                    ent = {}
+                from telethon.tl.types import UpdateNewMessage as _UNM
+                upd = _UNM(message=msg, pts=0, pts_count=0)
+                upd._entities = ent          # EventBuilderDict needs it
+                client.loop.create_task(client._dispatch_update(upd))
+            except Exception as e:
+                log.warning("[sudo-relay] dispatch failed: %r", e)
+            log.info("[sudo-relay] %s → %s (msg %s)", sid, cmd_txt[:60],
+                     getattr(msg, "id", "?"))
+        except Exception as e:
+            log.warning("[sudo-relay] failed: %r", e)
+
     # ── .listsudo — sab sudo users (owner only) ───────────────────────────
     @_on(r"^\.listsudo\s*$", sudo_ok=False)
     async def _listsudo(event):
@@ -4574,6 +4624,7 @@ COMMANDS_BOTCONTROLLER = {
         (".autodelete on/off", "previous command output auto-delete — DEFAULT ON"),
         (".autodeletem <sec>", "every command output self-deletes after <sec> seconds (help/spam-done/raid-done) — 0/off = disable"),
         (".addsudo / .delsudo / .listsudo", "give SUDO users control of the bots"),
+        (".sudo <cmd>", "relay: run any command AS the userbot (sudo users)"),
         (".bccheck", "self-diagnosis — versions/API/bots/dirs/states in one card"),
         (".fixprivacy", "force BotFather /setprivacy Disable on all bots (reply/mirror needs it)"),
         (".bchelp / .bch / .bothelp", "this help card"),

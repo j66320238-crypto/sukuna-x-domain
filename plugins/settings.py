@@ -56,8 +56,8 @@ COMMANDS_SETTINGS = {
         (".raksha / .panic", "hour/day ban-shield / emergency full stop"),
         # core controls (ui)
         (".stop / .stopall", "stop all tasks / everything (tasks+reply-raid+copycat)"),
-        (".restart / .update", "restart the bot / git pull update"),
-        (".updateuserbot", "update the whole userbot from the GitHub repo + auto-restart"),
+        (".restart / .update", "restart the bot / update (channel + git, auto-restart)"),
+        (".updateuserbot", "full update: channel + git + pip refresh + auto-restart"),
         # diagnosis
         (".bccheck", "🩺 self-diagnosis — versions/bots/states/dirs in one card"),
         (".stats / .plist", "bot statistics / plugin table"),

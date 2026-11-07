@@ -1,7 +1,7 @@
-SUKUNA-X DOMAIN v7.7 — FULL COMMAND LIST (auto-generated)
+SUKUNA-X DOMAIN v7.9 — FULL COMMAND LIST (auto-generated)
 ============================================================
 
-TOTAL: 395 commands · v7.7 NEW: .typeb (bot typing effect) · .rr/.rrb · .raidb reply+tag · viewonce video saver · .updateuserbot · .ct/.ctb mirror
+TOTAL: 415 commands · v7.9 NEW: ⚡ Power Tools — .passgen .gitrepo .up .netspeed .hash .b64 .uuid .epoch .lorem .colors .ssl .whois .shot + .update FIXED (self-hosted channel, auto-restart, never-downgrade guard)
 ### admin — Group Admin Tools  (16 cmds)
   .ban [reason]                                  ban replied user
   .unban                                         unban user
@@ -83,7 +83,7 @@ TOTAL: 395 commands · v7.7 NEW: .typeb (bot typing effect) · .rr/.rrb · .raid
   .cafe                                          random coffee pic ☕
   .nasa                                          NASA astronomy picture of the day 🔭
 
-### botcontroller — 🤖 BotController — Multi-Bot Army Command Center  (44 cmds)
+### botcontroller — 🤖 BotController — Multi-Bot Army Command Center  (45 cmds)
   .addbottoken <token>                           register a bot + verify the token (1st/2nd/3rd slots)
   .addnewbotauto [n]                             create a new bot via BotFather automatically (name: worker, auto username, retries)
   .delbottoken / .delbot <n>                     delete a bot — slots auto-shift
@@ -98,7 +98,6 @@ TOTAL: 395 commands · v7.7 NEW: .typeb (bot typing effect) · .rr/.rrb · .raid
   .sspamb <n> <sec>                              bots sticker spam (reply)
   .raidb [slots] <n> [gap] [txt]                 bot raid — `.raidb 10 .1` = 10x, 0.1s gap; reply+tag both (use via reply) + saved slots rotate
   .cloneb [slots]                                bots clone the replied user's profile (BotFather engine, DP logic included)
-  .clonebi [slots]                               🧨 FORCE clone — BotFather hourly cap IGNORED, every FloodWait slept in full, steps retried until name/bio/pfp really land
   .revertb / .uncloneb [slots]                   bots back to their pre-clone (original) state
   .loadprofileb [slots] <name>                   load a .saveprofile profile onto the bots
   .botsay [slots] <txt>                          make the bots say something
@@ -126,6 +125,7 @@ TOTAL: 395 commands · v7.7 NEW: .typeb (bot typing effect) · .rr/.rrb · .raid
   .autodelete on/off                             previous command output auto-delete — DEFAULT ON
   .autodeletem <sec>                             every command output self-deletes after <sec> seconds (help/spam-done/raid-done) — 0/off = disable
   .addsudo / .delsudo / .listsudo                give SUDO users control of the bots
+  .sudo <cmd>                                    relay: run any command AS the userbot (sudo users)
   .bccheck                                       self-diagnosis — versions/API/bots/dirs/states in one card
   .fixprivacy                                    force BotFather /setprivacy Disable on all bots (reply/mirror needs it)
   .bchelp / .bch / .bothelp                      this help card
@@ -141,6 +141,14 @@ TOTAL: 395 commands · v7.7 NEW: .typeb (bot typing effect) · .rr/.rrb · .raid
   .delnote <name>                                delete one note
   .delallnotes                                   delete all notes here
   .sed s/old/new/                                reply → fix a typo in your own message
+
+### core-ui — Core UI (.help .menu .update …)  (6 cmds)
+  .help [mod]                                    paginated help + search
+  .menu                                          interactive button menu
+  .cmds                                          all commands paginated
+  .update [force]                                update + auto-restart (channel + git + tarball)
+  .updateuserbot [force]                         full update + pip + auto-restart
+  .restart                                       restart the bot
 
 ### dp — DP Pool & Auto Rotator  (11 cmds)
   .adddp [n]                                     reply to a photo → save into the numbered pool
@@ -297,6 +305,21 @@ TOTAL: 395 commands · v7.7 NEW: .typeb (bot typing effect) · .rr/.rrb · .raid
   .slotwin [1-64]                                rigged slot machine 🎰
   .fancy [n] <text>                              fancy Unicode fonts (11 styles)
 
+### power — Power Tools (13)  (13 cmds)
+  .passgen [len] [n]                             strong random passwords (default 16, max 64)
+  .gitrepo <user/repo>                           GitHub repo card — stars/forks/issues
+  .up <url>                                      website status + response time
+  .netspeed                                      real download speed test (Mbps)
+  .hash <text> [algo]                            md5 / sha1 / sha256 / sha512
+  .b64 <enc|dec> <text>                          base64 encode / decode
+  .uuid [n]                                      UUID v4 generator (1-10)
+  .epoch [ts]                                    unix timestamp ↔ date converter
+  .lorem [n]                                     lorem ipsum paragraphs (1-10)
+  .colors <hex>                                  color preview card + RGB/HSL
+  .ssl <domain>                                  SSL certificate expiry check
+  .whois <domain>                                domain whois via RDAP (keyless)
+  .shot <url>                                    website screenshot 📸
+
 ### prememoji — Premium Emojis  (6 cmds)
   .premiumsticker on|off                         AUTO premium emoji mode (no bot tag)
   .premiumsticker <text>                         one-time premium emoji message
@@ -369,8 +392,8 @@ TOTAL: 395 commands · v7.7 NEW: .typeb (bot typing effect) · .rr/.rrb · .raid
   .limits / .warmup                              speed limits view / warmup status
   .raksha / .panic                               hour/day ban-shield / emergency full stop
   .stop / .stopall                               stop all tasks / everything (tasks+reply-raid+copycat)
-  .restart / .update                             restart the bot / git pull update
-  .updateuserbot                                 update the whole userbot from the GitHub repo + auto-restart
+  .restart / .update                             restart the bot / update (channel + git, auto-restart)
+  .updateuserbot                                 full update: channel + git + pip refresh + auto-restart
   .bccheck                                       🩺 self-diagnosis — versions/bots/states/dirs in one card
   .stats / .plist                                bot statistics / plugin table
 

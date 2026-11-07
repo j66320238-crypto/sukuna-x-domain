@@ -199,10 +199,13 @@ async def main() -> None:
     except Exception:
         pass
 
-    # 🩺 v7.7.1: fetch updates missed during connection hiccups — without
-    # this, a routing hiccup can leave own messages unprocessed forever.
+    # 🩺 v7.7.1 → v7.9 FIX: fetch updates missed during connection hiccups
+    # AND after every restart. Telethon reads the private flag `_catch_up`
+    # in _update_loop (the public `catch_up` is a METHOD — the old code
+    # set `client.catch_up = True`, a bool that SHADOWED the method and
+    # made `await client.catch_up()` crash with "bool not callable").
     try:
-        client.catch_up = True
+        client._catch_up = True
     except Exception:
         pass
 
@@ -303,6 +306,10 @@ async def main() -> None:
                 await client.connect()
                 _upd_state["ts"] = time.time()
                 _upd_state["timeouts"].clear()
+                try:
+                    await client.catch_up()   # v7.9: process missed commands
+                except Exception:
+                    pass
                 me2 = await client.get_me()
                 log.warning("🩺 update-stream heal done — reconnected as %s "
                             "(%s)", me2.first_name, me2.id)
@@ -313,6 +320,23 @@ async def main() -> None:
 
     # keep a strong reference — unreferenced asyncio tasks get garbage-collected!
     _core_state.BG_TASKS.append(asyncio.create_task(_updates_healer()))
+
+    # v7.9 STARTUP CATCH-UP — commands sent while the bot was offline
+    # (downtime, restart, deploy) are fetched on reconnect and executed.
+    # Telethon skips missed updates by default (catch_up=False) — without
+    # this, `.update`-style self-restarts silently dropped queued commands.
+    async def _startup_catchup():
+        try:
+            await asyncio.sleep(5)          # let all handlers settle first
+            await client.catch_up()
+            _upd_state["ts"] = time.time()
+            log.info("📥 startup catch-up: missed updates processed")
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            log.warning("startup catch-up failed: %r", e)
+
+    _core_state.BG_TASKS.append(asyncio.create_task(_startup_catchup()))
 
     expected_plugins = len([f for f in os.listdir(os.path.join(os.path.dirname(os.path.abspath(__file__)), "plugins"))
                             if f.endswith(".py") and not f.startswith("_")])

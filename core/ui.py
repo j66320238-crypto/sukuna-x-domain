@@ -33,14 +33,17 @@ log = logging.getLogger("userbot")
 
 
 # ────────────────────────────────────────────────────────────────────────
-#  v7.8 SHARED UPDATE ENGINE — used by .update AND .updateuserbot
-#  Routes: (1) git fetch → version-guard → reset --hard (safe on ZIP
-#  deployments whose working tree is dirty BY DESIGN — the old
-#  `git pull --ff-only` used to refuse and .update always failed),
-#  (2) GitHub tarball fallback when .git is missing or git breaks.
-#  NEVER touches data/ or *.session. Version guard: never downgrades.
+#  v7.9 SHARED UPDATE ENGINE — used by .update AND .updateuserbot
+#  Route 0 (NEW): SELF-HOSTED update channel — version.json + full ZIP
+#  served from our own alwaysdata web space. Every deploy uploads the
+#  fresh build there first, so .update works even when GitHub is behind.
+#  Route 1: git fetch → version-guard → reset --hard (dirty-tree safe).
+#  Route 2: GitHub tarball fallback when .git is missing or git breaks.
+#  NEVER touches data/ or *.session. Version guard: NEVER downgrades —
+#  older remote is refused even with `force` (equal needs force).
 # ────────────────────────────────────────────────────────────────────────
 _REPO = "j66320238-crypto/sukuna-x-domain"
+_UPDATE_CHANNEL = "https://tgidsellerindian.alwaysdata.net/sukuna-update"
 
 
 def _ver_tuple(v):
@@ -48,6 +51,83 @@ def _ver_tuple(v):
         return tuple(int(x) for x in re.findall(r"\d+", str(v))[:3])
     except Exception:
         return (0,)
+
+
+def _skip_rel(rel: str) -> bool:
+    """True = never install this path (protects sessions + runtime data)."""
+    rel = rel.replace("\\", "/")
+    return (not rel or rel == "data" or rel.startswith("data/")
+            or rel == ".git" or rel.startswith(".git/") or "/.git/" in rel
+            or rel.endswith(".session") or rel.endswith(".session-journal")
+            or "__pycache__" in rel)
+
+
+def _channel_engine(base, force):
+    """Route 0 — self-hosted update channel.
+    Returns (ok, msg), or None to fall through to git/tarball routes."""
+    import json as _json
+    import zipfile as _zipfile
+    import tempfile as _tempfile
+    import urllib.request as _urlreq
+    import urllib.parse as _urlparse
+    try:
+        req = _urlreq.Request(
+            _UPDATE_CHANNEL + "/version.json?nocache=" + str(int(time.time())),
+            headers={"User-Agent": "SukunaX-Updater/" + BOT_VERSION,
+                     "Cache-Control": "no-cache"})
+        with _urlreq.urlopen(req, timeout=30) as resp:
+            meta = _json.loads(resp.read().decode("utf-8", "replace"))
+        rv = str(meta.get("version", "")).strip()
+        if not rv:
+            return None
+        if _ver_tuple(rv) < _ver_tuple(BOT_VERSION):
+            return False, (f"already-latest|local v{BOT_VERSION} > "
+                           f"channel v{rv}")
+        if _ver_tuple(rv) == _ver_tuple(BOT_VERSION) and not force:
+            return False, (f"already-latest|local v{BOT_VERSION} = "
+                           f"channel v{rv}")
+        fname = str(meta.get("file") or ("sukuna-v" + rv + ".zip")).strip()
+        url = _UPDATE_CHANNEL + "/" + _urlparse.quote(fname)
+        tmpd = _tempfile.mkdtemp(prefix="sukuna_up_")
+        zpath = os.path.join(tmpd, "update.zip")
+        try:
+            req = _urlreq.Request(url, headers={
+                "User-Agent": "SukunaX-Updater/" + BOT_VERSION})
+            with _urlreq.urlopen(req, timeout=300) as resp, \
+                    open(zpath, "wb") as fh:
+                fh.write(resp.read())
+            extracted = 0
+            with _zipfile.ZipFile(zpath) as zf:
+                names = [n for n in zf.namelist() if not n.endswith("/")]
+                # strip a common top-level folder (GitHub-style zips)
+                tops = {n.split("/", 1)[0] for n in names}
+                prefix = ""
+                if len(tops) == 1:
+                    t = next(iter(tops))
+                    if t not in ("bot.py", "userbot.py", "core", "plugins",
+                                 "data", "requirements.txt"):
+                        prefix = t + "/"
+                for n in names:
+                    rel = n[len(prefix):] if prefix and n.startswith(prefix) \
+                        else n
+                    if _skip_rel(rel):
+                        continue
+                    dest = os.path.join(base, rel)
+                    parent = os.path.dirname(dest)
+                    if parent:
+                        os.makedirs(parent, exist_ok=True)
+                    with zf.open(n) as srcf, open(dest, "wb") as out:
+                        out.write(srcf.read())
+                    extracted += 1
+            return True, (f"v{rv} via update channel — {extracted} files")
+        finally:
+            try:
+                import shutil as _sh
+                _sh.rmtree(tmpd, ignore_errors=True)
+            except Exception:
+                pass
+    except Exception:
+        return None              # channel down / missing → git/tarball routes
 
 
 def _update_engine(base, force):
@@ -69,9 +149,14 @@ def _update_engine(base, force):
                           r.stdout or "")
             rv = m.group(1) if m else None
             # 🛡 version guard — refuse to downgrade a newer deployment
-            if rv and not force and _ver_tuple(rv) <= _ver_tuple(BOT_VERSION):
-                return False, (f"already-latest|local v{BOT_VERSION} ≥ "
-                               f"remote v{rv}")
+            if rv:
+                rv_t = _ver_tuple(rv)
+                if rv_t < _ver_tuple(BOT_VERSION):
+                    return False, (f"already-latest|local v{BOT_VERSION} > "
+                                   f"remote v{rv}")
+                if rv_t == _ver_tuple(BOT_VERSION) and not force:
+                    return False, (f"already-latest|local v{BOT_VERSION} = "
+                                   f"remote v{rv}")
             r = subprocess.run(["git", "reset", "--hard", f"origin/{branch}"],
                                cwd=base, capture_output=True, text=True,
                                timeout=120)
@@ -93,23 +178,27 @@ def _update_engine(base, force):
         with _urlreq.urlopen(req, timeout=90) as resp, open(tgz, "wb") as fh:
             fh.write(resp.read())
         # 🛡 version guard — read remote BOT_VERSION from the tarball
-        if not force:
-            with _tarfile.open(tgz, "r:gz") as tf:
-                for m in tf.getmembers():
-                    if m.name.endswith("core/config.py"):
-                        try:
-                            head = tf.extractfile(m).read(4096).decode(
-                                "utf-8", "ignore")
-                        except Exception:
-                            head = ""
-                        mm = re.search(
-                            r"BOT_VERSION\s*=\s*[\"']([\d.]+)[\"']", head)
-                        if (mm and _ver_tuple(mm.group(1))
-                                <= _ver_tuple(BOT_VERSION)):
+        with _tarfile.open(tgz, "r:gz") as tf:
+            for m in tf.getmembers():
+                if m.name.endswith("core/config.py"):
+                    try:
+                        head = tf.extractfile(m).read(4096).decode(
+                            "utf-8", "ignore")
+                    except Exception:
+                        head = ""
+                    mm = re.search(
+                        r"BOT_VERSION\s*=\s*[\"']([\d.]+)[\"']", head)
+                    if mm:
+                        rv_t = _ver_tuple(mm.group(1))
+                        if rv_t < _ver_tuple(BOT_VERSION):
                             return False, (
-                                f"already-latest|local v{BOT_VERSION} ≥ "
+                                f"already-latest|local v{BOT_VERSION} > "
                                 f"remote v{mm.group(1)}")
-                        break
+                        if rv_t == _ver_tuple(BOT_VERSION) and not force:
+                            return False, (
+                                f"already-latest|local v{BOT_VERSION} = "
+                                f"remote v{mm.group(1)}")
+                    break
         extracted = 0
         with _tarfile.open(tgz, "r:gz") as tf:
             for m in tf.getmembers():
@@ -153,13 +242,13 @@ _MODULE_ICONS = {
     "games": "🎮", "idvault": "🔐", "info": "🔎", "media": "🖼️", "misc": "⚙️",
     "net": "🌐", "party": "🎉", "prememoji": "✨", "profile": "👤", "raid": "⚔️", "remind": "⏰",
     "safety": "🛡️", "spam": "📨", "stickers": "🩹", "sukuna": "👑", "tags": "🏷",
-    "texttools": "🔤", "tools": "🧰", "util": "🧷", "web": "🌍",
+    "texttools": "🔤", "tools": "🧰", "util": "🧷", "web": "🌍", "power": "⚡",
     "botcontroller": "🤖", "settings": "⚙️",
 }
 
 _MENU_ORDER = [
     "sukuna", "ai", "animations", "profile", "dp", "idvault", "prememoji", "admin",
-    "extra", "farmer", "fun", "games", "tools", "media", "stickers", "spam", "raid",
+    "extra", "farmer", "fun", "games", "tools", "power", "media", "stickers", "spam", "raid",
     "botcontroller", "settings",
     "chat", "events", "info", "net", "web", "misc", "party", "tags",
     "texttools", "util", "afk", "antipm", "remind", "safety",
@@ -197,7 +286,7 @@ _MODULE_TYPES = {
     # 🔧 utility
     "tools": "Utility", "misc": "Utility", "util": "Utility", "net": "Utility",
     "info": "Utility", "texttools": "Utility", "remind": "Utility",
-    "safety": "Utility", "apis": "Utility",
+    "safety": "Utility", "apis": "Utility", "power": "Utility",
     # 🎉 fun
     "fun": "Fun", "party": "Fun", "extra": "Fun", "games": "Fun", "prememoji": "Fun",
     # 📨 mass actions
@@ -665,77 +754,50 @@ def register_builtin_commands(client) -> None:
             pass
         os.execl(sys.executable, sys.executable, *sys.argv)
 
-    # ── .update ──────────────────────────────────────────────────────────
-    @client.on(events.NewMessage(outgoing=True,
-                                 pattern=r"^\.update(?:\s+(force))?$"))
-    async def _update_handler(event):
+    # ── .update / .updateuserbot — shared v7.9 update flow ───────────────
+    # Channel-first engine + auto-restart. `.update` = fast (no pip),
+    # `.updateuserbot` = full (pip refresh + restart). `force` = re-install
+    # the same version; NEVER downgrades past a newer local build.
+    async def _run_update_flow(cl, event, force, with_pip):
         base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        force = bool(event.pattern_match.group(1))
-        await event.edit("🔄 Pulling latest from GitHub…")
-        code, out = await asyncio.get_running_loop().run_in_executor(
-            None, _update_engine, base, force)
-        out = str(out).strip()
-        if "already-latest|" in out:
-            return await event.edit(
-                "✅ **Already on the latest build.** 👑\n"
-                f"┃ `{out.split('|', 1)[1]}`\n"
-                "┃ push newer code to GitHub first, or `.update force`",
-                link_preview=False)
-        if code:
-            return await event.edit(
-                f"⬇️ **Updated!**\n`{out}`\n\n♻️ Now do `.restart` to load it.",
-                link_preview=False)
-        await event.edit(
-            f"❌ Update failed:\n`{out}`\n"
-            "💡 Check the server's internet, or deploy via SSH.",
-            link_preview=False)
-
-    # ── .updateuserbot — update from GitHub repo + auto-restart ─────────
-    # v7.7: VERSION GUARD — never downgrades. If the GitHub version is
-    # older than (or equal to) the local one, nothing is touched. This
-    # protects directly-uploaded deployments (SSH/ZIP) from being reverted
-    # to an old git state by accident.
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.updateuserbot(?:\s+(force))?$"))
-    async def _updateuserbot_handler(event):
-        base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        force = bool(event.pattern_match.group(1))
-        await event.edit("🔄 **SUKUNA-X updater** — pulling latest from GitHub…",
+        await event.edit("🔄 **SUKUNA-X updater** — checking for updates…",
                          link_preview=False)
-
         loop = asyncio.get_running_loop()
         code, out = await loop.run_in_executor(None, _update_engine,
                                                base, force)
+        out = str(out).strip()
+        if out.startswith("already-latest|"):
+            detail = out.split("|", 1)[1]
+            return await event.edit(
+                "✅ **Already on the latest build.** 👑\n"
+                f"┃ `{detail}`\n"
+                "┃ new deploys land on the update channel automatically\n"
+                "┃ `.update force` = re-install the current build",
+                link_preview=False)
         if not code:
-            if str(out).startswith("already-latest|"):
-                return await event.edit(
-                    "✅ **Already on the latest build.** 👑\n"
-                    f"┃ `{str(out).split('|', 1)[1]}`\n"
-                    "┃ push newer code to GitHub first, or use "
-                    "`.updateuserbot force`",
-                    link_preview=False)
             return await event.edit(
                 f"❌ **Update failed:**\n`{out}`\n\n"
-                "💡 Check internet on the server, or deploy manually via SSH.",
+                "💡 Check internet on the server, or deploy via SSH.",
                 link_preview=False)
+        msg = f"⬇️ **Updated!** `{out}`\n"
+        if with_pip:
+            def _pip():
+                import subprocess
+                req = os.path.join(base, "requirements.txt")
+                if not os.path.exists(req):
+                    return ""
+                try:
+                    r = subprocess.run([sys.executable, "-m", "pip",
+                                        "install", "-q", "-r", req],
+                                       cwd=base, capture_output=True,
+                                       text=True, timeout=240)
+                    return (r.stderr or r.stdout or "")[-200:]
+                except Exception as e:
+                    return str(e)[:150]
 
-        # requirements refresh (best-effort, never blocks the update)
-        def _pip():
-            import subprocess
-            req = os.path.join(base, "requirements.txt")
-            if not os.path.exists(req):
-                return ""
-            try:
-                r = subprocess.run([sys.executable, "-m", "pip", "install", "-q",
-                                    "-r", req], cwd=base, capture_output=True,
-                                   text=True, timeout=240)
-                return (r.stderr or r.stdout or "")[-200:]
-            except Exception as e:
-                return str(e)[:150]
-
-        pip_out = await loop.run_in_executor(None, _pip)
-        msg = f"✅ **Updated!**\n`{out}`\n"
-        if pip_out:
-            msg += f"📦 pip: `{pip_out}`\n"
+            pip_out = await loop.run_in_executor(None, _pip)
+            if pip_out:
+                msg += f"📦 pip: `{pip_out}`\n"
         msg += "♻️ Restarting now…"
         try:
             await event.edit(msg, link_preview=False)
@@ -747,10 +809,24 @@ def register_builtin_commands(client) -> None:
                 t.cancel()
         _state.stop_processes.clear()
         try:
-            await client.disconnect()
+            await cl.disconnect()
         except Exception:
             pass
         os.execl(sys.executable, sys.executable, *sys.argv)
+
+    # ── .update — update + auto-restart ─────────────────────────────────
+    @client.on(events.NewMessage(outgoing=True,
+                                 pattern=r"^\.update(?:\s+(force))?$"))
+    async def _update_handler(event):
+        await _run_update_flow(client, event,
+                               bool(event.pattern_match.group(1)), False)
+
+    # ── .updateuserbot — update + pip refresh + auto-restart ────────────
+    @client.on(events.NewMessage(outgoing=True,
+                                 pattern=r"^\.updateuserbot(?:\s+(force))?$"))
+    async def _updateuserbot_handler(event):
+        await _run_update_flow(client, event,
+                               bool(event.pattern_match.group(1)), True)
 
     # ── .crashlog ────────────────────────────────────────────────────────
     @client.on(events.NewMessage(outgoing=True, pattern=r"^\.crashlog(?:\s+(\d+))?$"))

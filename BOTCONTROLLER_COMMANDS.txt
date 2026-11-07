@@ -251,7 +251,9 @@
       .raidstop · .raidbstop · .stopraidb · .animstop · .autodelete ·
       .autodeletem <sec> ⚡ (har output <sec> me khud delete — help card,
       spam-done, raid-done info sab) · off: .autodeletem off ·
-      .addsudo · .delsudo · .listsudo · .delallrm · .bccheck
+      .addsudo · .delsudo · .listsudo · .delallrm · .bccheck ·
+      .sudo <cmd> ⚡ v7.9 RELAY — sudo user `.sudo .help` likhe →
+      userbot wo command KHUD run karta hai (real dispatch)
   🛠 FIX HUE: .addallb (ImportError) · .cloneb/.revertb
       (BotMethodInvalid) · .raidb (reply optional) · .help auto-upgrade
   ✅ PEHLE SE THE (ab solid): .addbottoken .delbottoken .listbots
