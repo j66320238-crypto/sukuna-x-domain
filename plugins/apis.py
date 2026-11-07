@@ -16,10 +16,10 @@ COMMANDS_APIS = {
         (".age <name>", "age guess from name (census data)"),
         (".gender <name>", "gender probability for a name"),
         (".nat <name>", "top nationalities for a name"),
-        (".horo <sign>", "daily horoscope (desi naam bhi: singh, mesh…)"),
+        (".horo <sign>", "daily horoscope (Indian names too: singh, mesh…)"),
         (".news [topic]", "top headlines / topic news search"),
         (".dns <domain> [type]", "DNS records lookup (A/AAAA/MX/TXT…)"),
-        (".riddle", "riddle + 10s baad answer reveal"),
+        (".riddle", "riddle + answer reveal after 10s"),
         (".catfact", "random cat fact 🐱"),
         (".uselessfact", "random useless fact 🤓"),
         (".kanye", "random Kanye West quote 🎤"),
@@ -57,7 +57,7 @@ _DNS_QUERY = {"a": 1, "aaaa": 28, "mx": 15, "txt": 16, "ns": 2,
 
 
 def _horo_resolve(raw: str):
-    """user input → (western_sign, pretty_name) — desi naam bhi chalega."""
+    """user input → (western_sign, pretty_name) — Indian names also work."""
     key = re.sub(r"[^a-z]", "", (raw or "").lower())
     return _HORO_SIGNS.get(key)
 
@@ -98,20 +98,20 @@ def register_apis(client):
     async def _age(event):
         name = event.pattern_match.group(1).strip().split()[0][:40]
         if not name.isalpha():
-            return await event.edit("❌ Naam likho: `.age michael`")
+            return await event.edit("❌ Give a name: `.age michael`")
         await event.edit(f"🔍 Guessing age of **{name}**…")
         try:
             data = json.loads(await _web_get(
                 "https://api.agify.io?name=" + quote_plus(name)))
             age = data.get("age")
             if age is None:
-                return await event.edit(f"❌ `{name}` ke liye data nahi mila.")
+                return await event.edit(f"❌ No data found for `{name}`.")
             await event.edit(
-                f"🎂 **{name}** ka estimated age: **{age} saal**\n"
-                f"📊 Based on `{data.get('count', 0):,}` log online",
+                f"🎂 **{name}** — estimated age: **{age} years**\n"
+                f"📊 Based on `{data.get('count', 0):,}` online profiles",
                 link_preview=False)
         except Exception:
-            await event.edit("❌ agify.io down hai — thodi der baad try karo.")
+            await event.edit("❌ agify.io is down — try again in a bit.")
 
     # ---- .gender — genderize.io ----
     @client.on(events.NewMessage(outgoing=True, pattern=r"^\.gender\s+([\s\S]+)$"))
@@ -119,22 +119,22 @@ def register_apis(client):
     async def _gender(event):
         name = event.pattern_match.group(1).strip().split()[0][:40]
         if not name.isalpha():
-            return await event.edit("❌ Naam likho: `.gender michael`")
+            return await event.edit("❌ Give a name: `.gender michael`")
         await event.edit(f"🔍 Checking **{name}**…")
         try:
             data = json.loads(await _web_get(
                 "https://api.genderize.io?name=" + quote_plus(name)))
             g = data.get("gender")
             if not g:
-                return await event.edit(f"❌ `{name}` ke liye data nahi mila.")
+                return await event.edit(f"❌ No data found for `{name}`.")
             emoji = "👨" if g == "male" else "👩" if g == "female" else "🤷"
             await event.edit(
                 f"{emoji} **{name}** → **{g.title()}** "
                 f"(`{data.get('probability', 0) * 100:.0f}%` sure)\n"
-                f"📊 `{data.get('count', 0):,}` records se",
+                f"📊 from `{data.get('count', 0):,}` records",
                 link_preview=False)
         except Exception:
-            await event.edit("❌ genderize.io down hai — thodi der baad try karo.")
+            await event.edit("❌ genderize.io is down — try again in a bit.")
 
     # ---- .nat — nationalize.io ----
     @client.on(events.NewMessage(outgoing=True, pattern=r"^\.nat\s+([\s\S]+)$"))
@@ -142,21 +142,21 @@ def register_apis(client):
     async def _nat(event):
         name = event.pattern_match.group(1).strip().split()[0][:40]
         if not name.isalpha():
-            return await event.edit("❌ Naam likho: `.nat michael`")
+            return await event.edit("❌ Give a name: `.nat michael`")
         await event.edit(f"🌍 Checking nationalities for **{name}**…")
         try:
             data = json.loads(await _web_get(
                 "https://api.nationalize.io?name=" + quote_plus(name)))
             countries = data.get("country") or []
             if not countries:
-                return await event.edit(f"❌ `{name}` ke liye data nahi mila.")
-            lines = [f"🌍 **{name}** ka naam in deshon me common:"]
+                return await event.edit(f"❌ No data found for `{name}`.")
+            lines = [f"🌍 Countries where **{name}** is common:"]
             for c in countries[:5]:
                 lines.append(f"┃ {c.get('country_id', '??')} — "
                              f"**{c.get('probability', 0) * 100:.1f}%**")
             await event.edit("\n".join(lines), link_preview=False)
         except Exception:
-            await event.edit("❌ nationalize.io down hai — thodi der baad try karo.")
+            await event.edit("❌ nationalize.io is down — try again in a bit.")
 
     # ---- .horo — daily horoscope ----
     @client.on(events.NewMessage(outgoing=True, pattern=r"^\.horo\s+([\s\S]+)$"))
@@ -166,8 +166,8 @@ def register_apis(client):
         sign = _horo_resolve(raw)
         if not sign:
             return await event.edit(
-                "❌ Sign pehchana nahi gaya.\n"
-                "💬 Western: `.horo leo` — Desi: `.horo singh` / `.horo mesh`\n"
+                "❌ Could not recognize the sign.\n"
+                "💬 Western: `.horo leo` — Indian: `.horo singh` / `.horo mesh`\n"
                 "_Aries Taurus Gemini Cancer Leo Virgo Libra Scorpio "
                 "Sagittarius Capricorn Aquarius Pisces_",
                 link_preview=False)
@@ -179,14 +179,14 @@ def register_apis(client):
             d = data.get("data") or {}
             text = (d.get("horoscope") or "").strip()
             if not text:
-                return await event.edit("❌ Aaj ka horoscope nahi mila.")
+                return await event.edit("❌ Couldn't fetch today's horoscope.")
             date = d.get("date", "")
             await event.edit(
                 f"{_HORO_EMOJI[sign]} **{sign.title()}** — {date}\n"
                 f"{'─' * 26}\n{text[:900]}",
                 link_preview=False)
         except Exception:
-            await event.edit("❌ Horoscope service down — baad me try karo.")
+            await event.edit("❌ Horoscope service is down — try again later.")
 
     # ---- .news — headlines / topic search ----
     @client.on(events.NewMessage(outgoing=True, pattern=r"^\.news(?:\s+([\s\S]+))?$"))
@@ -205,7 +205,7 @@ def register_apis(client):
             items = _rss_parse(xml, 8)
             if not items:
                 return await event.edit(
-                    f"❌ News nahi mili{(' — ' + topic) if topic else ''}.")
+                    f"❌ No news found{(' — ' + topic) if topic else ''}.")
             head = f"📰 **TOP NEWS**{' — ' + topic.title() if topic else ''}"
             lines = [head, "─" * 26]
             for i, (title, _link) in enumerate(items[:8], 1):
@@ -214,7 +214,7 @@ def register_apis(client):
             lines.append("_Source: Google News / BBC · `.news <topic>` search_")
             await event.edit("\n".join(lines), link_preview=False)
         except Exception:
-            await event.edit("❌ News feed down — thodi der baad try karo.")
+            await event.edit("❌ News feed is down — try again in a bit.")
 
     # ---- .dns — DNS over HTTPS (Google DoH) ----
     @client.on(events.NewMessage(outgoing=True, pattern=r"^\.dns\s+([\s\S]+)$"))
@@ -222,7 +222,7 @@ def register_apis(client):
     async def _dns(event):
         raw = event.pattern_match.group(1).strip().split()
         if not raw:
-            return await event.edit("❌ Usage: `.dns google.com` ya `.dns google.com mx`")
+            return await event.edit("❌ Usage: `.dns google.com` or `.dns google.com mx`")
         domain = raw[0].lower().strip(".,")
         rtype = (raw[1].lower() if len(raw) > 1 else "a")
         code = _DNS_QUERY.get(rtype, 1)
@@ -233,47 +233,47 @@ def register_apis(client):
                 + "&type=" + str(code)))
             status = data.get("Status", -1)
             if status == 3:
-                return await event.edit(f"❌ `{domain}` exist hi nahi karta (NXDOMAIN).")
+                return await event.edit(f"❌ `{domain}` does not exist (NXDOMAIN).")
             rows = _dns_rows(data.get("Answer") or [])
             if not rows:
                 return await event.edit(
-                    f"⚠️ `{domain}` ke liye {rtype.upper()} records nahi mile.")
+                    f"⚠️ No {rtype.upper()} records found for `{domain}`.")
             lines = [f"🌐 **DNS {rtype.upper()}** — `{data.get('Question', [{}])[0].get('name', domain)}`",
                      "─" * 26]
             for t, ttl, d in rows[:15]:
                 lines.append(f"┃ `{t:<5}` `{ttl:>5}s` {d[:80]}")
             await event.edit("\n".join(lines), link_preview=False)
         except Exception:
-            await event.edit("❌ DNS lookup fail — domain check karo.")
+            await event.edit("❌ DNS lookup failed — check the domain.")
 
     # ---- .riddle — riddle + answer reveal ----
     @client.on(events.NewMessage(outgoing=True, pattern=r"^\.riddle$"))
     @client.flood_safe
     async def _riddle(event):
-        await event.edit("🧠 Riddle laa raha hoon…")
+        await event.edit("🧠 Fetching a riddle…")
         try:
             data = json.loads(await _web_get(
                 "https://riddles-api.vercel.app/random"))
             riddle = (data.get("riddle") or "").strip()
             answer = (data.get("answer") or "").strip()
             if not riddle:
-                return await event.edit("❌ Riddle nahi mili — baad me try karo.")
+                return await event.edit("❌ No riddle received — try again later.")
             await event.edit(
                 f"🧠 **RIDDLE**\n{'─' * 26}\n{riddle[:600]}\n{'─' * 26}\n"
-                "_⏳ Answer 10 second me…_", link_preview=False)
+                "_⏳ Answer reveals in 10 seconds…_", link_preview=False)
             await safe_sleep(10, floor=0.0)
             await event.edit(
                 f"🧠 **RIDDLE**\n{'─' * 26}\n{riddle[:400]}\n{'─' * 26}\n"
                 f"✅ **Answer:** {answer[:200]}",
                 link_preview=False)
         except Exception:
-            await event.edit("❌ Riddle service down — baad me try karo.")
+            await event.edit("❌ Riddle service is down — try again later.")
 
     # ---- .catfact ----
     @client.on(events.NewMessage(outgoing=True, pattern=r"^\.catfact$"))
     @client.flood_safe
     async def _catfact(event):
-        await event.edit("🐱 Fact laa raha hoon…")
+        await event.edit("🐱 Fetching a fact…")
         try:
             data = json.loads(await _web_get("https://catfact.ninja/fact"))
             fact = (data.get("fact") or "").strip()
@@ -282,14 +282,14 @@ def register_apis(client):
             await event.edit(f"🐱 **CAT FACT**\n{'─' * 26}\n{fact[:800]}",
                              link_preview=False)
         except Exception:
-            await event.edit("❌ Cat facts down — baad me try karo.")
+            await event.edit("❌ Cat facts is down — try again later.")
 
     # ---- .uselessfact / .ufact ----
     @client.on(events.NewMessage(outgoing=True,
                                  pattern=r"^\.(?:uselessfact|ufact)$"))
     @client.flood_safe
     async def _uselessfact(event):
-        await event.edit("🤓 Useless fact laa raha hoon…")
+        await event.edit("🤓 Fetching a useless fact…")
         try:
             data = json.loads(await _web_get(
                 "https://uselessfacts.jsph.pl/api/v2/facts/random"))
@@ -299,13 +299,13 @@ def register_apis(client):
             await event.edit(f"🤓 **USELESS FACT**\n{'─' * 26}\n{fact[:800]}",
                              link_preview=False)
         except Exception:
-            await event.edit("❌ Fact service down — baad me try karo.")
+            await event.edit("❌ Fact service is down — try again later.")
 
     # ---- .kanye ----
     @client.on(events.NewMessage(outgoing=True, pattern=r"^\.kanye$"))
     @client.flood_safe
     async def _kanye(event):
-        await event.edit("🎤 Kanye soch raha hai…")
+        await event.edit("🎤 Asking Kanye…")
         try:
             data = json.loads(await _web_get("https://api.kanye.rest"))
             quote = (data.get("quote") or "").strip()
@@ -314,19 +314,19 @@ def register_apis(client):
             await event.edit(f"🎤 **Kanye said:**\n_{quote[:400]}_",
                              link_preview=False)
         except Exception:
-            await event.edit("❌ Kanye busy hai — baad me try karo.")
+            await event.edit("❌ Kanye is busy — try again later.")
 
     # ---- .duck — random duck pic ----
     @client.on(events.NewMessage(outgoing=True, pattern=r"^\.duck$"))
     @client.flood_safe
     async def _duck(event):
-        await event.edit("🦆 Duck dhundh raha hoon…")
+        await event.edit("🦆 Hunting a duck…")
         dest = os.path.join(DATA_DIR, f"duck_{event.id}.jpg")
         try:
             data = json.loads(await _web_get("https://random-d.uk/api/random"))
             url = data.get("url")
             if not url:
-                return await event.edit("❌ Duck nahi mila.")
+                return await event.edit("❌ No duck found.")
             await _web_dl(url, dest)
             await throttle("send")
             await client.send_file(await event.get_input_chat(), dest,
@@ -334,7 +334,7 @@ def register_apis(client):
             await event.delete()
         except Exception:
             try:
-                await event.edit("❌ Duck API down — baad me try karo.")
+                await event.edit("❌ Duck API is down — try again later.")
             except Exception:
                 pass
         finally:
@@ -348,14 +348,14 @@ def register_apis(client):
     @client.on(events.NewMessage(outgoing=True, pattern=r"^\.cafe$"))
     @client.flood_safe
     async def _cafe(event):
-        await event.edit("☕ Coffee ban rahi hai…")
+        await event.edit("☕ Brewing coffee…")
         dest = os.path.join(DATA_DIR, f"cafe_{event.id}.jpg")
         try:
             data = json.loads(await _web_get(
                 "https://coffee.alexflipnote.dev/random.json"))
             url = data.get("file")
             if not url:
-                return await event.edit("❌ Coffee nahi mili.")
+                return await event.edit("❌ No coffee found.")
             await _web_dl(url, dest)
             await throttle("send")
             await client.send_file(await event.get_input_chat(), dest,
@@ -363,7 +363,7 @@ def register_apis(client):
             await event.delete()
         except Exception:
             try:
-                await event.edit("❌ Coffee API down — baad me try karo.")
+                await event.edit("❌ Coffee API is down — try again later.")
             except Exception:
                 pass
         finally:
@@ -377,7 +377,7 @@ def register_apis(client):
     @client.on(events.NewMessage(outgoing=True, pattern=r"^\.nasa$"))
     @client.flood_safe
     async def _nasa(event):
-        await event.edit("🔭 NASA se picture laa raha hoon…")
+        await event.edit("🔭 Fetching the NASA picture…")
         try:
             data = json.loads(await _web_get(
                 "https://api.nasa.gov/planetary/apod?api_key=DEMO_KEY"))
@@ -409,7 +409,7 @@ def register_apis(client):
         except Exception:
             try:
                 await event.edit(
-                    "❌ NASA API busy (demo key rate-limit ho sakti hai) — "
-                    "thodi der baad try karo.")
+                    "❌ NASA API is busy (demo key may be rate-limited) — "
+                    "try again in a bit.")
             except Exception:
                 pass

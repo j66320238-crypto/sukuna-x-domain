@@ -111,13 +111,13 @@ async def main() -> None:
     _lock_fh = _acquire_instance_lock()
     if _lock_fh is None:
         print(
-            "\n⛔  SUKUNA-X DOMAIN ALREADY RUNNING hai (dusri instance lock rakhti hai).\n"
+            "\n⛔  SUKUNA-X DOMAIN IS ALREADY RUNNING (another instance holds the lock).\n"
             "   ──────────────────────────────────────────────\n"
-            "   • Ek hi account par EK instance hi chalta hai —\n"
-            "     do instances = session corruption + 'database is locked'.\n"
-            "   • Status dekhne ke liye:   ps aux | grep userbot\n"
-            "   • Band karne ke liye:      bash sukuna_stop.sh\n"
-            "   • Phir start:              screen -dmS sukuna bash sukuna_run.sh\n"
+            "   • Only ONE instance per account is allowed —\n"
+            "     two instances = session corruption + 'database is locked'.\n"
+            "   • Check status:   ps aux | grep userbot\n"
+            "   • Stop it:        bash sukuna_stop.sh\n"
+            "   • Then start:     screen -dmS sukuna bash sukuna_run.sh\n"
         )
         log.critical("Double-start BLOCKED by instance lock (pid %s)", os.getpid())
         sys.exit(77)                  # supervisor isko 60s backoff samajhta hai

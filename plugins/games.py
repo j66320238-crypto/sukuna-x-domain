@@ -76,7 +76,7 @@ def register_games(client):
                 f"✦ ━━━〔 🧠 QUIZ TIME 〕━━━ ✦\n"
                 f"📚 {category} • `{difficulty}`\n\n"
                 f"❓ **{html.escape(question)}**\n\n{opt_lines}\n\n"
-                f"⏳ Answer 8 second me reveal hoga…",
+                f"⏳ Answer reveals in 8 seconds…",
                 parse_mode="html", link_preview=False)
             for f in _QUIZ_FRAMES:
                 await asyncio.sleep(random.uniform(2.2, 3.0))

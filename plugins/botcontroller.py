@@ -2,86 +2,94 @@
 from core import *  # noqa: F401,F403 — shared engine
 
 ############################################################################
-#  SECTION: BOTCONTROLLER — 👑 v7.4.1 MULTI-BOT ARMY COMMAND CENTER
+#  SECTION: BOTCONTROLLER — 👑 v7.5 MULTI-BOT ARMY COMMAND CENTER
 ############################################################################
 """
-BotController — apne MAIN account (ya SUDO users) se pura BOT ARMY control karo.
+BotController — control your whole BOT ARMY from your MAIN account (or SUDO users).
 
   ⚙️ SETUP
-  • .addbottoken <token>     — bot register (1st/2nd/3rd… slots) + token verify
-  • .addnewbotauto [n]       — BotFather se KHUD naya bot banao (name: worker,
-                                username auto, 2 baar try, token auto-register)
-  • .delbottoken/.delbot <n> — nth bot delete (slots auto-shift ho jate hain)
-  • .listbots / .botlist     — sab bots + ❄️ frozen status
-  • .monitorb                — LIVE status (kon online hai + sab ka naam)
-  • .refreshb                — sab bots reconnect (frozen clear attempt)
+  • .addbottoken <token>     — register a bot (1st/2nd/3rd… slot) + verify token
+  • .addnewbotauto [n]       — create a NEW bot via BotFather automatically
+                               (name: worker, auto username, retries, auto-register)
+  • .delbottoken / .delbot <n> — delete the nth bot (slots auto-shift)
+  • .listbots / .botlist     — all bots + ❄️ frozen status
+  • .monitorb                — LIVE status (who is online + everyone's names)
+  • .refreshb                — reconnect all bots (clear frozen attempt)
 
   📥 GROUP
-  • .addallb [slots]         — sab bots current group me add
-  • .addall 1-3              — sirf 1st-3rd bots (single: .addall 2)
-  • .removeallb              — sab bots group se remove
+  • .addallb [slots]         — add all bots to the current group
+  • .addall 1-3              — only the 1st-3rd bots (single: .addall 2)
+  • .removeallb              — remove all bots from the group
 
-  🚀 ATTACK (interval ka KOI lower limit nahi — 0.1 / 0.5 sab ok)
-  • .spamb <n> <sec> <text>  — sab bots text spam
-  • .spamb1-2 <n> <sec> <txt>— sirf specific bots
+  🚀 ATTACK (NO lower limit on the interval — 0.1 / 0.5 all fine)
+  • .spamb <n> <sec> <text>  — all bots text spam
+  • .spamb1-2 <n> <sec> <txt>— only specific bots
   • .sspam <n> <sec>         — USER sticker spam (reply)
   • .sspamb <n> <sec>        — BOTS sticker spam (reply)
-  • .raid [n] [text]         — user raid (saved slots rotate karte hain)
-  • .raidb [slots] [n] [txt] — BOT raid (reply optional + saved slots)
+  • .raid [n] [gap] [text]   — user raid (saved slots rotate)
+  • .raidb [slots] <n> [gap] [txt] — BOT raid (.raidb 10 .1 = 10x, 0.1s
+                               gap · reply + tag BOTH + saved slots rotate)
 
   🎭 PROFILE
-  • .cloneb [slots]          — bots victim ka clone (name+bio BotFather se,
-                               pfp MTProto se — bot-proof, error-free)
-  • .revertb/.uncloneb [slot]— bots wapas ORIGINAL (pre-clone) state me
-  • .loadprofileb [slots] <name> — .saveprofile wala saved profile bots par
-  • .botsay [slots] <text>   — bots se message bulwao
+  • .cloneb [slots]          — bots clone the victim (name+bio via BotFather,
+                               pfp via MTProto — bot-proof, error-free;
+                               if the target has NO dp the bot's dp is cleared)
+  • .revertb / .uncloneb [slot] — bots back to ORIGINAL (pre-clone) state
+  • .loadprofileb [slots] <name> — put a .saveprofile profile on the bots
+  • .botsay [slots] <text>   — make the bots say something
 
   🎬 ANIMATION DELEGATION
-  • .<anim>b [sec]           — koi bhi animation SAB bots par (.roseb .hackb)
-  • .<anim>b1-2 [sec]        — specific bots par (.roseb1-2)
+  • .<anim>b [sec]           — any animation on ALL bots (.roseb .hackb)
+  • .<anim>b1-2 [sec]        — specific bots (.roseb1-2)
 
   📜 RAID MESSAGES (slots 1st, 2nd, 3rd…)
-  • .saverm <text>           — slot save (reply se bhi; 1st → 2nd → 3rd…)
-  • .listrm                  — sab slots list
-  • .delrm <n>               — slot delete (baaki AUTO-SHIFT: 4th → 3rd)
-  • .delallrm                — sab slots ek saath delete
+  • .saverm <text>           — save a slot (reply works too; 1st → 2nd → 3rd…)
+  • .listrm                  — list all slots
+  • .delrm <n>               — delete a slot (rest AUTO-SHIFT: 4th → 3rd)
+  • .delallrm                — delete all slots at once
 
-  📡 RRT — REPLY-RAID TURBO
-  • .rrt                     — reply karke: target ka HAR message → reply me
-                                saved slots me se ek-ek karke
-  • .rrtb [slots]            — BOTS bhi wahi karein (.rrtb2-3 custom)
-  • .stoprrt                 — sab RRT band (user + bots)
+  📡 RR / RRT — REPLY-RAID
+  • .rr / .rrt               — reply to the target: EVERY message they send
+                               gets a saved slot as reply (TOGGLE); the
+                               replied message is auto-saved to the slots
+  • .rrb [slots] / .rrtb     — the BOTS do the same (.rrb2-3 custom)
+  • .stoprrt / .stoprr       — stop all RRT/RR (user + bots)
 
-  🪞 COPYCAT (.ct / .ctb)
-  • .ct (reply)              — replied text/sticker SAME dobara bhejo
-  • .ct on/off               — jo bhi bhejoge wahi SAME dobara (mode)
-  • .ctb (reply) [slots]     — BOTS replied content bhejein
+  🪞 COPYCAT / MIRROR (.ct / .ctb)
+  • .ct (reply)              — MIRROR toggle: re-send everything the target
+                               sends, same-to-same (sticker → sticker)
+  • .ct copy (reply)         — one-shot: re-send the replied message once
+  • .ct on/off               — self-copycat mode (mirror your own sends)
+  • .ctb (reply) [slots]     — the BOTS mirror the target
   • .ctb on/off / .ctb2-3 on — bots copycat mode (custom slots)
 
-  ⏹ STOP SYSTEM (har cheez ka stop)
-  • .stop                    — sab tasks stop (builtin)
-  • .stopall                 — tasks + RRT + CopyCat sab band
-  • .stopb                   — sab BOT tasks stop
+  ⏹ STOP SYSTEM (a stop for everything)
+  • .stop                    — stop all tasks (builtin)
+  • .stopall                 — tasks + RRT + CopyCat all off
+  • .stopb                   — stop all BOT tasks
   • .spamstop / .sspamstop   — text spam / sticker spam stop
-  • .stopraid / .raidstop    — raid tasks + RRT band
-  • .raidbstop / .stopraidb  — sirf BOT raid stop
+  • .stopraid / .raidstop    — raid tasks + RRT off
+  • .raidbstop / .stopraidb  — stop only the BOT raid
   • .animstop                — animations stop
+  • .stopct / .ctstop        — copycat + all mirrors off
 
   🛠 UX
   • .autodelete on/off       — output auto-delete system (DEFAULT ON:
-                                naya command = pichla output khud delete)
-  • .addsudo (reply/id)      — SUDO user add → wo bhi bots control kar sake
-  • .delsudo / .listsudo     — sudo remove / list (sirf owner ke liye)
+                               a new command deletes the previous output)
+  • .autodeletem <sec>       — v7.5 TIMER: every output (help card /
+                               spam-done / raid-done info) self-deletes in <sec>
+  • .addsudo (reply/id)      — add a SUDO user → they can also control the bots
+  • .delsudo / .listsudo     — remove / list sudos (owner only)
   • .bccheck                 — 🩺 self-diagnosis: versions/API creds/dirs/
-                                bots/RRT/CopyCat/tasks — EK card me sab
-  • .bchelp / .bch           — ye help card
+                               bots/RRT/CopyCat/tasks — ALL in one card
+  • .bchelp / .bch           — this help card
 
-  v7.4.1: command crash ho to chat me VISIBLE ❌ error reply aata hai
-  (pehle flood_safe silently kha jata tha — isliye "kuch nahi hota tha").
+  v7.4.1: when a command crashes you get a VISIBLE ❌ error reply in chat
+  (flood_safe used to swallow it silently — that's why "nothing happened").
 
-Frozen bot = jiska token dead/revoked/deactivated — sab lists me ❄️ dikhta hai.
-Bots profile change: MTProto bots account.updateProfile use NAHI kar sakte
-(official limit) — isliye name/bio BotFather automation se, pfp MTProto se.
+Frozen bot = dead/revoked/deactivated token — shown as ❄️ in every list.
+Bots cannot use account.updateProfile (official MTProto limit) — that is
+why name/bio go through BotFather automation and pfp through MTProto.
 """
 
 # ─── stores & dirs ──────────────────────────────────────────────────────
@@ -114,6 +122,33 @@ except ImportError:                                   # bahut purana telethon
 
 
 # ─── small helpers ───────────────────────────────────────────────────────
+
+try:
+    from telethon import utils as _tlutils   # get_peer_id (edit/send hook)
+except ImportError:                          # very old telethon
+    _tlutils = None
+
+
+def _hook_extract_key(args):
+    """edit_message(...) args se (chat_id, msg_id) — best-effort.
+
+    Supports: (Message, text) · (entity, Message) · (entity, int_id, ...)
+    """
+    try:
+        a0 = args[0] if args else None
+        a1 = args[1] if len(args) > 1 else None
+        if a0 is not None and hasattr(a0, "id") and hasattr(a0, "chat_id"):
+            return (int(a0.chat_id), int(a0.id))
+        if a1 is not None and hasattr(a1, "id") and hasattr(a1, "chat_id"):
+            return (int(a1.chat_id), int(a1.id))
+        if a1 is None or isinstance(a1, str) or isinstance(a0, (int, bool)):
+            return None
+        if _tlutils is None:
+            return None
+        return (int(_tlutils.get_peer_id(a0)), int(a1))
+    except Exception:
+        return None
+
 
 _ORD_SUFFIX = {1: "st", 2: "nd", 3: "rd"}
 
@@ -182,16 +217,24 @@ def _sudo_save(ids) -> bool:
 
 
 # ─── AUTODELETE — pichla command output khud delete (default ON) ─────────
+# + v7.5 AUTODELETE TIMER (.autodeletem <sec>) — har command ka OUTPUT
+#   (help cards / "spam done" / "raid done" info) N second baad KHUD udega.
 
-_AD = {"on": True}     # runtime flag (register me store se sync hota hai)
+_AD = {"on": True, "timer": 0}   # runtime flags (register me store se sync)
 _AD_LAST = {}          # {chat_id: last_output_msg_id}
+_CMD_IDS = {}          # {(chat_id, msg_id): ts} — recently issued commands
+_CMD_IDS_MAX = 2000
+_AD_TIMER_TASKS = {}   # {(chat_id, msg_id): asyncio.Task} — pending deletions
 
 
 def _ad_load():
     try:
-        _AD["on"] = bool(_bc_load().get("autodelete", True))
+        data = _bc_load()
+        _AD["on"] = bool(data.get("autodelete", True))
+        _AD["timer"] = int(data.get("autodelete_timer", 0) or 0)
     except Exception:
         _AD["on"] = True
+        _AD["timer"] = 0
 
 
 def _ad_set(on: bool) -> bool:
@@ -202,6 +245,93 @@ def _ad_set(on: bool) -> bool:
         return _bc_save(data)
     except Exception:
         return False
+
+
+def _ad_timer() -> int:
+    """Current timed auto-delete seconds (0 = OFF)."""
+    try:
+        t = int(_AD.get("timer", 0) or 0)
+    except (TypeError, ValueError):
+        t = 0
+    return t if t > 0 else 0
+
+
+def _ad_timer_set(sec) -> int:
+    """.autodeletem — timer save + persist. Returns applied seconds."""
+    try:
+        sec = int(sec)
+    except (TypeError, ValueError):
+        sec = 0
+    sec = max(0, min(sec, 86400))
+    _AD["timer"] = sec
+    try:
+        data = _bc_load()
+        data["autodelete_timer"] = sec
+        _bc_save(data)
+    except Exception:
+        pass
+    if sec <= 0:
+        for t in list(_AD_TIMER_TASKS.values()):
+            try:
+                t.cancel()
+            except Exception:
+                pass
+        _AD_TIMER_TASKS.clear()
+    return sec
+
+
+def _cmd_track(chat_id, msg_id):
+    """Command message id ko track karo (output-timer delete ke liye)."""
+    try:
+        _CMD_IDS[(int(chat_id), int(msg_id))] = time.time()
+        if len(_CMD_IDS) > _CMD_IDS_MAX:
+            cutoff = time.time() - 1200
+            for k in [k for k, ts in _CMD_IDS.items() if ts < cutoff]:
+                _CMD_IDS.pop(k, None)
+            while len(_CMD_IDS) > _CMD_IDS_MAX:
+                _CMD_IDS.pop(next(iter(_CMD_IDS)))
+    except Exception:
+        pass
+
+
+def _ad_schedule_delete(client, chat_id, msg_id, delay):
+    """Ek output message ko `delay` sec baad KHUD delete karo (timer system).
+
+    Same message dobara edit/output ho toh timer RESET hota hai (purana task
+    cancel, naya schedule) — isliye animations/loops ka final output hi
+    timer ke baad jaata hai, beech me nahi.
+    """
+    if delay <= 0:
+        return
+    key = (int(chat_id), int(msg_id))
+    old = _AD_TIMER_TASKS.get(key)
+    if old is not None and not old.done():
+        try:
+            old.cancel()
+        except Exception:
+            pass
+    if len(_AD_TIMER_TASKS) > 400:
+        try:
+            _AD_TIMER_TASKS.pop(next(iter(_AD_TIMER_TASKS)))
+        except Exception:
+            pass
+
+    async def _t():
+        try:
+            await asyncio.sleep(delay)
+            try:
+                await client.delete_messages(chat_id, msg_id)
+            except Exception:
+                pass  # already gone / rights nahi
+        except asyncio.CancelledError:
+            pass
+        finally:
+            _AD_TIMER_TASKS.pop(key, None)
+
+    try:
+        _AD_TIMER_TASKS[key] = asyncio.create_task(_t())
+    except Exception:
+        pass
 
 
 def _ad_track(chat_id, msg_id):
@@ -354,12 +484,31 @@ def _kill_tasks(client, pred) -> int:
 
 # ─── bot client manager ──────────────────────────────────────────────────
 
+_BOT_SLOT_LOCKS = {}    # v7.6: per-slot connect locks — no 'database is locked'
+
+
+def _bot_slot_lock(slot: int) -> asyncio.Lock:
+    lk = _BOT_SLOT_LOCKS.get(slot)
+    if lk is None:
+        lk = asyncio.Lock()
+        _BOT_SLOT_LOCKS[slot] = lk
+    return lk
+
+
 async def _bot_client(main_client, slot: int, data: dict = None):
     """Return a CONNECTED bot client for 1-based slot, or None if it can't connect.
 
     On dead-token errors the bot record gets frozen=True (❄️ in lists).
     On success, frozen flag is cleared automatically.
+    v7.6: per-slot lock — two tasks connecting the same bot at the same time
+    used to corrupt the sqlite session ('database is locked').
     """
+    global BOT_CLIENTS
+    async with _bot_slot_lock(slot):
+        return await _bot_client_locked(main_client, slot, data)
+
+
+async def _bot_client_locked(main_client, slot: int, data: dict = None):
     global BOT_CLIENTS
     if data is None:
         data = _bc_load()
@@ -408,7 +557,38 @@ async def _bot_client(main_client, slot: int, data: dict = None):
         rec["frozen"] = False
         rec.pop("frozen_error", None)
         _bc_save(data)
+    # v7.6: kick the update stream alive immediately — without this the
+    # bot's first group updates can lag by 20s+, breaking the seen-cache
+    # (reply-target translation) for the first command after connect.
+    try:
+        from telethon.tl.functions.updates import GetStateRequest
+        await bc(GetStateRequest())
+    except Exception:
+        pass
     BOT_CLIENTS[slot] = bc
+    # v7.6: record everything this bot SEES (updates) so reply targets can
+    # be translated into the bot's own id space (basic-group per-account ids)
+    if not getattr(bc, "_bc_seen_hook", False):
+        bc._bc_seen_hook = True
+        try:
+            from telethon import events as _evts
+
+            _bme = await bc.get_me()
+            _bid = _bme.id if _bme else 0
+
+            @bc.on(_evts.NewMessage())
+            async def _bc_seen_recorder(event):
+                try:
+                    rt = None
+                    hdr = getattr(event.message, "reply_to", None)
+                    if hdr is not None:
+                        rt = getattr(hdr, "reply_to_msg_id", None)
+                    _bot_seen_record(_bid, event.chat_id, event.sender_id,
+                                     event.id, rt)
+                except Exception:
+                    pass
+        except Exception:
+            pass
     return bc
 
 
@@ -471,7 +651,7 @@ def _anim_frames(name: str):
 DELEG_EXCLUDE_BASES = {
     "spam", "sspa", "raid", "clone", "revert", "addall", "removeall",
     "monitor", "stop", "botsay", "bchelp", "addbot", "delbot", "list",
-    "ct", "rrt", "refresh", "loadprofile", "unclone", "addnewbotauto",
+    "ct", "rrt", "rr", "refresh", "loadprofile", "unclone", "addnewbotauto",
 }
 
 
@@ -480,7 +660,12 @@ DELEG_EXCLUDE_BASES = {
 RRT_USERS = {}    # {uid: {"idx": int, "name": str}}
 RRT_BOTS = {}     # {uid: {"slots": [int], "idx": {slot: int}, "name": str}}
 # CopyCat: jo bheja wahi wapas (user + bots)
-CT_STATE = {"user": False, "bots": False, "bot_slots": None}
+# v7.6 MIRROR targets: kisi user ka HAR message same-to-same copy
+CT_STATE = {
+    "user": False, "bots": False, "bot_slots": None,
+    "targets": {},      # {uid: name}   — userbot mirrors this user
+    "bot_targets": {},  # {uid: {"slots": [..], "name": str}} — bots mirror
+}
 _COPY_SEEN = set()   # humari copy ke msg ids (infinite-loop guard)
 _COPY_CAP = 800
 
@@ -503,6 +688,21 @@ def _ct_load_state():
         CT_STATE["user"] = bool(cc.get("user"))
         CT_STATE["bots"] = bool(cc.get("bots"))
         CT_STATE["bot_slots"] = cc.get("bot_slots")
+        CT_STATE["targets"] = {}
+        for k, v in (cc.get("targets") or {}).items():
+            try:
+                CT_STATE["targets"][int(k)] = str(v)
+            except (TypeError, ValueError):
+                pass
+        CT_STATE["bot_targets"] = {}
+        for k, v in (cc.get("bot_targets") or {}).items():
+            try:
+                CT_STATE["bot_targets"][int(k)] = {
+                    "slots": [int(s) for s in (v.get("slots") or [])],
+                    "name": v.get("name", "User"),
+                }
+            except (TypeError, ValueError, AttributeError):
+                pass
     except Exception:
         pass
 
@@ -519,6 +719,11 @@ def _ct_save_state():
         data["copycat"] = {
             "user": CT_STATE["user"], "bots": CT_STATE["bots"],
             "bot_slots": CT_STATE["bot_slots"],
+            "targets": {str(k): v for k, v in CT_STATE["targets"].items()},
+            "bot_targets": {
+                str(k): {"slots": v.get("slots", []), "name": v.get("name", "User")}
+                for k, v in CT_STATE["bot_targets"].items()
+            },
         }
         _bc_save(data)
     except Exception:
@@ -534,18 +739,104 @@ def _rrt_pool():
         from plugins.raid import _load_raid_text as _rt
         return [_rt()]
     except Exception:
-        return ["kya kar rhe ho"]
+        return ["hi"]
 
 
 # ─── bot-side low-level send helpers ─────────────────────────────────────
 
+# v7.6 — bot-side "seen messages" cache.
+# Basic-group chats use PER-ACCOUNT message-id sequences: an id taken from
+# the MAIN account's event is meaningless for a bot, and Telegram silently
+# DROPS the reply header (bot raids had tags but no reply header).
+# Bots cannot read history (GetHistory = user-only), but they DO receive
+# every group message as an update (privacy mode is disabled on our bots).
+# So every connected bot records what it sees here, and reply targets are
+# translated into each bot's own id space from this cache.
+_BOT_SEEN = {}          # {(bot_id, chat_id): [(sender_id, msg_id, reply_to, ts), …]}
+_BOT_SEEN_CAP = 60      # per bot+chat
+_PRIVACY_ATTEMPTED = set()   # bot ids already attempted this boot
+
+
+def _bot_seen_record(bot_id, chat_id, sender_id, msg_id, reply_to):
+    try:
+        key = (int(bot_id), int(chat_id))
+        lst = _BOT_SEEN.setdefault(key, [])
+        lst.append((sender_id, int(msg_id), reply_to, time.time()))
+        if len(lst) > _BOT_SEEN_CAP:
+            del lst[:len(lst) - _BOT_SEEN_CAP]
+    except Exception:
+        pass
+
+
+def _bot_seen_lookup(bot_id, chat_id, target_uid, owner_uid=None,
+                     prefer_owner=False):
+    """Latest message id from `target_uid` AS THE BOT saw it. Fallback: the
+    reply header of the owner's command message (already in bot id space)."""
+    try:
+        lst = _BOT_SEEN.get((int(bot_id), int(chat_id))) or []
+        owner_hdr = None
+        if owner_uid:
+            for s, mid, rt, _ts in reversed(lst):
+                if s == owner_uid and rt:
+                    owner_hdr = rt
+                    break
+        if prefer_owner and owner_hdr:
+            return owner_hdr
+        for s, mid, rt, _ts in reversed(lst):
+            if s == target_uid:
+                return mid
+        if owner_hdr:
+            return owner_hdr
+    except Exception:
+        pass
+    return None
+
+
+async def _bot_reply_target(bc, chat, target_uid, owner_uid=None,
+                            prefer_owner=False, patience=6.0):
+    """v7.6 KEY FIX — the reply-anchor id in THIS BOT's id space.
+
+    Order: (1) live updates cache, (2) short wait-retry (the bot's update
+    may be a moment behind the main account's), (3) history read — works
+    only in supergroups (basic groups raise BotMethodInvalid for bots).
+    Returns id | None (None = tag-only fallback)."""
+    if target_uid is None:
+        return None
+    try:
+        ckey = chat if isinstance(chat, int) else getattr(chat, "chat_id", chat)
+        bme = await bc.get_me()
+        bid = bme.id if bme else None
+        if bid is not None:
+            hit = _bot_seen_lookup(bid, ckey, target_uid, owner_uid,
+                                   prefer_owner)
+            if hit:
+                return hit
+            # the bot's update may lag the main session — patient retry
+            for _ in range(max(1, int(patience / 1.5))):
+                await asyncio.sleep(1.5)
+                hit = _bot_seen_lookup(bid, ckey, target_uid, owner_uid,
+                                       prefer_owner)
+                if hit:
+                    return hit
+    except Exception:
+        pass
+    # history read (supergroups only — bots can read channel history)
+    try:
+        async for m in bc.iter_messages(chat, limit=10):
+            if getattr(m, "sender_id", None) == target_uid:
+                return m.id
+    except Exception:
+        pass
+    return None
+
+
 async def _bc_send_text(bc, chat, text, **kw):
     """Send text through a bot with FloodWait retry. Returns msg | None."""
-    for _attempt in range(2):
+    for _attempt in range(4):
         try:
             return await bc.send_message(chat, text, link_preview=False, **kw)
         except FloodWaitError as fw:
-            note_flood(fw.seconds)
+            note_flood(fw.seconds)          # 🛡 safety engine auto slow-down
             await asyncio.sleep(fw.seconds + 1)
         except asyncio.CancelledError:
             raise
@@ -583,8 +874,79 @@ def _bc_bot_line(rec, slot) -> str:
 #   isliye name/bio BotFather conversation se set hote hain, pfp MTProto se.)
 # ═════════════════════════════════════════════════════════════════════════
 
+# ─── BotFather RATE GUARD (v7.5) ──────────────────────────────────────────
+# BotFather ko rapid-fire automation messages bhejne par ACCOUNT par spam
+# flag lag sakta hai. Isliye: (1) poori duniya me EK hi BF conversation
+# ek time par (global lock), (2) do conversations ke beech MIN gap,
+# (3) per-hour hard cap, (4) har send ke beech pacing sleep.
+
 _BF = "BotFather"
-_TOKEN_RE = re.compile(r"(\d{5,14}:[A-Za-z0-9_-]{25,60})")
+_BF_LOCK = None                       # lazy asyncio.Lock
+_BF_STATE = {"last": 0.0, "calls": deque()}
+_BF_MIN_GAP = 4.0                     # sec between two BF conversations (spam-shield)
+_BF_MAX_PER_HOUR = 24                 # hourly hard cap (spam-shield)
+_BF_SEND_PACE = 1.2                   # sec pacing inside one conversation
+
+
+def _bf_gate():
+    global _BF_LOCK
+    if _BF_LOCK is None:
+        _BF_LOCK = asyncio.Lock()
+    return _BF_LOCK
+
+
+def _bf_hourly_count():
+    now = time.time()
+    while _BF_STATE["calls"] and now - _BF_STATE["calls"][0] > 3600:
+        _BF_STATE["calls"].popleft()
+    return len(_BF_STATE["calls"])
+
+
+async def _bf_run(main_client, sends, timeout: int = 90):
+    """BotFather conversation chalao — RATE-SAFE (lock + gap + cap + pacing).
+
+    sends: [ ("text", str) | ("file", path) ] — har send ke baad response padho.
+    Returns (responses: [str], error: str|None)."""
+    res = []
+    try:
+        async with _bf_gate():
+            # ── per-hour cap (ID spam-shield) ──
+            if _bf_hourly_count() >= _BF_MAX_PER_HOUR:
+                return res, ("BotFather hourly safety limit reached — try again "
+                             "in a while (your ID is being kept safe)")
+            # ── min gap between conversations ──
+            wait = _BF_MIN_GAP - (time.time() - _BF_STATE["last"])
+            if wait > 0:
+                await asyncio.sleep(wait)
+            _BF_STATE["last"] = time.time()
+            _BF_STATE["calls"].append(time.time())
+            async with main_client.conversation(_BF, timeout=timeout) as conv:
+                for kind, val in sends:
+                    if kind == "file":
+                        await conv.send_file(val)
+                    else:
+                        try:
+                            await conv.send_message(val)
+                        except FloodWaitError as fw:
+                            note_flood(fw.seconds)
+                            await asyncio.sleep(fw.seconds + 2)
+                            await conv.send_message(val)
+                    r = await conv.get_response()
+                    res.append((getattr(r, "raw_text", "") or "") if r else "")
+                    await asyncio.sleep(_BF_SEND_PACE)   # pacing — no spam
+        return res, None
+    except asyncio.TimeoutError:
+        return res, ("BotFather did not reply in time — it may be busy or "
+                     "rate-limiting. Try again in a minute.")
+    except FloodWaitError as fw:
+        note_flood(fw.seconds)
+        return res, (f"Telegram FloodWait {fw.seconds}s — paused to keep your "
+                     "ID safe. Try again later.")
+    except Exception as e:
+        return res, f"{type(e).__name__}: {e}"[:140]
+
+
+_TOKEN_RE = re.compile(r"(\d{5,14}:[A-Za-z0-9_-]{25,60})")   # bot token pattern
 
 
 def _gen_bot_username(base: str = "worker") -> str:
@@ -593,25 +955,6 @@ def _gen_bot_username(base: str = "worker") -> str:
     digits = "".join(random.choice("0123456789") for _ in range(6))
     base = re.sub(r"[^a-z0-9_]", "", (base or "worker").lower())[:20] or "worker"
     return f"{base}{digits}_bot"
-
-
-async def _bf_run(main_client, sends, timeout: int = 90):
-    """BotFather conversation chalao.
-    sends: [ ("text", str) | ("file", path) ] — har send ke baad response padho.
-    Returns (responses: [str], error: str|None)."""
-    res = []
-    try:
-        async with main_client.conversation(_BF, timeout=timeout) as conv:
-            for kind, val in sends:
-                if kind == "file":
-                    await conv.send_file(val)
-                else:
-                    await conv.send_message(val)
-                r = await conv.get_response()
-                res.append((getattr(r, "raw_text", "") or "") if r else "")
-        return res, None
-    except Exception as e:
-        return res, f"{type(e).__name__}: {e}"[:140]
 
 
 def _bf_ok(text: str) -> bool:
@@ -627,7 +970,7 @@ async def _bf_set_bot_name(main_client, rec, new_name: str):
     """Bot ka naam BotFather /setname se badlo (MTProto bots ke liye hi raasta)."""
     name = (new_name or "").strip()[:64]
     if not name:
-        return False, "khali naam"
+        return False, "empty name"
     res, err = await _bf_run(main_client, [
         ("text", "/setname"),
         ("text", _bot_selector(rec)),
@@ -638,14 +981,14 @@ async def _bf_set_bot_name(main_client, rec, new_name: str):
     last = res[-1] if res else ""
     if _bf_ok(last):
         return True, "name ✅"
-    return False, last[:90] or "BotFather ne confirm nahi kiya"
+    return False, last[:90] or "BotFather did not confirm"
 
 
 async def _bf_set_bot_description(main_client, rec, bio: str):
     """Bot ka bio/description BotFather /setdescription se set karo."""
     bio = (bio or "").strip()[:500]
     if not bio:
-        return False, "khali bio"
+        return False, "empty bio"
     res, err = await _bf_run(main_client, [
         ("text", "/setdescription"),
         ("text", _bot_selector(rec)),
@@ -656,7 +999,7 @@ async def _bf_set_bot_description(main_client, rec, bio: str):
     last = res[-1] if res else ""
     if _bf_ok(last):
         return True, "bio ✅"
-    return False, last[:90] or "BotFather ne confirm nahi kiya"
+    return False, last[:90] or "BotFather did not confirm"
 
 
 async def _bf_set_bot_pic(main_client, rec, photo_path: str):
@@ -673,7 +1016,29 @@ async def _bf_set_bot_pic(main_client, rec, photo_path: str):
     last = res[-1] if res else ""
     if _bf_ok(last):
         return True, "pfp ✅"
-    return False, last[:90] or "BotFather ne confirm nahi kiya"
+    return False, last[:90] or "BotFather did not confirm"
+
+
+async def _bf_set_bot_privacy(main_client, rec, enable: bool = False):
+    """Bot ki PRIVACY MODE set karo (/setprivacy).
+
+    Disable = bot group ke SAB messages dekhta hai → reply/raid ke
+    reply-headers kaam karte hain. Default naye bots me hum Disable
+    hi karte hain (reply+tag raid ke liye zaroori)."""
+    mode = "Enable" if enable else "Disable"
+    res, err = await _bf_run(main_client, [
+        ("text", "/setprivacy"),
+        ("text", _bot_selector(rec)),
+        ("text", mode),
+    ])
+    if err:
+        return False, err
+    last = res[-1] if res else ""
+    low = last.lower()
+    if ("success" in low or "updated" in low or "done" in low
+            or "privacy" in low):
+        return True, f"privacy {mode} ✅"
+    return False, last[:90] or "BotFather did not confirm"
 
 
 async def _bf_create_bot(main_client, name: str = "worker", tries: int = 4):
@@ -711,7 +1076,7 @@ async def _bf_create_bot(main_client, name: str = "worker", tries: int = 4):
                     lines.append(f"✗ @{uname} taken → retry {attempt + 1}")
                     continue
                 return None, None, t3[:160], lines
-            return None, None, "sab usernames taken — thodi der baad try karo", lines
+            return None, None, "all usernames were taken — try again in a while", lines
     except Exception as e:
         return None, None, f"{type(e).__name__}: {e}"[:140], lines
 
@@ -722,7 +1087,7 @@ async def _probe_bot_token(main_client, token: str):
     """Token verify karo → (me|None, error|None)."""
     api_id, api_hash = _api_creds(main_client)
     if not api_id or not api_hash:
-        return None, "API_ID/API_HASH missing (core/config.py me bharo)"
+        return None, "API_ID/API_HASH missing (fill core/config.py or run first-run setup)"
     probe = TelegramClient(StringSession(), api_id, api_hash)
     me = None
     try:
@@ -746,15 +1111,15 @@ async def _register_bot_token(main_client, token: str):
     Returns (me|None, why: str)."""
     data = _bc_load()
     if any(b.get("token") == token for b in data["bots"]):
-        return None, "Ye token **already registered** hai"
+        return None, "This token is **already registered**"
     me, err = await _probe_bot_token(main_client, token)
     if me is None:
         if err and err.startswith("FROZEN"):
-            return None, f"Token **DEAD/FROZEN** hai — `{err[7:80]}`"
-        return None, f"Token connect fail — `{err or 'unknown'}`"
+            return None, f"Token is **DEAD/FROZEN** — `{err[7:80]}`"
+        return None, f"Token connect failed — `{err or 'unknown'}`"
     if any(b.get("id") == me.id for b in data["bots"]):
-        return None, f"@{me.username or me.id} **already registered** hai"
-    data["bots"].append({
+        return None, f"@{me.username or me.id} is **already registered**"
+    rec = {
         "token": token,
         "id": me.id,
         "username": me.username or "",
@@ -768,8 +1133,22 @@ async def _register_bot_token(main_client, token: str):
             "has_photo": False,
             "pfp_file": None,
         },
-    })
+    }
+    data["bots"].append(rec)
     _bc_save(data)
+    # v7.5: privacy OFF — taki bot reply/raid ke reply-headers dekh sake
+    try:
+        ok, _why = await _bf_set_bot_privacy(main_client, rec, enable=False)
+    except Exception:
+        ok = False
+    try:
+        data = _bc_load()
+        for b in data["bots"]:
+            if b.get("id") == me.id:
+                b["privacy_disabled"] = bool(ok)
+        _bc_save(data)
+    except Exception:
+        pass
     return me, None
 
 
@@ -780,48 +1159,64 @@ def _invite_hint(e) -> str:
     if "Already" in n:
         return "already in group ✅"
     if "admin" in n.lower() or "admin" in s:
-        return "❗ tum admin nahi ho — add members ki permission chahiye"
+        return "❗ you are not an admin — need the add-members permission"
     if "peer" in s:
-        return "❗ bot ko pehle /start karo (PEER_ID)"
+        return "❗ /start the bot first (PEER_ID)"
     if "privacy" in s:
         return "❗ privacy restriction"
     if "private" in s or "banned" in s:
         return "❗ group private/banned"
     if "limit" in s or "too many" in s or "userlist" in s:
-        return "❗ group limit aa gayi"
+        return "❗ group limit reached"
     if "kick" in s:
-        return "❗ bot pehle kick hua tha"
+        return "❗ the bot was kicked before"
     return f"`{n}` {str(e)[:34]}"
 
 
 # ─── copy sender (.ct / .ctb one-shot) ───────────────────────────────────
 
-async def _copy_send(cl, chat, msg, tmp_dir: str):
+async def _copy_send(cl, chat, msg, tmp_dir: str, reply_to=None):
     """Replied message ka EXACT copy bhejo (text/sticker/photo/media).
+    v7.6: reply_to support (mirror mode) + copies marked in _COPY_SEEN
+    so the copycat listeners never echo our own copies back.
     Returns True/False."""
     raw = (getattr(msg, "raw_text", "") or "").strip()
     media = getattr(msg, "media", None)
+    sent = None
     if media is not None:
         try:
             kw = {"caption": raw} if raw else {}
-            await cl.send_file(chat, media, **kw)
-            return True
+            if reply_to:
+                kw["reply_to"] = reply_to
+            sent = await cl.send_file(chat, media, **kw)
         except Exception:
-            pass
+            sent = None
+        if sent is None:
+            try:
+                p = await cl.download_media(msg, file=tmp_dir)
+                if p and os.path.exists(p):
+                    kw = {"caption": raw} if raw else {}
+                    if reply_to:
+                        kw["reply_to"] = reply_to
+                    sent = await cl.send_file(chat, p, **kw)
+            except Exception:
+                sent = None
+    if sent is None and raw:
         try:
-            p = await cl.download_media(msg, file=tmp_dir)
-            if p and os.path.exists(p):
-                kw = {"caption": raw} if raw else {}
-                await cl.send_file(chat, p, **kw)
-                return True
-        except Exception:
-            pass
-    if raw:
-        try:
-            await cl.send_message(chat, raw, link_preview=False)
-            return True
+            kw = {"link_preview": False}
+            if reply_to:
+                kw["reply_to"] = reply_to
+            sent = await cl.send_message(chat, raw, **kw)
         except Exception:
             return False
+    if sent is not None:
+        try:
+            _COPY_SEEN.add(int(sent.id))
+            if len(_COPY_SEEN) > _COPY_CAP:
+                _COPY_SEEN.clear()
+        except Exception:
+            pass
+        return True
     return False
 
 
@@ -832,7 +1227,7 @@ def _load_profile_meta(name: str):
     Returns (meta: dict|None, photo_files: [str], why: str|None)."""
     safe = re.sub(r"[^a-zA-Z0-9_\-]", "", (name or "").strip())[:30]
     if not safe:
-        return None, [], "naam do"
+        return None, [], "give a name"
     pdir = os.path.join(PROFILES_ROOT, safe)
     info_path = os.path.join(pdir, "info.json")
     photos = []
@@ -868,7 +1263,7 @@ def _load_profile_meta(name: str):
                 except Exception:
                     pass
     if meta is None:
-        return None, [], f"`{safe}` saved profile nahi mila — `.savedprofiles` dekho"
+        return None, [], f"`{safe}` saved profile not found — see `.savedprofiles`"
     return meta, photos, None
 
 
@@ -886,6 +1281,60 @@ def register_botcontroller(client):
     # 🤖 v7.4: RRT + CopyCat + Autodelete state load (restart-proof)
     _ct_load_state()
     _ad_load()
+
+    # ── v7.5 TIMED-DELETE HOOKS (production-safe) ──────────────────────
+    # Telegram same-session ke apne edits/sends par update event NAHI
+    # bhejta — isliye MessageEdited listener production me kaafi nahi.
+    # edit_message / send_message ko hook karke seedha schedule karo:
+    #   • edit_message → command output (help card, start card) delete
+    #   • send_message(reply_to=command) → done-cards (spam/raid done)
+    if not getattr(client, "_ad_hooks_installed", False):
+        client._ad_hooks_installed = True
+
+        async def _timed_edit_hook(*args, **kwargs):
+            key = _hook_extract_key(args)
+            res = await _orig_edit_msg(*args, **kwargs)
+            try:
+                if (key is not None and key in _CMD_IDS and _ad_timer() > 0):
+                    # timer RESET on re-edit (purana task cancel hota hai)
+                    _ad_schedule_delete(client, key[0], key[1], _ad_timer())
+            except Exception:
+                pass
+            return res
+
+        async def _timed_send_hook(entity, message=None, *args, **kwargs):
+            rid = kwargs.get("reply_to")
+            try:
+                rid = int(rid) if rid is not None else None
+            except (TypeError, ValueError):
+                rid = None
+            res = await _orig_send_msg(entity, message, *args, **kwargs)
+            try:
+                if rid and res is not None and _ad_timer() > 0:
+                    chat_key = None
+                    if _tlutils is not None:
+                        try:
+                            chat_key = int(_tlutils.get_peer_id(entity))
+                        except Exception:
+                            chat_key = None
+                    if chat_key is not None and (chat_key, rid) in _CMD_IDS:
+                        _ad_schedule_delete(client, chat_key, res.id,
+                                            _ad_timer())
+            except Exception:
+                pass
+            return res
+
+        try:
+            if hasattr(client, "edit_message"):
+                _orig_edit_msg = client.edit_message
+                client.edit_message = _timed_edit_hook
+            if hasattr(client, "send_message"):
+                _orig_send_msg = client.send_message
+                client.send_message = _timed_send_hook
+            log.info("[botcontroller] ⏱ timed-delete hooks installed "
+                     "(edit + reply-cards)")
+        except Exception as _e:
+            log.warning("[botcontroller] hook install failed: %s", _e)
 
     # ─── SUDO filter + event proxy ──────────────────────────────────────
     # Owner apne messages se commands chalata hai (outgoing), SUDO users
@@ -983,7 +1432,7 @@ def register_botcontroller(client):
                         await ev.reply(
                             f"❌ **Command failed:** `{type(e).__name__}`\n"
                             f"`┃ {str(e)[:140]}`\n"
-                            "┃ 🛠 `.bccheck` se full diagnosis chalao",
+                            "┃ 🛠 Run `.bccheck` for a full diagnosis",
                             link_preview=False)
                     except Exception:
                         pass
@@ -1010,7 +1459,7 @@ def register_botcontroller(client):
             return await event.edit(
                 "❌ **Invalid token format.**\n"
                 "📖 Usage: `.addbottoken 123456789:AAxxxx...` (from **@BotFather**)")
-        await event.edit("🔍 **Token validate ho raha hai…**")
+        await event.edit("🔍 **Validating the token…**")
         async with _bc_lock:
             me, why = await _register_bot_token(client, token)
             if me is None:
@@ -1026,7 +1475,7 @@ def register_botcontroller(client):
             f"┃ 🧩 Total bots: `{total}`\n"
             f"{listing}\n"
             "✦ ━━━━━━━━━━━━━━━━━━━━ ✦\n"
-            "💡 `.monitorb` live status · `.addallb` group me add",
+            "💡 `.monitorb` live status · `.addallb` adds them to the group",
             link_preview=False)
 
     # ── .addnewbotauto [count] — BotFather se KHUD naya bot ─────────────
@@ -1034,9 +1483,9 @@ def register_botcontroller(client):
     async def _addnewbotauto(event):
         count = min(int(event.pattern_match.group(1) or 1), 5)
         await event.edit(
-            f"🤖 **BotFather se {count} naya bot ban raha hai…**\n"
+            f"🤖 **Creating {count} new bot(s) via BotFather…**\n"
             "┃ name: `worker` · username auto (…bot)\n"
-            "┃ username na mile toh dobara try hoga")
+            "┃ retries automatically if a username is taken")
         created, rows = [], []
         for i in range(count):
             token, uname, err, lines = await _bf_create_bot(client, "worker")
@@ -1046,7 +1495,7 @@ def register_botcontroller(client):
             async with _bc_lock:
                 me, why = await _register_bot_token(client, token)
             if me is None:
-                rows.append(f"┃ ⚠️ @{uname} bana PAR register fail: {why}")
+                rows.append(f"┃ ⚠️ @{uname} was created BUT register failed: {why}")
                 continue
             # bot ko /start karo taaki group me add na fail ho
             try:
@@ -1055,12 +1504,12 @@ def register_botcontroller(client):
                 pass
             created.append(uname)
             total = len(_bc_load()["bots"])
-            rows.append(f"┃ ✅ **{_ord(total)}** @{uname} — bana + register ho gaya")
+            rows.append(f"┃ ✅ **{_ord(total)}** @{uname} — created + registered")
         card = (
             "✦ ━━━〔 🤖 **AUTO-BOT CREATOR** 〕━━━ ✦\n" + "\n".join(rows) +
             f"\n┃ 🧩 Naye bots: `{len(created)}` · Total: `{len(_bc_load()['bots'])}`\n"
             "✦ ━━━━━━━━━━━━━━━━━━━━ ✦\n"
-            "💡 `.monitorb` check · `.addallb` group me add")
+            "💡 `.monitorb` check · `.addallb` adds them to the group")
         await event.edit(card, link_preview=False)
 
     # ── .delbottoken / .delbot <n> — delete + slots auto-shift ──────────
@@ -1072,7 +1521,7 @@ def register_botcontroller(client):
             bots = data["bots"]
             if n < 1 or n > len(bots):
                 return await event.edit(
-                    f"❌ Bot **{_ord(n)}** exist nahi karta. Total: `{len(bots)}`")
+                    f"❌ Bot **{_ord(n)}** does not exist. Total: `{len(bots)}`")
             rec = bots.pop(n - 1)          # ← slots automatically shift ho jate hain
             await _shutdown_bot(n)
             # cached clients reindex (shift ke baad)
@@ -1094,11 +1543,11 @@ def register_botcontroller(client):
                     pass
             _bc_save(data)
             listing = "\n".join(_bc_bot_line(b, i + 1)
-                                for i, b in enumerate(bots)) or "┃ *(koi bot nahi bacha)*"
+                                for i, b in enumerate(bots)) or "┃ *(no bots left)*"
         await event.edit(
             "✦ ━━━〔 🗑 **BOT REMOVED** 〕━━━ ✦\n"
             f"✅ **{_ord(n)} bot delete** — @{rec.get('username') or rec.get('id')}\n"
-            f"┃ Baaki slots automatically shift ho gaye:\n{listing}\n"
+            f"┃ Remaining slots shifted automatically:\n{listing}\n"
             "✦ ━━━━━━━━━━━━━━━━━━━━ ✦",
             link_preview=False)
 
@@ -1109,9 +1558,9 @@ def register_botcontroller(client):
         bots = data["bots"]
         if not bots:
             return await event.edit(
-                "🤖 **Koi bot registered nahi.**\n"
-                "📖 `.addbottoken <token>` — @BotFather se token lo\n"
-                "⚡ ya `.addnewbotauto` — BotFather khud bana dega")
+                "🤖 **No bots registered yet.**\n"
+                "📖 `.addbottoken <token>` — grab a token from @BotFather\n"
+                "⚡ or `.addnewbotauto` — BotFather creates one for you")
         frozen = sum(1 for b in bots if b.get("frozen"))
         listing = "\n".join(_bc_bot_line(b, i + 1) for i, b in enumerate(bots))
         await event.edit(
@@ -1130,8 +1579,8 @@ def register_botcontroller(client):
         bots = data["bots"]
         if not bots:
             return await event.edit(
-                "🤖 Koi bot nahi — `.addbottoken <token>` ya `.addnewbotauto`.")
-        await event.edit("📡 **Sab bots check ho rahe hain…**")
+                "🤖 No bots yet — `.addbottoken <token>` or `.addnewbotauto`.")
+        await event.edit("📡 **Checking all bots…**")
         rows = []
         online = 0
         for i, rec in enumerate(bots, 1):
@@ -1161,8 +1610,8 @@ def register_botcontroller(client):
         data = _bc_load()
         bots = data["bots"]
         if not bots:
-            return await event.edit("🤖 Koi bot nahi — `.addbottoken <token>`.")
-        await event.edit("🔄 **Sab bots reconnect ho rahe hain…**")
+            return await event.edit("🤖 No bots yet — `.addbottoken <token>`.")
+        await event.edit("🔄 **Reconnecting all bots…**")
         rows = []
         online = 0
         for i, rec in enumerate(bots, 1):
@@ -1203,7 +1652,7 @@ def register_botcontroller(client):
         (2) har error ka ASLI reason + hint dikhta hai (ab chhupega nahi)."""
         entity = await _resolve_bot_entity(main_client, rec)
         if entity is None:
-            return False, "not found — bot ko pehle /start karo"
+            return False, "not found — /start the bot first"
         # 1) supergroup / channel → channels.inviteToChannel
         try:
             await main_client(InviteToChannelRequest(input_chat, [entity]))
@@ -1234,7 +1683,7 @@ def register_botcontroller(client):
         bots = data["bots"]
         if not bots:
             return await event.edit(
-                "🤖 Koi bot registered nahi — `.addbottoken <token>` ya `.addnewbotauto`.")
+                "🤖 No bots registered yet — `.addbottoken <token>` or `.addnewbotauto`.")
         slots = _parse_slots(arg, len(bots))
         if not slots:
             return await event.edit(
@@ -1242,9 +1691,9 @@ def register_botcontroller(client):
         try:
             input_chat = await event.get_input_chat()
         except Exception:
-            return await event.edit("❌ Chat resolve nahi hua.")
+            return await event.edit("❌ Could not resolve the chat.")
         chat_id = event.chat_id
-        await event.edit(f"📥 **{len(slots)} bot(s)** add ho rahe hain…")
+        await event.edit(f"📥 **Adding {len(slots)} bot(s)**…")
         rows = []
         for s in slots:
             rec = bots[s - 1]
@@ -1269,8 +1718,8 @@ def register_botcontroller(client):
         if arg is None:
             return await event.edit(
                 "📖 Usage: `.addall <slots>`\n"
-                "e.g. `.addall 1-3` (1st-3rd) · `.addall 2` (sirf 2nd) · "
-                "`.addall 1,3` — sab ke liye `.addallb`")
+                "e.g. `.addall 1-3` (1st-3rd) · `.addall 2` (only 2nd) · "
+                "`.addall 1,3` — for all bots use `.addallb`")
         await _do_addall(event, arg)
 
     # ── .removeallb — sab bots group se hatao ─────────────────────────────
@@ -1279,12 +1728,12 @@ def register_botcontroller(client):
         data = _bc_load()
         bots = data["bots"]
         if not bots:
-            return await event.edit("🤖 Koi bot registered nahi.")
+            return await event.edit("🤖 No bots registered yet.")
         try:
             chat = await event.get_input_chat()
         except Exception:
-            return await event.edit("❌ Chat resolve nahi hua.")
-        await event.edit("📤 **Bots remove ho rahe hain…**")
+            return await event.edit("❌ Could not resolve the chat.")
+        await event.edit("📤 **Removing the bots…**")
         rows = []
         for i, rec in enumerate(bots, 1):
             entity = await _resolve_bot_entity(client, rec)
@@ -1313,38 +1762,38 @@ def register_botcontroller(client):
         bots = data["bots"]
         if not bots:
             return await event.edit(
-                "🤖 Koi bot nahi — `.addbottoken <token>` ya `.addnewbotauto`.")
+                "🤖 No bots yet — `.addbottoken <token>` or `.addnewbotauto`.")
         arg = (event.pattern_match.group(2) or "").strip()
         if not arg:
             return await event.edit(
                 "📖 **Bot Spam Usage:**\n"
-                "`.spamb <count> <interval> <text>` — **sab bots**\n"
-                "`.spamb1-3 <count> <interval> <text>` — sirf 1st-3rd\n"
-                "`.spamb2 20 0.5 hello` — sirf 2nd\n"
-                "⏱ interval seconds me — **float allowed, NO lower limit** "
-                "(`0.1`, `0.5`, `0` sab ok)\n"
-                "⛔ Stop: `.stop` ya `.stopb`")
+                "`.spamb <count> <interval> <text>` — **all bots**\n"
+                "`.spamb1-3 <count> <interval> <text>` — only 1st-3rd\n"
+                "`.spamb2 20 0.5 hello` — only the 2nd\n"
+                "⏱ interval in seconds — **float allowed, NO lower limit** "
+                "(`0.1`, `0.5`, `0` all fine)\n"
+                "⛔ Stop: `.stop` or `.stopb`")
         count, interval, text, err = _parse_count_interval(arg, need_text=True)
         if err == "count":
-            return await event.edit("❌ `<count>` integer hona chahiye.")
+            return await event.edit("❌ `<count>` must be an integer.")
         if err == "positive":
-            return await event.edit("❌ Count positive hona chahiye.")
+            return await event.edit("❌ Count must be positive.")
         if err == "text":
-            return await event.edit("❌ Text do — e.g. `.spamb 10 0.5 hello yaar`")
+            return await event.edit("❌ Give text too — e.g. `.spamb 10 0.5 hello`")
         slots = _parse_slots(event.pattern_match.group(1), len(bots))
         if not slots:
             return await event.edit(f"❌ Invalid bot slot (total `{len(bots)}`).")
         pairs = await _connect_bots(client, slots, data)
         if not pairs:
             return await event.edit(
-                "❄️ Koi bhi bot connect nahi hua (sab frozen?). `.monitorb` dekho.")
+                "❄️ No bot connected (all frozen?). Check `.monitorb`.")
         count = safe_cap(count)
         chat = event.chat_id
         await event.edit(
             f"🚀 **BOT SPAM STARTED**\n"
             f"┃ 🤖 Bots: `{len(pairs)}` · 💬 Messages: `{count}` each\n"
             f"┃ ⏱ Interval: `{interval}s` (no floor)\n"
-            f"⛔ `.stop` / `.stopb` se roko")
+            f"⛔ Stop with `.stop` / `.stopb`")
 
         async def _one(slot, bc):
             key = f"bc_spam_{event.id}_{slot}"
@@ -1400,7 +1849,7 @@ def register_botcontroller(client):
                 f"{_ord(slot)}:`{r if isinstance(r, int) else 0}`"
                 for (slot, _bc), r in zip(pairs, res))
             try:
-                hint = "" if total else "\n💡 0 aaya? Pehle `.addallb` se bots group me add karo."
+                hint = "" if total else "\n💡 Got 0? First add the bots to the group with `.addallb`."
                 await event.reply(
                     f"✅ **Bot spam done** — `{total}/{count * len(pairs)}` msgs\n"
                     f"┃ {per}{hint}")
@@ -1421,9 +1870,9 @@ def register_botcontroller(client):
         arg = (event.pattern_match.group(1) or "").strip()
         count, interval, _t, err = _parse_count_interval(arg, need_text=False)
         if err in ("count",):
-            return await event.edit("❌ `<count>` integer do — `.sspam 20 0.5`")
+            return await event.edit("❌ Give an integer `<count>` — `.sspam 20 0.5`")
         if err == "positive":
-            return await event.edit("❌ Count positive hona chahiye.")
+            return await event.edit("❌ Count must be positive.")
         if err == "empty":
             return await event.edit("❌ `.sspam <count> [interval]`")
         doc = reply.media.document
@@ -1434,7 +1883,7 @@ def register_botcontroller(client):
         count = safe_cap(count)
         await event.edit(
             f"🩸 **Sticker spam** — `{count}`x · `{interval}s` gap\n"
-            "⛔ `.stop` / `.sspamstop` se roko")
+            "⛔ Stop with `.stop` / `.sspamstop`")
         key = f"bc_sspam_{event.id}"
         sent = 0
         try:
@@ -1474,26 +1923,26 @@ def register_botcontroller(client):
         data = _bc_load()
         bots = data["bots"]
         if not bots:
-            return await event.edit("🤖 Koi bot nahi — `.addbottoken <token>`.")
+            return await event.edit("🤖 No bots yet — `.addbottoken <token>`.")
         reply = await event.get_reply_message()
         if not reply or not reply.sticker:
             return await event.edit(
                 "↩️ **Reply to a sticker** — `.sspamb <count> [interval]`\n"
-                "slots ke liye: `.sspamb1-3 20 0.5`")
+                "specific bots: `.sspamb1-3 20 0.5`")
         arg = (event.pattern_match.group(2) or "").strip()
         count, interval, _t, err = _parse_count_interval(arg, need_text=False)
         if err == "empty":
-            return await event.edit("❌ `.sspamb <count> [interval]`")
+            return await event.edit("❌ Usage: `.sspamb <count> [interval]`")
         if err == "count":
-            return await event.edit("❌ `<count>` integer do — `.sspamb 20 0.5`")
+            return await event.edit("❌ Give an integer `<count>` — `.sspamb 20 0.5`")
         if err == "positive":
-            return await event.edit("❌ Count positive hona chahiye.")
+            return await event.edit("❌ Count must be positive.")
         slots = _parse_slots(event.pattern_match.group(1), len(bots))
         if not slots:
             return await event.edit(f"❌ Invalid bot slot (total `{len(bots)}`).")
         pairs = await _connect_bots(client, slots, data)
         if not pairs:
-            return await event.edit("❄️ Koi bot connect nahi hua. `.monitorb` dekho.")
+            return await event.edit("❄️ No bot connected. Check `.monitorb`.")
         doc = reply.media.document
         sticker_input = InputDocument(
             id=doc.id, access_hash=doc.access_hash,
@@ -1585,7 +2034,7 @@ def register_botcontroller(client):
                 return
             total = sum(r for r in res if isinstance(r, int))
             try:
-                hint = "" if total else "\n💡 0? Pehle `.addallb` se bots group me add karo."
+                hint = "" if total else "\n💡 0? First add the bots to the group with `.addallb`."
                 await event.reply(
                     f"✅ **Bot sticker spam done** — `{total}/{count * len(pairs)}`{hint}")
             except Exception:
@@ -1595,13 +2044,15 @@ def register_botcontroller(client):
 
         client.stop_processes[f"bc_gather_{event.id}"] = asyncio.create_task(_gatherer())
 
-    # ── .raidb [slots] [count] [text] — BOT RAID (reply OPTIONAL) ────────
+    # ── .raidb [slots] <count> [gap] [text] — BOT RAID (reply+tag) ────────
+    # v7.5: `.raidb 10 .1` → 10 baar, 0.1s gap (float gap allowed)
+    #       reply karke chalao → bots VICTIM ko reply + TAG dono karte hain
     @_on(r"^\.raidb(\d+(?:-\d+)?)?(?:\s+([\s\S]+))?$")
     async def _raidb(event):
         data = _bc_load()
         bots = data["bots"]
         if not bots:
-            return await event.edit("🤖 Koi bot nahi — `.addbottoken <token>`.")
+            return await event.edit("🤖 No bots yet — `.addbottoken <token>`.")
         # target optional: reply → victim, warna pura chat raid
         uid = None
         uname = None
@@ -1616,25 +2067,36 @@ def register_botcontroller(client):
             except Exception:
                 uid = None
                 uname = None
+        # ── v7.5 arg parse: <count> [gap] [text] — gap float (.1 = 100ms) ──
         arg = (event.pattern_match.group(2) or "").strip()
-        count = 10
-        text = None
+        count, gap, text = 10, 0.3, None
         if arg:
-            parts = arg.split(maxsplit=1)
+            parts = arg.split(maxsplit=2)
             if parts[0].isdigit():
                 count = int(parts[0])
-                text = parts[1].strip() if len(parts) > 1 else None
+                rest = parts[1:]
+                if rest:
+                    try:
+                        gap = float(rest[0])          # ".1" → 0.1 ✅
+                        text = ((rest[1].strip() or None)
+                                if len(rest) > 1 else None)
+                    except ValueError:
+                        gap = 0.3
+                        text = " ".join(rest).strip() or None
             else:
                 text = arg
+        if count <= 0:
+            return await event.edit("❌ Give a positive integer count — e.g. `.raidb 10 .1`")
         count = max(1, min(count, 500))
+        gap = max(0.0, min(gap, 60.0))
         count = safe_cap(count)
         slots = _parse_slots(event.pattern_match.group(1), len(bots))
         if not slots:
             return await event.edit(f"❌ Invalid bot slot (total `{len(bots)}`).")
         pairs = await _connect_bots(client, slots, data)
         if not pairs:
-            return await event.edit("❄️ Koi bot connect nahi hua. `.monitorb` dekho.")
-        # raid builders — raid.py ke saath same formatting
+            return await event.edit("❄️ No bot connected. Check `.monitorb`.")
+        # raid builders — raid.py ke saath same formatting (name + text + mention)
         try:
             import importlib as _il
             _raid_mod = _il.import_module("plugins.raid")
@@ -1643,42 +2105,65 @@ def register_botcontroller(client):
         except Exception:
             def _builder(t, i, n):
                 return f"{n} {t} <a href='tg://user?id={i}'>{n}</a>"
-            _default_text = "kya kar rhe ho"
+            _default_text = "hi"
         saved = _rm_load()
         if not text and not saved:
             text = _default_text
         chat = event.chat_id
+        # reply+tag: victim ke replied message id — har raid message isi ka
+        # reply hoga AUR text me mention/tag rahega (builder laga hi rahega)
+        reply_to_id = None
+        sender_uid = event.sender_id   # v7.6: bot-side anchor via this msg
+        if uid is not None:
+            reply_to_id = event.reply_to_msg_id or (reply.id if reply else None)
         src = text or "saved slots"
         whom = f"**{uname}**" if uid is not None else "**chat**"
+        mode = ("reply + tag" if uid is not None else "chat raid")
         await event.edit(
             f"💥 **BOT RAID STARTED** on {whom}\n"
-            f"┃ 🤖 Bots: `{len(pairs)}` · 💬 `{count}` each · 📜 text: `{src[:40]}`\n"
+            f"┃ 🤖 Bots: `{len(pairs)}` · 💬 `{count}` each · ⏱ gap `{gap}s`\n"
+            f"┃ 🎭 Mode: `{mode}` · 📜 text: `{src[:40]}`\n"
             f"⛔ `.stopraid` / `.stopb`")
 
         async def _one(slot, bc):
             key = f"bc_raid_{event.id}_{slot}"
             sent = 0
             fails = 0
+            flood_retries = 0
+            # v7.6: resolve the reply anchor ONCE per bot (long patience —
+            # bot update delivery can lag up to ~20s); reuse it for every
+            # message this bot sends in this raid.
+            rid0 = None
+            if uid is not None:
+                rid0 = await _bot_reply_target(bc, chat, uid,
+                                               owner_uid=sender_uid,
+                                               prefer_owner=True, patience=20.0)
+            rid = rid0
             try:
                 for i in range(count):
                     raw = text if text else saved[i % len(saved)]
                     if uid is not None:
                         try:
-                            msg_i = _builder(raw, uid, uname)
+                            msg_i = _builder(raw, uid, uname)   # reply + TAG both
                         except Exception:
-                            msg_i = f"{uname} {raw}"
+                            msg_i = f"{uname} {raw} <a href='tg://user?id={uid}'>{uname}</a>"
                     else:
                         msg_i = raw
                     try:
                         await bc.send_message(chat, msg_i, parse_mode="html",
-                                              link_preview=False)
+                                              link_preview=False,
+                                              reply_to=rid)
                         sent += 1
                     except FloodWaitError as fw:
-                        note_flood(fw.seconds)
+                        note_flood(fw.seconds)          # 🛡 safety engine
+                        flood_retries += 1
+                        if flood_retries > 5:            # too heavy — bail
+                            break
                         await asyncio.sleep(fw.seconds + 1)
                         try:
                             await bc.send_message(chat, msg_i, parse_mode="html",
-                                                  link_preview=False)
+                                                  link_preview=False,
+                                                  reply_to=rid)
                             sent += 1
                         except Exception:
                             fails += 1
@@ -1688,7 +2173,7 @@ def register_botcontroller(client):
                         fails += 1
                     if fails >= 3:
                         break
-                    await asyncio.sleep(0.3)
+                    await asyncio.sleep(gap)              # ⏱ user ka gap (.1 ok)
             except asyncio.CancelledError:
                 raise
             finally:
@@ -1718,7 +2203,7 @@ def register_botcontroller(client):
                 f"{_ord(slot)}:`{r if isinstance(r, int) else 0}`"
                 for (slot, _bc), r in zip(pairs, res))
             try:
-                hint = "" if total else "\n💡 0? Pehle `.addallb` se bots group me add karo."
+                hint = "" if total else "\n💡 0? First add the bots to the group with `.addallb`."
                 await event.reply(
                     f"💥 **Bot raid done** — `{total}/{count * len(pairs)}`\n"
                     f"┃ {per}{hint}")
@@ -1737,13 +2222,13 @@ def register_botcontroller(client):
         data = _bc_load()
         bots = data["bots"]
         if not bots:
-            return await event.edit("🤖 Koi bot nahi — `.addbottoken <token>`.")
+            return await event.edit("🤖 No bots yet — `.addbottoken <token>`.")
         slots = _parse_slots(slots_arg, len(bots))
         if not slots:
             return await event.edit(f"❌ Invalid bot slot (total `{len(bots)}`).")
         pairs = await _connect_bots(client, slots, data)
         if not pairs:
-            return await event.edit("❄️ Koi bot connect nahi hua. `.monitorb` dekho.")
+            return await event.edit("❄️ No bot connected. Check `.monitorb`.")
         chat = event.chat_id
         await event.edit(
             f"🎬 **.{name}** → {len(pairs)} bot(s) par · `{secs}s`\n"
@@ -1846,7 +2331,7 @@ def register_botcontroller(client):
         try:
             tent = await reply.get_input_sender()
         except Exception:
-            return None, None, None, "❌ Target resolve nahi hua."
+            return None, None, None, "❌ Could not resolve the target."
         try:
             u = await client.get_entity(tent)
         except Exception:
@@ -1907,7 +2392,18 @@ def register_botcontroller(client):
                     ok, why = await _bf_set_bot_pic(client, rec, pfp_path)
                     done.append("pfp ✅" if ok else f"pfp❌ {why[:36]}")
         elif first:
-            done.append("pfp — (target ka koi dp nahi)")
+            # v7.6: target has NO profile photo → clear the bot's photos too,
+            # so the clone is 100% identical (no DP on either side).
+            try:
+                bc2 = await _bot_client(client, _slot_of(rec), _bc_load())
+                if bc2 is not None:
+                    cleared = await _bc_clear_bot_photos(bc2)
+                    done.append("pfp ✅ (cleared — target has no DP)"
+                                if cleared else "pfp ⚠️ clear failed")
+                else:
+                    done.append("pfp ⚠️ bot offline — could not clear")
+            except Exception:
+                done.append("pfp ⚠️ clear failed")
         return done
 
     def _slot_of(rec):
@@ -1953,7 +2449,7 @@ def register_botcontroller(client):
         data = _bc_load()
         bots = data["bots"]
         if not bots:
-            return await event.edit("🤖 Koi bot nahi — `.addbottoken <token>`.")
+            return await event.edit("🤖 No bots yet — `.addbottoken <token>`.")
         reply = await event.get_reply_message()
         if not reply:
             return await event.edit("↩️ **Reply to a user** — `.cloneb [slots]`")
@@ -1961,8 +2457,8 @@ def register_botcontroller(client):
         if err:
             return await event.edit(err)
         await event.edit(
-            "🎭 **Bots cloning profile…**\n"
-            "┃ name/bio BotFather se set ho rahe hain (2-4s per bot)")
+            "🎭 **Bots are cloning the profile…**\n"
+            "┃ name/bio are set via BotFather (2-4s per bot)")
         try:
             tent = await reply.get_input_sender()
         except Exception:
@@ -1996,7 +2492,7 @@ def register_botcontroller(client):
         await event.edit(
             "✦ ━━━〔 🎭 **BOT CLONE** 〕━━━ ✦\n"
             f"┃ 👤 Target: `{first} {last}`\n" + "\n".join(rows) +
-            "\n┃ ↩️ Wapas asli roop me: `.revertb`\n"
+            "\n┃ ↩️ Restore originals: `.revertb`\n"
             "✦ ━━━━━━━━━━━━━━━━━━━━ ✦",
             link_preview=False)
 
@@ -2006,11 +2502,11 @@ def register_botcontroller(client):
         data = _bc_load()
         bots = data["bots"]
         if not bots:
-            return await event.edit("🤖 Koi bot nahi — `.addbottoken <token>`.")
+            return await event.edit("🤖 No bots yet — `.addbottoken <token>`.")
         slots = _parse_slots(event.pattern_match.group(1), len(bots))
         if not slots:
             return await event.edit(f"❌ Invalid bot slot (total `{len(bots)}`).")
-        await event.edit("↩️ **Bots revert ho rahe hain…** (BotFather automation)")
+        await event.edit("↩️ **Reverting bots…** (BotFather automation)")
         rows = []
         for s in slots:
             rec = bots[s - 1]
@@ -2021,8 +2517,8 @@ def register_botcontroller(client):
                 continue
             pre = rec.get("pre_clone")
             if not pre:
-                rows.append(f"┃ {_ord(s)} @{uname} ⚠️ koi pre-clone backup nahi "
-                            "(pehle `.cloneb` use karo)")
+                rows.append(f"┃ {_ord(s)} @{uname} ⚠️ no pre-clone backup "
+                            "(use `.cloneb` first)")
                 continue
             done = []
             # ── NAME (BotFather) ──
@@ -2062,7 +2558,7 @@ def register_botcontroller(client):
         data = _bc_load()
         bots = data["bots"]
         if not bots:
-            return await event.edit("🤖 Koi bot nahi — `.addbottoken <token>`.")
+            return await event.edit("🤖 No bots yet — `.addbottoken <token>`.")
         pname = event.pattern_match.group(2).strip()
         meta, photos, err = _load_profile_meta(pname)
         if meta is None:
@@ -2072,7 +2568,7 @@ def register_botcontroller(client):
         bio = (meta.get("bio") or "")[:500]
         pfp_path = photos[0] if photos else None
         await event.edit(
-            f"🎭 **Saved profile `{pname}` bots par load ho raha hai…**")
+            f"🎭 **Loading saved profile `{pname}` onto the bots…**")
         slots = _parse_slots(event.pattern_match.group(1), len(bots))
         if not slots:
             return await event.edit(f"❌ Invalid bot slot (total `{len(bots)}`).")
@@ -2092,7 +2588,7 @@ def register_botcontroller(client):
             "✦ ━━━〔 🎭 **BOT ← SAVED PROFILE** 〕━━━ ✦\n"
             f"┃ 📁 Profile: `{pname}` · 🖼 Photos: `{len(photos)}`\n"
             + "\n".join(rows) +
-            "\n┃ ↩️ Wapas: `.revertb`\n"
+            "\n┃ ↩️ Undo: `.revertb`\n"
             "✦ ━━━━━━━━━━━━━━━━━━━━ ✦",
             link_preview=False)
 
@@ -2102,14 +2598,14 @@ def register_botcontroller(client):
         data = _bc_load()
         bots = data["bots"]
         if not bots:
-            return await event.edit("🤖 Koi bot nahi — `.addbottoken <token>`.")
+            return await event.edit("🤖 No bots yet — `.addbottoken <token>`.")
         text = event.pattern_match.group(2).strip()
         slots = _parse_slots(event.pattern_match.group(1), len(bots))
         if not slots:
             return await event.edit(f"❌ Invalid bot slot (total `{len(bots)}`).")
         pairs = await _connect_bots(client, slots, data)
         if not pairs:
-            return await event.edit("❄️ Koi bot connect nahi hua. `.monitorb` dekho.")
+            return await event.edit("❄️ No bot connected. Check `.monitorb`.")
         chat = event.chat_id
         said = 0
         for slot, bc in pairs:
@@ -2117,7 +2613,7 @@ def register_botcontroller(client):
                 said += 1
             await asyncio.sleep(0.4)
         await event.edit(
-            f"🗣 **{said}/{len(pairs)}** bot(s) ne bola:\n`{text[:100]}`",
+            f"🗣 **{said}/{len(pairs)}** bot(s) said:\n`{text[:100]}`",
             link_preview=False)
 
     # ════════════════════════════════════════════════════════════════════
@@ -2138,7 +2634,7 @@ def register_botcontroller(client):
                 text = None
         if not text or not str(text).strip():
             return await event.edit(
-                "📖 Usage: `.saverm <text>` — ya kisi message par **reply** karke `.saverm`")
+                "📖 Usage: `.saverm <text>` — or **reply** to any message with `.saverm`")
         text = str(text).strip()[:3500]
         msgs = _rm_load()
         msgs.append(text)
@@ -2148,7 +2644,7 @@ def register_botcontroller(client):
             f"✅ **Raid message saved — {_ord(n)} slot**\n"
             f"┃ `{text[:80]}`\n"
             f"┃ 🧩 Total slots: `{n}`\n"
-            f"💡 `.listrm` dekho · `.delrm {n}` se delete (slots auto-shift)",
+            f"💡 See `.listrm` · delete with `.delrm {n}` (slots auto-shift)",
             link_preview=False)
 
     # ── .listrm — saved raid message slots ────────────────────────────────
@@ -2157,9 +2653,9 @@ def register_botcontroller(client):
         msgs = _rm_load()
         if not msgs:
             return await event.edit(
-                "ℹ️ **Koi saved raid message nahi.**\n"
-                "📖 `.saverm <text>` — slot 1st se save hota jayega\n"
-                "⚡ `.raid` / `.raidb` inhi ko rotate karte hain")
+                "ℹ️ **No saved raid messages.**\n"
+                "📖 `.saverm <text>` — saves slot 1st, then 2nd, 3rd…\n"
+                "⚡ `.raid` / `.raidb` rotate through them")
         lines = "\n".join(f"┃ **{_ord(i + 1)}**: `{m[:60]}`"
                           for i, m in enumerate(msgs))
         await event.edit(
@@ -2175,14 +2671,14 @@ def register_botcontroller(client):
         msgs = _rm_load()
         if n < 1 or n > len(msgs):
             return await event.edit(
-                f"❌ Slot **{_ord(n)}** exist nahi karta. Total: `{len(msgs)}`")
+                f"❌ Slot **{_ord(n)}** does not exist. Total: `{len(msgs)}`")
         removed = msgs.pop(n - 1)          # ← baaki slots automatically shift
         _rm_save(msgs)
         if msgs:
             lines = "\n".join(f"┃ **{_ord(i + 1)}**: `{m[:60]}`"
                               for i, m in enumerate(msgs))
         else:
-            lines = "┃ *(empty — sab delete ho gaye)*"
+            lines = "┃ *(empty — all deleted)*"
         await event.edit(
             f"✅ **{_ord(n)} slot delete:** `{removed[:50]}`\n"
             f"{lines}\n"
@@ -2194,12 +2690,12 @@ def register_botcontroller(client):
     async def _delallrm(event):
         msgs = _rm_load()
         if not msgs:
-            return await event.edit("ℹ️ Koi saved raid message hai hi nahi.")
+            return await event.edit("ℹ️ There are no saved raid messages.")
         n = len(msgs)
         _rm_save([])
         await event.edit(
-            f"🗑 **Sab {n} raid message slots delete** ho gaye.\n"
-            "📖 Naye: `.saverm <text>`")
+            f"🗑 **All {n} raid message slots deleted.**\n"
+            "📖 Add new ones: `.saverm <text>`")
 
     # ════════════════════════════════════════════════════════════════════
     #  G) RRT — REPLY-RAID TURBO
@@ -2214,12 +2710,14 @@ def register_botcontroller(client):
         if not reply:
             if not RRT_USERS and not RRT_BOTS:
                 return await event.edit(
-                    "📡 **RRT — Reply-Raid Turbo**\n"
-                    "┃ 📖 Reply karke `.rrt` — target ka har message\n"
-                    "┃    reply me saved slots me se ek-ek aayega\n"
-                    "┃ 🤖 `.rrtb` — same but BOTS se\n"
-                    "┃ 📜 Slots `.saverm <text>` se bharo (1st, 2nd, 3rd…)\n"
-                    "┃ ⛔ `.stoprrt` — sab RRT band")
+                    "📡 **Reply-Raid (RRT)**\n"
+                    "┃ 📖 Reply to the target's message and send `.rrt` —\n"
+                    "┃    every message they send gets a saved slot as reply\n"
+                    "┃ ⚡ Short alias: `.rr` — same thing\n"
+                    "┃ 🤖 `.rrtb` / `.rrb` — reply-raid via BOTS\n"
+                    "┃ 📜 Fill slots with `.saverm <text>` (1st, 2nd, 3rd…)\n"
+                    "┃ ♻️ `.rrt` again on the same user = toggle off\n"
+                    "┃ ⛔ `.stoprrt` — stop all")
             lines = []
             for uid, st in RRT_USERS.items():
                 lines.append(f"┃ 👤 `{uid}` ({st.get('name', 'User')}) — user RRT on")
@@ -2228,7 +2726,20 @@ def register_botcontroller(client):
                              f"{st.get('slots', [])} RRT on")
             return await event.edit(
                 "✦ ━〔 📡 **RRT ACTIVE** 〕━ ✦\n" + "\n".join(lines) +
-                "\n⛔ `.stoprrt` se band", link_preview=False)
+                "\n♻️ Toggle: `.rrt` again = off · ⛔ `.stoprrt` = stop all",
+                link_preview=False)
+        return await _rrt_arm(event, reply)
+
+    # ── .rr — SHORT alias of .rrt (v7.5 reply raid) — same toggle
+    @_on(r"^\.rr\s*$")
+    async def _rr(event):
+        # `.rr` = reply raid: target jo bhi message kare, saved raid
+        # messages usi ke reply me ek-ek karke jayenge. Dobara = toggle off.
+        return await _rrt(event)
+
+    # ── .rrt arm engine — target resolve + TOGGLE + start card
+    #    (.rrt aur .rr dono isi se chalte hain — reply-raid toggle)
+    async def _rrt_arm(event, reply):
         try:
             tent = await reply.get_input_sender()
             u = await client.get_entity(tent)
@@ -2236,21 +2747,42 @@ def register_botcontroller(client):
             uname = (getattr(u, "first_name", None) or getattr(u, "title", None)
                      or "User")
         except Exception:
-            return await event.edit("❌ Target resolve nahi hua.")
+            return await event.edit("❌ Could not resolve the target.")
         if uid in RRT_USERS:
+            # v7.5 TOGGLE — dobara .rrt usi user par = band
+            RRT_USERS.pop(uid, None)
+            _ct_save_state()
             return await event.edit(
-                f"⚠️ RRT **pehle se active** hai **{uname}** pe.\n"
-                "⛔ `.stoprrt` se band karo.")
-        RRT_USERS[uid] = {"idx": 0, "name": uname}
+                f"⛔ **Reply-raid STOPPED** on **{uname}** (toggle off)\n"
+                "♻️ Use `.rrt` / `.rr` again on them to turn it back on",
+                link_preview=False)
+        # v7.6: arming reply-raid ALSO saves the replied message into the
+        # raid slots — the exact message you replied with is what rotates.
+        first_idx = 0
+        try:
+            rtext = (getattr(reply, "raw_text", "") or "").strip()
+            if rtext:
+                msgs = _rm_load()
+                if (not msgs) or msgs[-1] != rtext:
+                    msgs.append(rtext[:3500])
+                    _rm_save(msgs)
+                if msgs:
+                    first_idx = len(msgs) - 1
+        except Exception:
+            first_idx = 0
+        RRT_USERS[uid] = {"idx": first_idx, "name": uname}
         _ct_save_state()
         slots_n = len(_rm_load())
         await event.edit(
-            f"✅ **RRT STARTED** on **{uname}**\n"
-            f"┃ 📜 har message ka reply saved slots se aayega\n"
+            f"✅ **Reply-raid STARTED** on **{uname}**\n"
+            f"┃ 📜 Every message they send gets the saved slot as reply\n"
             f"┃ 🧩 Slots loaded: `{slots_n}`"
-            + ("\n⚠️ 0 slots — `.saverm <text>` se bharo, warna default text jayega"
+            + ("\n⚠️ 0 slots — nothing was saved, add some with `.saverm <text>`"
                if not slots_n else "") +
-            "\n⛔ `.stoprrt` se band", link_preview=False)
+            "\n♻️ Toggle: `.rrt` / `.rr` again on them = off · "
+            "⛔ `.stoprrt` = stop all",
+            link_preview=False)
+
 
     # ── .rrtb [slots] — BOTS reply-raid turbo ────────────────────────────
     @_on(r"^\.rrtb(\d+(?:-\d+)?)?\s*$")
@@ -2258,14 +2790,15 @@ def register_botcontroller(client):
         data = _bc_load()
         bots = data["bots"]
         if not bots:
-            return await event.edit("🤖 Koi bot nahi — `.addbottoken <token>`.")
+            return await event.edit("🤖 No bots yet — `.addbottoken <token>`.")
         reply = await event.get_reply_message()
         if not reply:
             return await event.edit(
-                "📡 **RRT-Bots** — Reply karke `.rrtb [slots]`\n"
-                "┃ e.g. `.rrtb` (sab bots) · `.rrtb2-3` (sirf 2nd-3rd)\n"
-                "┃ 🤖 bots target ke HAR message ka reply denge\n"
-                "┃    saved slots me se ek-ek karke")
+                "📡 **RRT-Bots** — Reply to the target and send `.rrtb [slots]`\n"
+                "┃ e.g. `.rrtb` (all bots) · `.rrtb2-3` (only 2nd-3rd)\n"
+                "┃ 🤖 the bots reply to EVERY message the target sends,\n"
+                "┃    one saved slot at a time\n"
+                "┃ ♻️ `.rrtb` again on the same user = toggle off")
         try:
             tent = await reply.get_input_sender()
             u = await client.get_entity(tent)
@@ -2273,24 +2806,54 @@ def register_botcontroller(client):
             uname = (getattr(u, "first_name", None) or getattr(u, "title", None)
                      or "User")
         except Exception:
-            return await event.edit("❌ Target resolve nahi hua.")
+            return await event.edit("❌ Could not resolve the target.")
         slots = _parse_slots(event.pattern_match.group(1), len(bots))
         if not slots:
             return await event.edit(f"❌ Invalid bot slot (total `{len(bots)}`).")
-        if uid in RRT_BOTS:
+        # v7.5 ANTI-LOOP: target khud ARMY ka bot hai toh uska apna slot
+        # replying slots se HATA do — warna wo apne hi reply par reply
+        # karta rahega (infinite storm). Listener bhi guard karta hai.
+        _excluded = []
+        _eff = []
+        for _s in slots:
+            try:
+                if int(bots[_s - 1].get("id", 0)) == int(uid):
+                    _excluded.append(_s)
+                    continue
+            except Exception:
+                pass
+            _eff.append(_s)
+        if not _eff:
             return await event.edit(
-                f"⚠️ Bot-RRT **pehle se active** hai **{uname}** pe.\n"
-                "⛔ `.stoprrt` se band karo.")
+                "⚠️ **The target IS one of your bots** — no other slot given.\n"
+                "┃ It would reply to its own messages in an infinite loop.\n"
+                "📖 Use `.rrb` with other slots, or the user RR (`.rr`) instead")
+        if _excluded:
+            slots = _eff
+        if uid in RRT_BOTS:
+            # v7.5 TOGGLE — dobara .rrtb usi user par = band
+            RRT_BOTS.pop(uid, None)
+            _ct_save_state()
+            return await event.edit(
+                f"⛔ **BOT reply-raid STOPPED** on **{uname}** (toggle off)\n"
+                "♻️ Use `.rrtb` / `.rrb` again to turn it back on")
         RRT_BOTS[uid] = {"slots": slots, "idx": {}, "name": uname}
         _ct_save_state()
         await event.edit(
-            f"✅ **BOT-RRT STARTED** on **{uname}**\n"
+            f"✅ **BOT reply-raid STARTED** on **{uname}**\n"
             f"┃ 🤖 Bots: `{len(slots)}` ({', '.join(_ord(s) for s in slots)})\n"
-            f"┃ 📜 har message ke reply me saved slots se ek-ek jayenge\n"
-            "⛔ `.stoprrt` se band", link_preview=False)
+            f"┃ 📜 Every message the target sends gets the saved slots\n"
+            "\n♻️ Toggle: `.rrtb` again = off · ⛔ `.stoprrt` = stop all",
+            link_preview=False)
+
+    # ── .rrb [slots] — SHORT alias of .rrtb (v7.5) — bots reply raid
+    @_on(r"^\.rrb(\d+(?:-\d+)?)?\s*$")
+    async def _rrb(event):
+        # `.rrb2-3` → bots saved raid messages target ke reply me bhejein
+        return await _rrtb(event)
 
     # ── .stoprrt — sab RRT band ────────────────────────────────────────────
-    @_on(r"^\.stoprrt\s*$")
+    @_on(r"^\.(?:stoprrt|stoprr|rrstop)\s*$")
     async def _stoprrt(event):
         reply = await event.get_reply_message()
         target_uid = None
@@ -2308,29 +2871,38 @@ def register_botcontroller(client):
             RRT_BOTS.pop(target_uid, None)
             _ct_save_state()
             if a or b:
-                return await event.edit("✅ Is user ke **sab RRT** band kar diye.")
-            return await event.edit("ℹ️ Is user pe koi RRT active hi nahi tha.")
+                return await event.edit("✅ All reply-raid for this user is now off.")
+            return await event.edit("ℹ️ No reply-raid was active on this user.")
         n_users = len(RRT_USERS)
         n_bots = len(RRT_BOTS)
         RRT_USERS.clear()
         RRT_BOTS.clear()
         _ct_save_state()
         await event.edit(
-            f"✅ **Sab RRT band** — users: `{n_users}` · bots: `{n_bots}`")
+            f"✅ **All RRT/RR stopped** — users: `{n_users}` · bots: `{n_bots}`")
 
-    # ── RRT LISTENER — target ka har message → reply (slots rotation) ────
+    # ── RRT + COPY-MIRROR LISTENER — target ka har message → reply ───────
     @client.on(events.NewMessage(incoming=True))
     async def _rrt_listener(event):
-        if not RRT_USERS and not RRT_BOTS:
+        if not (RRT_USERS or RRT_BOTS or CT_STATE["targets"]
+                or CT_STATE["bot_targets"]):
             return
         uid = event.sender_id
         if uid is None:
             return
-        if uid not in RRT_USERS and uid not in RRT_BOTS:
+        in_rrt = uid in RRT_USERS or uid in RRT_BOTS
+        in_mirror = (uid in CT_STATE["targets"]
+                     or uid in CT_STATE["bot_targets"])
+        if not in_rrt and not in_mirror:
             return
-        pool = _rrt_pool()
-        if not pool:
-            return
+        # guard: never mirror/reply-raid our OWN army bots (loop storm)
+        try:
+            _army_ids = {int(b.get("id", 0)) for b in (_bc_load().get("bots") or [])
+                         if b.get("id")}
+            if in_mirror and uid in _army_ids:
+                return
+        except Exception:
+            pass
         chat_id = event.chat_id
         try:
             import importlib as _il
@@ -2338,6 +2910,9 @@ def register_botcontroller(client):
         except Exception:
             def _builder(t, i, n):
                 return f"{n} {t} <a href='tg://user?id={i}'>{n}</a>"
+        pool = _rrt_pool() if in_rrt else None
+        if in_rrt and not pool:
+            return
         # ── user version ──
         if uid in RRT_USERS:
             st = RRT_USERS[uid]
@@ -2356,15 +2931,36 @@ def register_botcontroller(client):
                 try:
                     await client.send_message(chat_id, msg_i, reply_to=event.id,
                                               parse_mode="html", link_preview=False)
-                except Exception:
-                    pass
-            except Exception:
-                pass
+                except Exception as e2:
+                    log.warning("[botcontroller] RR-user retry fail: %s",
+                                str(e2)[:100])
+            except Exception as e:
+                log.warning("[botcontroller] RR-user send fail: %s: %s",
+                            type(e).__name__, str(e)[:100])
         # ── bots version ──
         if uid in RRT_BOTS:
             st = RRT_BOTS[uid]
             idxs = st.setdefault("idx", {})
             data = _bc_load()
+            # v7.6 ANTI-LOOP GUARD (fixed): skip ONLY if the sender is one of
+            # the REPLYING slot bots — their replies must never be answered
+            # again (infinite storm). Messages from ANY OTHER army bot are
+            # fine: `.rrb` can be armed on one of your own bots as long as
+            # the OTHER bots do the replying (arm already excludes the
+            # target's own slot).
+            try:
+                _slot_ids = set()
+                for _s in st.get("slots", []):
+                    try:
+                        _bid = int(data["bots"][_s - 1].get("id", 0))
+                        if _bid:
+                            _slot_ids.add(_bid)
+                    except Exception:
+                        pass
+                if uid in _slot_ids:
+                    return
+            except Exception:
+                pass
             for slot in st.get("slots", []):
                 bc = await _bot_client(client, slot, data)
                 if bc is None:
@@ -2376,77 +2972,200 @@ def register_botcontroller(client):
                     msg_i = _builder(raw, uid, st.get("name") or "User")
                 except Exception:
                     msg_i = f"{st.get('name', 'User')} {raw}"
+                # v7.6: bot-side id translation for the reply header
+                rid = await _bot_reply_target(bc, chat_id, uid)
                 try:
-                    await bc.send_message(chat_id, msg_i, reply_to=event.id,
+                    await bc.send_message(chat_id, msg_i, reply_to=rid,
                                           parse_mode="html", link_preview=False)
                 except FloodWaitError as fw:
                     note_flood(fw.seconds)
                     await asyncio.sleep(fw.seconds + 1)
                     try:
-                        await bc.send_message(chat_id, msg_i, reply_to=event.id,
+                        await bc.send_message(chat_id, msg_i, reply_to=rid,
                                               parse_mode="html", link_preview=False)
-                    except Exception:
-                        pass
-                except Exception:
-                    pass
+                    except Exception as e2:
+                        log.warning("[botcontroller] RR-bot slot %s retry fail: "
+                                    "%s: %s", slot, type(e2).__name__, str(e2)[:80])
+                except Exception as e:
+                    log.warning("[botcontroller] RR-bot slot %s send fail: "
+                                "%s: %s", slot, type(e).__name__, str(e)[:100])
+        # ── v7.6 COPY-MIRROR — userbot (normal account) version ──
+        if uid in CT_STATE["targets"]:
+            try:
+                await _copy_send(client, chat_id, event.message,
+                                 os.path.join(BC_DIR, f"ctm_{event.id}"),
+                                 reply_to=event.id)
+            except FloodWaitError as fw:
+                note_flood(fw.seconds)
+                await asyncio.sleep(fw.seconds + 1)
+            except Exception as e:
+                log.warning("[botcontroller] mirror-user fail: %s: %s",
+                            type(e).__name__, str(e)[:100])
+        # ── v7.6 COPY-MIRROR — bots version (specific slots) ──
+        if uid in CT_STATE["bot_targets"]:
+            mst = CT_STATE["bot_targets"][uid]
+            mdata = _bc_load()
+            for mslot in mst.get("slots", []):
+                mbc = await _bot_client(client, mslot, mdata)
+                if mbc is None:
+                    continue
+                # v7.6: bot-side id translation for the reply header
+                mrid = await _bot_reply_target(mbc, chat_id, uid)
+                try:
+                    await _copy_send(mbc, chat_id, event.message,
+                                     os.path.join(BC_DIR,
+                                                  f"ctmb_{event.id}_{mslot}"),
+                                     reply_to=mrid)
+                except FloodWaitError as fw:
+                    note_flood(fw.seconds)
+                    await asyncio.sleep(fw.seconds + 1)
+                except Exception as e:
+                    log.warning("[botcontroller] mirror-bot slot %s fail: %s: %s",
+                                mslot, type(e).__name__, str(e)[:80])
+                await asyncio.sleep(0.25)
 
     # ════════════════════════════════════════════════════════════════════
     #  H) COPYCAT — .ct / .ctb
     # ════════════════════════════════════════════════════════════════════
 
+    # ── v7.6 mirror-toggle engine (shared by .ct and .ctb) ───────────────
+    # Reply to a user + .ct   → the USERBOT mirrors every message they send
+    # Reply to a user + .ctb  → the given BOTS mirror every message they
+    #                           send (specific slots: .ctb1-2). Repeat = off.
+    async def _ct_mirror_toggle(event, reply, slots_arg):
+        try:
+            tent = await reply.get_input_sender()
+            u = await client.get_entity(tent)
+            uid = u.id
+            uname = (getattr(u, "first_name", None) or getattr(u, "title", None)
+                     or "User")
+        except Exception:
+            return await event.edit("❌ Could not resolve the target user.")
+        if slots_arg is None:
+            # ── userbot mirror (normal account) ──
+            if uid in CT_STATE["targets"]:
+                CT_STATE["targets"].pop(uid, None)
+                _ct_save_state()
+                return await event.edit(
+                    f"⛔ **COPY-MIRROR OFF** — **{uname}** (toggle off)\n"
+                    "🪞 Their messages are no longer copied. "
+                    "Reply + `.ct` again to re-enable.",
+                    link_preview=False)
+            CT_STATE["targets"][uid] = uname
+            _ct_save_state()
+            return await event.edit(
+                f"🪞 **COPY-MIRROR ON** — **{uname}**\n"
+                "┃ 📜 EVERY message they send (text, sticker, photo, media…)\n"
+                "┃ is re-sent here same-to-same, right away.\n"
+                "┃ ♻️ Toggle: reply + `.ct` again on them = off · "
+                "`.stopct` = stop all",
+                link_preview=False)
+        # ── bots mirror (specific slots) ──
+        data = _bc_load()
+        bots = data["bots"]
+        if not bots:
+            return await event.edit("🤖 No bots registered — `.addbottoken <token>`.")
+        slots = _parse_slots(slots_arg, len(bots))
+        if not slots:
+            return await event.edit(f"❌ Invalid bot slot (total `{len(bots)}`).")
+        # anti-loop: never let a bot mirror itself (infinite storm guard)
+        eff = []
+        for s in slots:
+            try:
+                if int(bots[s - 1].get("id", 0)) == int(uid):
+                    continue
+            except Exception:
+                pass
+            eff.append(s)
+        if not eff:
+            return await event.edit(
+                "⚠️ **That target IS one of your bots** — mirroring it by "
+                "itself would loop forever. Pick other slots.")
+        slots = eff
+        if uid in CT_STATE["bot_targets"]:
+            CT_STATE["bot_targets"].pop(uid, None)
+            _ct_save_state()
+            return await event.edit(
+                f"⛔ **BOT COPY-MIRROR OFF** — **{uname}** (toggle off)\n"
+                "🪞 Reply + `.ctb` again on them to re-enable.",
+                link_preview=False)
+        CT_STATE["bot_targets"][uid] = {"slots": slots, "name": uname}
+        _ct_save_state()
+        await event.edit(
+            f"🪞 **BOT COPY-MIRROR ON** — **{uname}**\n"
+            f"┃ 🤖 Bots: {', '.join(_ord(s) for s in slots)}\n"
+            "┃ 📜 EVERY message they send is re-sent by the bots,\n"
+            "┃ same-to-same (sticker → sticker, photo → photo…)\n"
+            "┃ ♻️ Toggle: reply + `.ctb` again = off · `.stopct` = stop all",
+            link_preview=False)
+
     # ── .ct — COPYCAT (user) ─────────────────────────────────────────────
     # reply + .ct → replied text/sticker SAME dobara | .ct on/off → mode
-    @_on(r"^\.ct(?:\s+(on|off|status))?\s*$")
+    @_on(r"^\.ct(?:\s+(on|off|status|copy))?\s*$")
     async def _ct(event):
         mode = (event.pattern_match.group(1) or "").strip().lower()
         reply = await event.get_reply_message()
-        if not mode and reply is not None:
-            # one-shot copy: replied message EXACT wapas
+        if mode == "copy" and reply is not None:
+            # one-shot copy: re-send the replied message exactly once
             chat = await event.get_input_chat()
             ok = await _copy_send(client, chat, reply,
                                   os.path.join(BC_DIR, f"ct_{event.id}"))
             if ok:
-                return await event.edit("🪞 **Copied** — same message dobara gaya")
-            return await event.edit("❌ Copy nahi ho paya (text/sticker/media?)")
+                return await event.edit("🪞 **Copied** — the same message was sent again")
+            return await event.edit("❌ Could not copy it (unsupported media?)")
+        if not mode and reply is not None:
+            # v7.6 MIRROR toggle: copy EVERY message this user sends,
+            # same-to-same (text → text, sticker → sticker, photo → photo)
+            return await _ct_mirror_toggle(event, reply, None)
         if mode == "on":
             CT_STATE["user"] = True
             _ct_save_state()
             await event.edit(
                 "🪞 **COPYCAT ON (user)**\n"
-                "┃ ab tum jo bhi text/sticker bhejoge (`.commands` chhod ke)\n"
-                "┃ wahi SAME cheez dobara usi chat me jayegi\n"
-                "┃ ⛔ band: `.ct off`")
+                "┃ Everything YOU send (except commands) is re-sent\n"
+                "┃ same-to-same in this chat\n"
+                "┃ ⛔ Turn off: `.ct off`")
         elif mode == "off":
             CT_STATE["user"] = False
+            CT_STATE["targets"].clear()
             _ct_save_state()
-            await event.edit("🪞 **COPYCAT OFF (user)**")
+            await event.edit("🪞 **COPYCAT OFF (user)** — self mode + mirrors cleared")
         else:  # status / no-arg
+            tgt = ", ".join(f"`{n}`" for n in CT_STATE["targets"].values()) or "—"
+            btgt = ", ".join(f"`{v.get('name','User')}`→bots {v.get('slots')}"
+                             for v in CT_STATE["bot_targets"].values()) or "—"
             await event.edit(
                 f"🪞 **COPYCAT STATUS**\n"
-                f"┃ 👤 User: {'🟢 ON' if CT_STATE['user'] else '🔴 OFF'}\n"
-                f"┃ 🤖 Bots: {'🟢 ON' if CT_STATE['bots'] else '🔴 OFF'}"
-                + (f" (slots: {CT_STATE['bot_slots']})" if CT_STATE.get("bot_slots") else "") +
-                "\n📖 reply+`.ct` ek baar copy · `.ct on/off` mode · `.ctb` bots")
+                f"┃ 👤 Self mode: {'🟢 ON' if CT_STATE['user'] else '🔴 OFF'}\n"
+                f"┃ 👤 Mirroring: {tgt}\n"
+                f"┃ 🤖 Bots self: {'🟢 ON' if CT_STATE['bots'] else '🔴 OFF'}"
+                + (f" (slots: {CT_STATE.get('bot_slots')})" if CT_STATE.get("bot_slots") else "") +
+                f"\n┃ 🤖 Bots mirroring: {btgt}"
+                "\n📖 reply+`.ct` mirror a user · `.ct on/off` self mode · "
+                "`.ctb [slots]` bots mirror")
 
-    # ── .ctb [slots] — COPYCAT BOTS ───────────────────────────────────────
-    # reply + .ctb → bots replied content bhejein | .ctb on/off → mode
-    @_on(r"^\.ctb(\d+(?:-\d+)?)?(?:\s+(on|off|status))?\s*$")
+    # ── .ctb [slots] — COPYCAT BOTS (v7.6 mirror mode) ────────────────────
+    # reply + .ctb [slots] → MIRROR toggle: the given bots re-send EVERY
+    #                        message the target sends, same-to-same
+    # reply + .ctb copy    → one-shot: bots re-send the replied message once
+    # .ctb on / .ctb2-3 on → bots mirror YOUR OWN sends (self mode)
+    @_on(r"^\.ctb(\d+(?:-\d+)?)?(?:\s+(on|off|status|copy))?\s*$")
     async def _ctb(event):
         data = _bc_load()
         bots = data["bots"]
         mode = (event.pattern_match.group(2) or "").strip().lower()
         slots_arg = event.pattern_match.group(1)
         reply = await event.get_reply_message()
-        if not mode and reply is not None:
-            # one-shot: bots replied message ka copy bhejein
+        if mode == "copy" and reply is not None:
+            # one-shot: bots re-send the replied message exactly once
             if not bots:
-                return await event.edit("🤖 Koi bot nahi — `.addbottoken <token>`.")
+                return await event.edit("🤖 No bots registered — `.addbottoken <token>`.")
             slots = _parse_slots(slots_arg, len(bots))
             if not slots:
                 return await event.edit(f"❌ Invalid bot slot (total `{len(bots)}`).")
             pairs = await _connect_bots(client, slots, data)
             if not pairs:
-                return await event.edit("❄️ Koi bot connect nahi hua. `.monitorb` dekho.")
+                return await event.edit("❄️ No bot connected. Check `.monitorb`.")
             tmp = os.path.join(BC_DIR, f"ctb_{event.id}")
             chat_id = event.chat_id
             sent, rows = 0, []
@@ -2463,14 +3182,19 @@ def register_botcontroller(client):
             except OSError:
                 pass
             return await event.edit(
-                f"🪞 **Bots ne copy bheja** — `{sent}/{len(pairs)}`\n" + "\n".join(rows))
+                f"🪞 **Bots copied it** — `{sent}/{len(pairs)}`\n" + "\n".join(rows))
+        if not mode and reply is not None:
+            # v7.6: bots MIRROR this user (specific slots, e.g. `.ctb1-2`)
+            return await _ct_mirror_toggle(event, reply, slots_arg)
         if mode == "off":
             CT_STATE["bots"] = False
             CT_STATE["bot_slots"] = None
+            CT_STATE["bot_targets"].clear()
             _ct_save_state()
-            return await event.edit("🪞 **COPYCAT OFF (bots)**")
+            return await event.edit(
+                "🪞 **COPYCAT OFF (bots)** — self mode + bot mirrors cleared")
         if not bots and mode != "status":
-            return await event.edit("🤖 Koi bot nahi — `.addbottoken <token>`.")
+            return await event.edit("🤖 No bots registered — `.addbottoken <token>`.")
         if slots_arg or mode == "on":
             slots = _parse_slots(slots_arg, len(bots))
             if not slots:
@@ -2479,18 +3203,24 @@ def register_botcontroller(client):
             CT_STATE["bot_slots"] = slots
             _ct_save_state()
             return await event.edit(
-                f"🪞 **COPYCAT ON (bots)**\n"
+                f"🪞 **COPYCAT ON (bots — self mode)**\n"
                 f"┃ 🤖 Bots: {', '.join(_ord(s) for s in slots)}\n"
-                "┃ ab tum jo bhi text/sticker bhejoge (commands chhod ke)\n"
-                "┃ wahi bot bhi usi chat me bhejenge\n"
-                "┃ ⛔ band: `.ctb off`")
+                "┃ Everything you send (except commands) the bots also\n"
+                "┃ send same-to-same in this chat\n"
+                "┃ ⛔ Turn off: `.ctb off`")
         # status / no-arg
+        tgt = ", ".join(f"`{n}`" for n in CT_STATE["targets"].values()) or "—"
+        btgt = ", ".join(f"`{v.get('name','User')}`→bots {v.get('slots')}"
+                         for v in CT_STATE["bot_targets"].values()) or "—"
         await event.edit(
             f"🪞 **COPYCAT STATUS**\n"
-            f"┃ 👤 User: {'🟢 ON' if CT_STATE['user'] else '🔴 OFF'}\n"
-            f"┃ 🤖 Bots: {'🟢 ON' if CT_STATE['bots'] else '🔴 OFF'}"
-            + (f" (slots: {CT_STATE['bot_slots']})" if CT_STATE.get("bot_slots") else "") +
-            "\n📖 reply+`.ctb` ek baar bots se · `.ctb on` · `.ctb2-3 on` · `.ctb off`")
+            f"┃ 👤 Self mode: {'🟢 ON' if CT_STATE['user'] else '🔴 OFF'}\n"
+            f"┃ 👤 Mirroring: {tgt}\n"
+            f"┃ 🤖 Bots self: {'🟢 ON' if CT_STATE['bots'] else '🔴 OFF'}"
+            + (f" (slots: {CT_STATE.get('bot_slots')})" if CT_STATE.get("bot_slots") else "") +
+            f"\n┃ 🤖 Bots mirroring: {btgt}"
+            "\n📖 reply+`.ctb [slots]` mirror a user via bots · "
+            "`.ctb on` self mode · `.ctb off`")
 
     # ── COPYCAT LISTENER — outgoing (user + bots) ─────────────────────────
     @client.on(events.NewMessage(outgoing=True))
@@ -2561,7 +3291,7 @@ def register_botcontroller(client):
         killed = _kill_tasks(client, lambda k: k.startswith("bc_"))
         await event.edit(
             f"⏹ **{killed}** bot task(s) stopped.\n"
-            "💡 Bot sessions saved — `.spamb` / `.raidb` dobara turant chalega.")
+            "💡 Bot sessions are saved — `.spamb` / `.raidb` will run instantly next time.")
 
     # ── .spamstop — text spam tasks ────────────────────────────────────────
     @_on(r"^\.spamstop\s*$")
@@ -2584,8 +3314,8 @@ def register_botcontroller(client):
         RRT_BOTS.clear()
         _ct_save_state()
         await event.edit(
-            f"⏹ **{killed}** raid task(s) stopped · RRT band: `{n_r}` 🛡️\n"
-            "💡 `.drraid` wala system hata diya gaya — ab `.rrt` use karo")
+            f"⏹ **{killed}** raid task(s) stopped · reply-raid off: `{n_r}` 🛡️\n"
+            "💡 The old `.drraid` system was removed — use `.rrt` now")
 
     # ── .raidbstop / .stopraidb — sirf BOT raid ──────────────────────────
     @_on(r"^\.(?:raidbstop|stopraidb)\s*$")
@@ -2599,22 +3329,41 @@ def register_botcontroller(client):
         killed = _kill_tasks(client, lambda k: "anim" in k)
         await event.edit(f"⏹ **{killed}** animation task(s) stopped. 🛡️")
 
+    # ── .stopct / .ctstop — copycat + mirrors band ────────────────────────
+    @_on(r"^\.(?:stopct|ctstop)\s*$")
+    async def _stopct(event):
+        n_u = len(CT_STATE["targets"])
+        n_b = len(CT_STATE["bot_targets"])
+        CT_STATE["user"] = False
+        CT_STATE["bots"] = False
+        CT_STATE["bot_slots"] = None
+        CT_STATE["targets"].clear()
+        CT_STATE["bot_targets"].clear()
+        _ct_save_state()
+        await event.edit(
+            f"⏹ **COPYCAT STOPPED** 🪞\n"
+            f"┃ Mirrors cleared — users: `{n_u}` · bots: `{n_b}`\n"
+            f"┃ Self modes: user OFF · bots OFF")
+
     # ── .stopall — sab kuch band (tasks + RRT + CopyCat) ──────────────────
     @_on(r"^\.stopall\s*$")
     async def _stopall(event):
         killed = _kill_tasks(client, lambda k: True)
         n_r = len(RRT_USERS) + len(RRT_BOTS)
+        n_m = len(CT_STATE["targets"]) + len(CT_STATE["bot_targets"])
         RRT_USERS.clear()
         RRT_BOTS.clear()
         CT_STATE["user"] = False
         CT_STATE["bots"] = False
         CT_STATE["bot_slots"] = None
+        CT_STATE["targets"].clear()
+        CT_STATE["bot_targets"].clear()
         _ct_save_state()
         await event.edit(
             f"⏹ **FULL STOP** 🛑\n"
             f"┃ Tasks killed: `{killed}`\n"
-            f"┃ RRT band: `{n_r}` · CopyCat: OFF\n"
-            "✦ sab shaant — ID safe")
+            f"┃ Reply-raid off: `{n_r}` · CopyCat/mirrors off: `{n_m}`\n"
+            "✦ Everything is silent now — ID kept safe")
 
     # ════════════════════════════════════════════════════════════════════
     #  J) UX — AUTODELETE (default ON) + SUDO management
@@ -2623,14 +3372,54 @@ def register_botcontroller(client):
     # ── AUTODELETE LISTENER — naya command = pichla output khud delete ───
     # Default ON: `.help` likha → output aaya → `.help 1` likha → pichla
     # wala output khud delete ho gaya. Har chat me alag-alag track hota hai.
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.[A-Za-z]"))
+    # v7.5: ye hi listener COMMAND ids ko _CMD_IDS me track karta hai —
+    # usse `.autodeletem <sec>` wala TIMED delete system chalta hai.
+    @client.on(events.NewMessage(pattern=r"^\.[A-Za-z]"))
     async def _autodel_listener(event):
         try:
+            own = bool(getattr(event, "out", False)
+                       or getattr(getattr(event, "message", None), "out", False))
+            sid = event.sender_id
+            is_sudo_cmd = (not own) and bool(sid) and sid in _sudo_ids()
+            if not (own or is_sudo_cmd):
+                return
             chat_id = event.chat_id
+            _cmd_track(chat_id, event.id)      # 🗑 timed-delete system
             # v7.4.2: protect_id — current command ka apna output kabhi delete nahi
             await _ad_delete_previous(client, chat_id, protect_id=event.id)
             if _AD.get("on"):
                 _ad_track(chat_id, event.id)
+        except Exception:
+            pass
+
+    # ── v7.5 TIMER LISTENER 1 — EDITED outputs → N sec baad khud delete ──
+    # (.help card, .bchelp, start-cards — jo command message EDIT hota hai)
+    @client.on(events.MessageEdited(outgoing=True))
+    async def _ad_timed_edits(event):
+        try:
+            t = _ad_timer()
+            if t <= 0:
+                return
+            if (event.chat_id, event.id) in _CMD_IDS:
+                # timer RESET on every edit — final output hi delete hota hai
+                _ad_schedule_delete(client, event.chat_id, event.id, t)
+        except Exception:
+            pass
+
+    # ── v7.5 TIMER LISTENER 2 — reply-cards → N sec baad khud delete ────
+    # ("spam done", "raid done" info cards jo command ke REPLY me aate hain)
+    @client.on(events.NewMessage(outgoing=True))
+    async def _ad_timed_cards(event):
+        try:
+            t = _ad_timer()
+            if t <= 0:
+                return
+            rid = event.reply_to_msg_id
+            if rid and (event.chat_id, rid) in _CMD_IDS:
+                raw = (getattr(event, "raw_text", "") or "").strip()
+                if raw.startswith("."):
+                    return   # ye card nahi, doosra command hai
+                _ad_schedule_delete(client, event.chat_id, event.id, t)
         except Exception:
             pass
 
@@ -2642,17 +3431,59 @@ def register_botcontroller(client):
             _ad_set(True)
             return await event.edit(
                 "🧹 **AUTO-DELETE ON** (default)\n"
-                "┃ naya command likhoge toh pichle command ka output\n"
-                "┃ usi chat me KHUD delete ho jayega — chat hamesha saaf")
+                "┃ when you type a new command, the previous output\n"
+                "┃ auto-deletes in the same chat — chat always clean")
         if mode == "off":
             _ad_set(False)
             _AD_LAST.clear()
             return await event.edit(
-                "🧹 **AUTO-DELETE OFF** — ab outputs chat me rukenge")
+                "🧹 **AUTO-DELETE OFF** — outputs will now stay in the chat")
         await event.edit(
             f"🧹 **AUTO-DELETE: {'🟢 ON' if _AD.get('on') else '🔴 OFF'}** (default ON)\n"
-            "┃ `.help` → output → `.help 1` → pichla output auto-delete\n"
+            "┃ `.help` → output → `.help 1` → previous output auto-deletes\n"
             "📖 `.autodelete on` / `.autodelete off`")
+
+    # ── .autodeletem <sec> — TIMED auto-delete (v7.5, owner only) ─────────
+    # `.autodeletem 10` → har command ka output (help card, "spam done",
+    # "raid done" info…) 10 second baad KHUD delete. 0/off = band.
+    @_on(r"^\.(?:autodeletem|adelm|adtm)(?:\s+(\d+|on|off|status))?\s*$",
+         sudo_ok=False)
+    async def _autodeletem(event):
+        arg = (event.pattern_match.group(1) or "status").strip().lower()
+        if arg == "on":
+            sec = 30
+            _ad_timer_set(sec)
+            return await event.edit(
+                f"🗑 **AUTO-DELETE TIMER ON — `{sec}s`**\n"
+                "┃ every command output now self-deletes within this time")
+        if arg in ("off", "0"):
+            _ad_timer_set(0)
+            return await event.edit(
+                "🗑 **AUTO-DELETE TIMER OFF**\n"
+                "┃ outputs are no longer timer-managed — only `.autodelete`\n"
+                "📖 back on: `.autodeletem 10`")
+        if arg == "status":
+            t = _ad_timer()
+            return await event.edit(
+                f"🗑 **AUTO-DELETE TIMER: {'`' + str(t) + 's`' if t else '🔴 OFF'}**\n"
+                "┃ `.autodeletem <sec>` — help / spam-done / raid-done\n"
+                "┃    outputs all self-delete within <sec>\n"
+                "📖 e.g. `.autodeletem 10` · off: `.autodeletem off`")
+        try:
+            sec = int(arg)
+        except ValueError:
+            return await event.edit(
+                "❌ Give seconds — e.g. `.autodeletem 10` (0/off = disable)")
+        if sec < 3:
+            return await event.edit(
+                "❌ Minimum is **3 sec** (0 = off) — e.g. `.autodeletem 10`")
+        sec = _ad_timer_set(sec)
+        await event.edit(
+            f"🗑 **AUTO-DELETE TIMER SET — `{sec}s`**\n"
+            "┃ EVERY command output (help card, spam-complete,\n"
+            "┃ raid-complete info) now self-deletes after that time\n"
+            "┃ 🛡 only the info outputs vanish — not spam/raid messages\n"
+            "📖 off: `.autodeletem off`")
 
     # ── .addsudo (reply ya id) — SUDO user add (owner only) ────────────────
     @_on(r"^\.addsudo(?:\s+(\d+))?\s*$", sudo_ok=False)
@@ -2672,11 +3503,11 @@ def register_botcontroller(client):
                     uid = None
         if not uid:
             return await event.edit(
-                "📖 Reply karke `.addsudo` ya `.addsudo <user_id>`\n"
-                "🤝 SUDO user bhi sab BOT ARMY commands chala sakta hai")
+                "📖 Reply to a user with `.addsudo`, or `.addsudo <user_id>`\n"
+                "🤝 A SUDO user can then run every BOT ARMY command too")
         ids = set(_sudo_ids())
         if uid in ids:
-            return await event.edit(f"ℹ️ `{uid}` **pehle se sudo** hai.")
+            return await event.edit(f"ℹ️ `{uid}` is **already a sudo** user.")
         ids.add(uid)
         _sudo_save(ids)
         name = "user"
@@ -2688,7 +3519,7 @@ def register_botcontroller(client):
         await event.edit(
             f"✅ **SUDO added:** {name} (`{uid}`)\n"
             f"┃ 🧩 Total sudos: `{len(ids)}`\n"
-            "🤖 Ab ye bhi `.spamb` `.raidb` `.cloneb` sab chala sakta hai")
+            "🤖 They can now also run `.spamb` `.raidb` `.cloneb` — everything")
 
     # ── .delsudo (reply ya id) — SUDO remove (owner only) ──────────────────
     @_on(r"^\.delsudo(?:\s+(\d+))?\s*$", sudo_ok=False)
@@ -2707,14 +3538,14 @@ def register_botcontroller(client):
                 except Exception:
                     uid = None
         if not uid:
-            return await event.edit("📖 Reply karke `.delsudo` ya `.delsudo <user_id>`")
+            return await event.edit("📖 Reply to a user with `.delsudo`, or `.delsudo <user_id>`")
         ids = set(_sudo_ids())
         if uid not in ids:
-            return await event.edit(f"ℹ️ `{uid}` sudo list me hai hi nahi.")
+            return await event.edit(f"ℹ️ `{uid}` is not in the sudo list.")
         ids.discard(uid)
         _sudo_save(ids)
         await event.edit(
-            f"✅ **SUDO removed:** `{uid}`\n┃ 🧩 Baaki sudos: `{len(ids)}`")
+            f"✅ **SUDO removed:** `{uid}`\n┃ 🧩 Remaining sudos: `{len(ids)}`")
 
     # ── .listsudo — sab sudo users (owner only) ───────────────────────────
     @_on(r"^\.listsudo\s*$", sudo_ok=False)
@@ -2722,8 +3553,8 @@ def register_botcontroller(client):
         ids = sorted(_sudo_ids())
         if not ids:
             return await event.edit(
-                "👥 **Koi sudo user nahi.**\n"
-                "📖 Reply karke `.addsudo` — phir wo bhi bots control karega")
+                "👥 **No sudo users yet.**\n"
+                "📖 Reply to a user with `.addsudo` — they can then control the bots too")
         rows = []
         for uid in ids:
             name = "user"
@@ -2779,8 +3610,8 @@ def register_botcontroller(client):
             frozen = sum(1 for b in bots if b.get("frozen"))
             rows.append(f"┃ 🤖 Bots: `{len(bots)}` · ❄️ frozen: `{frozen}`")
         else:
-            rows.append("┃ 🤖 Bots: `0` ❗ — pehle `.addbottoken <token>` "
-                        "ya `.addnewbotauto` chalao")
+            rows.append("┃ 🤖 Bots: `0` ❗ — run `.addbottoken <token>` "
+                        "or `.addnewbotauto` first")
 
         # 5) live connect check (sirf pehle 3 bots — fast rakhne ke liye)
         if bots:
@@ -2806,8 +3637,10 @@ def register_botcontroller(client):
         # 6) states
         rows.append(f"┃ 📡 RRT: users `{len(RRT_USERS)}` · bots `{len(RRT_BOTS)}` · "
                     f"CopyCat: {'🟢' if (CT_STATE['user'] or CT_STATE['bots']) else 'off'}")
+        _t = _ad_timer()
         rows.append(f"┃ 📜 Raid slots: `{len(_rm_load())}` · "
                     f"Autodelete: {'🟢 ON' if _AD.get('on') else '🔴 off'} · "
+                    f"Timer: {'`' + str(_t) + 's`' if _t else 'off'} · "
                     f"Sudo: `{len(_sudo_ids())}`")
         try:
             n_tasks = len(client.stop_processes or {})
@@ -2817,8 +3650,8 @@ def register_botcontroller(client):
 
         await event.edit(
             "✦ ━━━〔 🩺 **BOTCONTROLLER SELF-CHECK** 〕━━━ ✦\n" + "\n".join(rows) +
-            "\n┃ 💡 Agar sab ✅ hai → commands chal rahe hain. Jo ❌ hai"
-            "\n┃    uska hint usi line me likha hai."
+            "\n┃ 💡 If everything shows ✅ the commands are working. For any ❌"
+            "\n┃    the fix hint is written on the same line."
             "\n✦ ━━━━━━━━━━━━━━━━━━━━ ✦",
             link_preview=False)
 
@@ -2826,41 +3659,143 @@ def register_botcontroller(client):
     @_on(r"^\.(?:bchelp|bch|bothelp)$")
     async def _bchelp(event):
         await event.edit(
-            "✦ ━━━〔 🤖 **BOTCONTROLLER v7.4.1** 〕━━━ ✦\n"
+            "✦ ━━━〔 🤖 **BOTCONTROLLER v7.6** 〕━━━ ✦\n"
             "**📐 Setup**\n"
-            "┃ `.addbottoken <token>` — bot add (1st/2nd/3rd…)\n"
-            "┃ `.addnewbotauto [n]` — BotFather se KHUD naya bot banao\n"
+            "┃ `.addbottoken <token>` — add a bot (1st/2nd/3rd… slot)\n"
+            "┃ `.addnewbotauto [n]` — create a NEW bot via BotFather automatically\n"
             "┃ `.delbottoken` / `.delbot <n>` — delete (slots auto-shift)\n"
             "┃ `.listbots` · `.monitorb` · `.refreshb` — status\n"
             "**📥 Group**\n"
-            "┃ `.addallb [slots]` — bots add (sab ya `.addallb1-3`)\n"
-            "┃ `.addall 1-3` — specific bots · `.removeallb` — sab remove\n"
+            "┃ `.addallb [slots]` — add bots (all, or `.addallb1-3`)\n"
+            "┃ `.addall 1-3` — specific bots · `.removeallb` — remove all\n"
             "**🚀 Attack**\n"
             "┃ `.spamb <n> <sec> <text>` — spam (interval NO limit: 0.1 ok)\n"
             "┃ `.sspam <n> <sec>` — user sticker · `.sspamb` — bots sticker\n"
-            "┃ `.raidb [slots] <n> <txt>` — bot raid (reply optional)\n"
+            "┃ `.raidb [slots] <n> [gap] [txt]` — bot raid (reply + tag)\n"
+            "┃    `.raidb 10 .1` = 10 times, 0.1s gap (float gap ok)\n"
             "**🎭 Profile**\n"
-            "┃ `.cloneb [slots]` — bots victim ka clone (BotFather engine)\n"
-            "┃ `.revertb [slots]` — bots ORIGINAL me wapas\n"
-            "┃ `.loadprofileb [slots] <name>` — saved profile bots par\n"
+            "┃ `.cloneb [slots]` — bots clone the victim (BotFather engine)\n"
+            "┃ `.revertb [slots]` — bots back to ORIGINAL state\n"
+            "┃ `.loadprofileb [slots] <name>` — load a saved profile on bots\n"
             "┃ `.botsay [slots] <text>` · `.<anim>b [slots]` (.roseb .hackb1-2)\n"
             "**📜 Raid Messages**\n"
-            "┃ `.saverm <text>` — slot save (1st, 2nd, 3rd… auto)\n"
+            "┃ `.saverm <text>` — save a slot (1st, 2nd, 3rd… auto)\n"
             "┃ `.listrm` · `.delrm <n>` (auto-shift) · `.delallrm`\n"
-            "**📡 RRT**\n"
-            "┃ `.rrt` / `.rrtb [slots]` — reply-raid turbo (user + bots)\n"
-            "┃ `.stoprrt` — sab RRT band\n"
-            "**🪞 CopyCat**\n"
-            "┃ reply+`.ct` — same message wapas · `.ct on/off` mode\n"
-            "┃ reply+`.ctb [slots]` — bots copy · `.ctb2-3 on` custom bots\n"
+            "**📡 Reply-Raid**\n"
+            "┃ `.rrt` / `.rr` — reply-raid (userbot) — again = toggle off\n"
+            "┃ `.rrtb` / `.rrb [slots]` — BOTS reply-raid (toggle)\n"
+            "┃ `.stoprrt` / `.stoprr` — stop all reply-raid\n"
+            "**🪞 CopyCat / Mirror**\n"
+            "┃ reply+`.ct` — MIRROR that user same-to-same · `.ct copy` one-shot\n"
+            "┃ reply+`.ctb [slots]` — bots mirror them · `.ctb2-3 on` self mode\n"
+            "┃ `.stopct` — stop copycat + all mirrors\n"
             "**⏹ Stop System**\n"
             "┃ `.stop` · `.stopall` · `.stopb` · `.animstop`\n"
             "┃ `.spamstop` · `.sspamstop` · `.stopraid`/`.raidstop`\n"
             "┃ `.raidbstop` / `.stopraidb`\n"
             "**🛠 UX**\n"
-            "┃ `.bccheck` — self-diagnosis (kya kharab hai, ek card me)\n"
-            "┃ `.autodelete on/off` — pichla output auto-delete (default ON)\n"
-            "┃ `.addsudo`/`.delsudo`/`.listsudo` — bots ka control sudo ko do\n"
+            "┃ `.bccheck` — self-diagnosis (what's broken, in one card)\n"
+            "┃ `.autodelete on/off` — previous output auto-delete (default ON)\n"
+            "┃ `.autodeletem <sec>` — every output self-deletes in <sec>\n"
+            "┃    (help cards, spam-done, raid-done) · off: `.autodeletem off`\n"
+            "┃ `.addsudo`/`.delsudo`/`.listsudo` — give bots control to sudo users\n"
+            "┃ `.fixprivacy` — repair bot privacy (bots must see group msgs)\n"
+            "✦ ━━━━━━━━━━━━━━━━━━━━ ✦",
+            link_preview=False)
+
+    # ── v7.6 BOT PRE-WARM — connect all bots shortly after boot ─────────
+    # Bots must be LISTENING from the start: they learn message ids from
+    # their own updates (basic groups use per-account id sequences and bots
+    # cannot read history). Pre-warming makes reply+tag work on the very
+    # first command after startup, not just after the first bot command.
+    async def _prewarm_bots():
+        await asyncio.sleep(8)
+        try:
+            pdata = _bc_load()
+            bots = pdata.get("bots") or []
+            n = len(bots)
+            for i in range(1, n + 1):
+                try:
+                    await _bot_client(client, i, pdata)
+                except Exception:
+                    pass
+                await asyncio.sleep(0.6)
+            log.info("[botcontroller] 🔥 bot pre-warm done (%d bots listening)", n)
+        except Exception as e:
+            log.warning("[botcontroller] pre-warm skipped: %s", str(e)[:90])
+            return
+        # ── v7.6 PRIVACY AUTO-FIX ──
+        # A bot with privacy mode ENABLED never sees normal group messages
+        # → no updates → no reply-target translation (tags worked, reply
+        # headers silently dropped). If a connected bot has seen NOTHING
+        # for a while, run ONE paced BotFather /setprivacy Disable for it.
+        try:
+            await asyncio.sleep(6)
+            pdata = _bc_load()
+            bots = pdata.get("bots") or []
+            fixed = 0
+            for i, rec in enumerate(bots, 1):
+                try:
+                    bcheck = BOT_CLIENTS.get(i)
+                    if bcheck is None:
+                        continue
+                    _bid_chk = (await bcheck.get_me()).id
+                    if _bid_chk in _PRIVACY_ATTEMPTED:
+                        continue          # one attempt per boot
+                    _PRIVACY_ATTEMPTED.add(_bid_chk)
+                    bc_ = BOT_CLIENTS.get(i)
+                    if bc_ is None:
+                        continue
+                    bme = await bc_.get_me()
+                    seen_total = sum(len(v) for (b, _c), v in _BOT_SEEN.items()
+                                     if b == bme.id)
+                    if seen_total > 0:
+                        rec["privacy_fixed_at"] = time.time()
+                        rec["privacy_disabled"] = True
+                        _bc_save(pdata)
+                        continue          # receiving updates — all good
+                    ok, _why = await _bf_set_bot_privacy(client, rec,
+                                                         enable=False)
+                    rec["privacy_fixed_at"] = time.time()
+                    rec["privacy_disabled"] = bool(ok)
+                    _bc_save(pdata)
+                    if ok:
+                        fixed += 1
+                except Exception:
+                    pass
+            if fixed:
+                log.info("[botcontroller] 🔓 privacy auto-fixed for %d bot(s) "
+                         "— they will now receive group updates", fixed)
+        except Exception:
+            pass
+
+    try:
+        asyncio.create_task(_prewarm_bots())
+    except Exception:
+        pass
+
+    # ── .fixprivacy — manual privacy repair (owner only) ────────────────
+    @_on(r"^\.fixprivacy\s*$")
+    async def _fixprivacy(event):
+        data = _bc_load()
+        bots = data["bots"]
+        if not bots:
+            return await event.edit("🤖 No bots registered.")
+        await event.edit(
+            "🔓 **BotFather /setprivacy Disable** for every bot…\n"
+            "┃ paced by the rate-guard (≈4s between bots, ID kept safe)")
+        rows = []
+        for i, rec in enumerate(bots, 1):
+            ok, why = await _bf_set_bot_privacy(client, rec, enable=False)
+            rec["privacy_disabled"] = bool(ok)
+            rec["privacy_fixed_at"] = time.time()
+            rows.append(f"┃ {_ord(i)} @{rec.get('username') or rec.get('id')} "
+                        f"{'✅ privacy off' if ok else f'❌ {why[:40]}'}")
+        _bc_save(data)
+        await event.edit(
+            "✦ ━━━〔 🔓 **BOT PRIVACY** 〕━━━ ✦\n" + "\n".join(rows) +
+            "\n┃ 📡 Privacy OFF = bots see every group message\n"
+            "┃ (needed for `.rrb` reply-raid, `.ctb` mirror, `.raidb` reply)\n"
             "✦ ━━━━━━━━━━━━━━━━━━━━ ✦",
             link_preview=False)
 
@@ -2869,47 +3804,51 @@ COMMANDS_BOTCONTROLLER = {
     "description": "🤖 BotController — Multi-Bot Army Command Center",
     "commands": [
         # setup
-        (".addbottoken <token>", "bot register + token verify (1st/2nd/3rd slots)"),
-        (".addnewbotauto [n]", "BotFather se khud naya bot banao (name: worker, auto username, 2 try)"),
-        (".delbottoken / .delbot <n>", "bot delete — slots auto-shift"),
-        (".listbots / .botlist", "sab bots + frozen status"),
-        (".monitorb", "LIVE online/frozen check + sab ka naam"),
-        (".refreshb", "sab bots reconnect + frozen clear attempt"),
+        (".addbottoken <token>", "register a bot + verify the token (1st/2nd/3rd slots)"),
+        (".addnewbotauto [n]", "create a new bot via BotFather automatically (name: worker, auto username, retries)"),
+        (".delbottoken / .delbot <n>", "delete a bot — slots auto-shift"),
+        (".listbots / .botlist", "all bots + frozen status"),
+        (".monitorb", "LIVE online/frozen check + every bot's name"),
+        (".refreshb", "reconnect all bots + try to clear frozen"),
         # group
-        (".addallb [slots] / .addall 1-3", "bots group me add (sab / specific) — ImportError FIXED"),
-        (".removeallb", "sab bots group se remove"),
+        (".addallb [slots] / .addall 1-3", "add bots to the group (all / specific)"),
+        (".removeallb", "remove all bots from the group"),
         # attack
-        (".spamb <n> <sec> <txt>", "sab bots text spam — interval NO lower limit"),
-        (".spamb1-2 <n> <sec> <txt>", "sirf specific bots spam"),
+        (".spamb <n> <sec> <txt>", "all bots text spam — interval has NO lower limit"),
+        (".spamb1-2 <n> <sec> <txt>", "only specific bots spam"),
         (".sspam <n> <sec>", "user sticker spam (reply)"),
         (".sspamb <n> <sec>", "bots sticker spam (reply)"),
-        (".raidb [slots] <n> <txt>", "bot raid — reply optional + saved slots rotate"),
+        (".raidb [slots] <n> [gap] [txt]", "bot raid — `.raidb 10 .1` = 10x, 0.1s gap; reply+tag both (use via reply) + saved slots rotate"),
         # profile
-        (".cloneb [slots]", "bots replied-user ka profile clone karein (BotFather engine)"),
-        (".revertb / .uncloneb [slots]", "bots wapas pre-clone (original) state me"),
-        (".loadprofileb [slots] <name>", ".saveprofile wala saved profile bots par load"),
-        (".botsay [slots] <txt>", "bots se message bulwao"),
-        (".<anim>b [slots] [sec]", "koi bhi animation bots par (.roseb, .hackb1-2)"),
+        (".cloneb [slots]", "bots clone the replied user's profile (BotFather engine, DP logic included)"),
+        (".revertb / .uncloneb [slots]", "bots back to their pre-clone (original) state"),
+        (".loadprofileb [slots] <name>", "load a .saveprofile profile onto the bots"),
+        (".botsay [slots] <txt>", "make the bots say something"),
+        (".<anim>b [slots] [sec]", "run any animation on bots (.roseb, .hackb1-2)"),
         # raid messages
-        (".saverm <text>", "raid message slot save (reply se bhi · 1st, 2nd…)"),
-        (".listrm / .delrm <n> / .delallrm", "raid message slots (auto-shift + sab delete)"),
-        # rrt
-        (".rrt", "reply-raid turbo — target ka har message reply me saved slots se ek-ek"),
-        (".rrtb [slots]", "BOTS bhi reply-raid karein (custom slots ok)"),
-        (".stoprrt", "sab RRT band (user + bots)"),
+        (".saverm <text>", "save a raid message slot (reply works too · 1st, 2nd…)"),
+        (".listrm / .delrm <n> / .delallrm", "raid message slots (auto-shift + delete all)"),
+        # reply raid
+        (".rrt / .rr", "reply-raid — every message the target sends gets a saved slot as reply (TOGGLE)"),
+        (".rrb [slots]", "BOTS reply-raid — bots send the saved messages (toggle)"),
+        (".rrtb [slots]", "same — full name version (toggle)"),
+        (".stoprrt / .stoprr", "stop all reply-raid (user + bots)"),
         # copycat
-        (".ct (reply) / .ct on/off", "COPYCAT — same message wapas / mode"),
-        (".ctb (reply) [slots] / .ctb on/off", "BOTS copycat — custom bots bhi"),
+        (".ct (reply) / .ct on/off", "MIRROR a user's every message same-to-same / self-copycat mode · `.ct copy` = one-shot"),
+        (".ctb (reply) [slots] / .ctb on/off", "BOTS mirror a user — specific bots too (`.ctb1-2`)"),
+        (".stopct / .ctstop", "stop copycat + all mirrors"),
         # stop system
-        (".stop / .stopall", "sab tasks / sab kuch band (tasks+RRT+CopyCat)"),
+        (".stop / .stopall", "stop all tasks / everything (tasks+reply-raid+copycat)"),
         (".stopb / .animstop", "bot tasks / animations stop"),
         (".spamstop / .sspamstop", "text spam / sticker spam stop"),
-        (".stopraid / .raidstop", "raid tasks + RRT band"),
-        (".raidbstop / .stopraidb", "sirf bot raid stop"),
+        (".stopraid / .raidstop", "raid tasks + reply-raid off"),
+        (".raidbstop / .stopraidb", "stop only the bot raid"),
         # ux
-        (".autodelete on/off", "pichla command output auto-delete — DEFAULT ON"),
-        (".addsudo / .delsudo / .listsudo", "bots ka control SUDO users ko do"),
-        (".bccheck", "self-diagnosis — versions/API/bots/dirs/st Sab ek card me"),
-        (".bchelp / .bch / .bothelp", "ye help card"),
+        (".autodelete on/off", "previous command output auto-delete — DEFAULT ON"),
+        (".autodeletem <sec>", "every command output self-deletes after <sec> seconds (help/spam-done/raid-done) — 0/off = disable"),
+        (".addsudo / .delsudo / .listsudo", "give SUDO users control of the bots"),
+        (".bccheck", "self-diagnosis — versions/API/bots/dirs/states in one card"),
+        (".fixprivacy", "force BotFather /setprivacy Disable on all bots (reply/mirror needs it)"),
+        (".bchelp / .bch / .bothelp", "this help card"),
     ],
 }

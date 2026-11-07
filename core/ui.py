@@ -13,6 +13,7 @@ core/ui.py — SUKUNA-X DOMAIN v7.0 PHANTOM EDITION UI engine
 """
 import asyncio
 import os
+import re
 import sys
 import time
 import random
@@ -40,11 +41,13 @@ _MODULE_ICONS = {
     "net": "🌐", "party": "🎉", "prememoji": "✨", "profile": "👤", "raid": "⚔️", "remind": "⏰",
     "safety": "🛡️", "spam": "📨", "stickers": "🩹", "sukuna": "👑", "tags": "🏷",
     "texttools": "🔤", "tools": "🧰", "util": "🧷", "web": "🌍",
+    "botcontroller": "🤖", "settings": "⚙️",
 }
 
 _MENU_ORDER = [
     "sukuna", "ai", "animations", "profile", "dp", "idvault", "prememoji", "admin",
     "extra", "farmer", "fun", "games", "tools", "media", "stickers", "spam", "raid",
+    "botcontroller", "settings",
     "chat", "events", "info", "net", "web", "misc", "party", "tags",
     "texttools", "util", "afk", "antipm", "remind", "safety",
 ]
@@ -86,11 +89,16 @@ _MODULE_TYPES = {
     "fun": "Fun", "party": "Fun", "extra": "Fun", "games": "Fun", "prememoji": "Fun",
     # 📨 mass actions
     "spam": "Mass Actions",
+    # 🤖 bot army
+    "botcontroller": "Mass Actions",
+    # ⚙️ settings (customization hub)
+    "settings": "Settings",
 }
 
 _TYPE_ICONS = {
     "Special": "👑", "AI & Media": "🧠", "Profile": "👤",
     "Group Admin": "🛠", "Utility": "🔧", "Fun": "🎉", "Mass Actions": "📨",
+    "Settings": "⚙️",
 }
 
 
@@ -311,7 +319,7 @@ def register_builtin_commands(client) -> None:
         await asyncio.sleep(0.3)
         await event.edit(
             f"✦━━━━━━〔 ⚡ **SUKUNA-X DOMAIN** ⚡ 〕━━━━━━✦\n"
-            f"💚 **ONLINE & KHATARNAK** • `v{BOT_VERSION}`\n"
+            f"💚 **ONLINE & DANGEROUS** • `v{BOT_VERSION}`\n"
             f"{_sep()}\n"
             f"┃ 👤 **Owner** : {me.first_name} ({uname}) `[{me.id}]`\n"
             f"┃ 🏷 **Account** : `{acct}` • 📡 DC `{dc}`\n"
@@ -445,7 +453,7 @@ def register_builtin_commands(client) -> None:
         for mod, meta in _ordered_modules():
             by_type.setdefault(_module_type(mod), []).append((mod, meta))
         type_order = ["Special", "AI & Media", "Profile", "Group Admin",
-                      "Utility", "Fun", "Mass Actions"]
+                      "Utility", "Fun", "Mass Actions", "Settings"]
         lines = [
             "✦ ━━━〔 🧩 PLUGIN LOADER 〕━━━ ✦",
             f"✅ `{len(_state.command_registry)}` plugins online • ⌨️ `{_total_commands()}` cmds",
@@ -573,6 +581,180 @@ def register_builtin_commands(client) -> None:
             return await event.edit(f"⬇️ **Updated!**\n`{out}`\n\nNow do `.restart` to reload.",
                                     link_preview=False)
         await event.edit(f"❌ Update failed:\n`{out}`", link_preview=False)
+
+    # ── .updateuserbot — update from GitHub repo + auto-restart ─────────
+    # v7.7: VERSION GUARD — never downgrades. If the GitHub version is
+    # older than (or equal to) the local one, nothing is touched. This
+    # protects directly-uploaded deployments (SSH/ZIP) from being reverted
+    # to an old git state by accident.
+    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.updateuserbot(?:\s+(force))?$"))
+    async def _updateuserbot_handler(event):
+        base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        force = bool(event.pattern_match.group(1))
+        await event.edit("🔄 **SUKUNA-X updater** — pulling latest from GitHub…",
+                         link_preview=False)
+
+        def _ver_tuple(v):
+            try:
+                return tuple(int(x) for x in re.findall(r"\d+", str(v))[:3])
+            except Exception:
+                return (0,)
+
+        def _remote_git_version():
+            import subprocess
+            try:
+                b = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                                   cwd=base, capture_output=True, text=True,
+                                   timeout=30)
+                branch = (b.stdout or "main").strip() or "main"
+                r = subprocess.run(["git", "show", f"origin/{branch}:core/config.py"],
+                                   cwd=base, capture_output=True, text=True,
+                                   timeout=30)
+                m = re.search(r"BOT_VERSION\s*=\s*[\"']([\d.]+)[\"']", r.stdout or "")
+                return m.group(1) if m else None
+            except Exception:
+                return None
+
+        def _git_update():
+            import subprocess
+            if not os.path.isdir(os.path.join(base, ".git")):
+                return None, "no-git"
+            try:
+                subprocess.run(["git", "fetch", "origin"], cwd=base,
+                               capture_output=True, text=True, timeout=120)
+                b = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                                   cwd=base, capture_output=True, text=True,
+                                   timeout=30)
+                branch = (b.stdout or "main").strip() or "main"
+                # 🛡 version guard — refuse to downgrade a newer deployment
+                if not force:
+                    rv = _remote_git_version()
+                    if rv and _ver_tuple(rv) <= _ver_tuple(BOT_VERSION):
+                        return False, (
+                            f"already-latest|local v{BOT_VERSION} ≥ remote v{rv}")
+                r = subprocess.run(["git", "reset", "--hard", f"origin/{branch}"],
+                                   cwd=base, capture_output=True, text=True,
+                                   timeout=120)
+                return (r.returncode == 0), ((r.stdout or "") + (r.stderr or ""))[-300:]
+            except Exception as e:
+                return False, str(e)[:200]
+
+        def _tar_update():
+            """No .git on the server — download the repo tarball instead."""
+            import tarfile as _tarfile
+            import tempfile as _tempfile
+            import urllib.request as _urlreq
+            url = ("https://codeload.github.com/j66320238-crypto/sukuna-x-domain"
+                   "/tar.gz/refs/heads/main")
+            tmpd = _tempfile.mkdtemp(prefix="sukuna_up_")
+            tgz = os.path.join(tmpd, "repo.tar.gz")
+            try:
+                req = _urlreq.Request(url, headers={
+                    "User-Agent": "SukunaX-Updater/" + BOT_VERSION})
+                with _urlreq.urlopen(req, timeout=90) as resp, open(tgz, "wb") as fh:
+                    fh.write(resp.read())
+                # 🛡 version guard — read remote BOT_VERSION from the tarball
+                if not force:
+                    with _tarfile.open(tgz, "r:gz") as tf:
+                        for m in tf.getmembers():
+                            if m.name.endswith("core/config.py"):
+                                try:
+                                    head = tf.extractfile(m).read(4096).decode(
+                                        "utf-8", "ignore")
+                                except Exception:
+                                    head = ""
+                                import re as _re2
+                                mm = _re2.search(
+                                    r"BOT_VERSION\s*=\s*[\"']([\d.]+)[\"']", head)
+                                if mm and _ver_tuple(mm.group(1)) <= _ver_tuple(BOT_VERSION):
+                                    return False, (
+                                        f"already-latest|local v{BOT_VERSION} ≥ "
+                                        f"remote v{mm.group(1)}")
+                                break
+                extracted = 0
+                with _tarfile.open(tgz, "r:gz") as tf:
+                    for m in tf.getmembers():
+                        parts = m.name.split("/", 1)
+                        if len(parts) != 2:
+                            continue          # top-level dir itself — skip
+                        rel = parts[1]
+                        if (rel.startswith("data/") or rel.startswith(".git/")
+                                or "/.git/" in rel or rel.endswith(".session")
+                                or rel.endswith(".session-journal")):
+                            continue          # never touch sessions/data
+                        dest = os.path.join(base, rel)
+                        if m.isdir():
+                            try:
+                                os.makedirs(dest, exist_ok=True)
+                            except Exception:
+                                pass
+                            continue
+                        if not m.isfile():
+                            continue
+                        os.makedirs(os.path.dirname(dest), exist_ok=True)
+                        with tf.extractfile(m) as srcf, open(dest, "wb") as out:
+                            out.write(srcf.read())
+                        extracted += 1
+                return True, f"{extracted} files updated from GitHub"
+            except Exception as e:
+                return False, f"{type(e).__name__}: {e}"[:200]
+            finally:
+                try:
+                    import shutil as _sh
+                    _sh.rmtree(tmpd, ignore_errors=True)
+                except Exception:
+                    pass
+
+        loop = asyncio.get_running_loop()
+        code, out = await loop.run_in_executor(None, _git_update)
+        if code is None:                      # not a git repo → tarball route
+            code, out = await loop.run_in_executor(None, _tar_update)
+        if not code:
+            if str(out).startswith("already-latest|"):
+                return await event.edit(
+                    "✅ **Already on the latest build.** 👑\n"
+                    f"┃ `{str(out).split('|', 1)[1]}`\n"
+                    "┃ push newer code to GitHub first, or use "
+                    "`.updateuserbot force`",
+                    link_preview=False)
+            return await event.edit(
+                f"❌ **Update failed:**\n`{out}`\n\n"
+                "💡 Check internet on the server, or deploy manually via SSH.",
+                link_preview=False)
+
+        # requirements refresh (best-effort, never blocks the update)
+        def _pip():
+            import subprocess
+            req = os.path.join(base, "requirements.txt")
+            if not os.path.exists(req):
+                return ""
+            try:
+                r = subprocess.run([sys.executable, "-m", "pip", "install", "-q",
+                                    "-r", req], cwd=base, capture_output=True,
+                                   text=True, timeout=240)
+                return (r.stderr or r.stdout or "")[-200:]
+            except Exception as e:
+                return str(e)[:150]
+
+        pip_out = await loop.run_in_executor(None, _pip)
+        msg = f"✅ **Updated!**\n`{out}`\n"
+        if pip_out:
+            msg += f"📦 pip: `{pip_out}`\n"
+        msg += "♻️ Restarting now…"
+        try:
+            await event.edit(msg, link_preview=False)
+        except Exception:
+            pass
+        await asyncio.sleep(1.2)
+        for t in list(_state.stop_processes.values()):
+            if not t.done():
+                t.cancel()
+        _state.stop_processes.clear()
+        try:
+            await client.disconnect()
+        except Exception:
+            pass
+        os.execl(sys.executable, sys.executable, *sys.argv)
 
     # ── .crashlog ────────────────────────────────────────────────────────
     @client.on(events.NewMessage(outgoing=True, pattern=r"^\.crashlog(?:\s+(\d+))?$"))

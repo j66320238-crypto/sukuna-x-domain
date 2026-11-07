@@ -37,8 +37,8 @@ _8BALL = [
 
 # ============================================================================
 #  TYPE-X ⌨️ — auto typewriter system
-#  .type on          → ab HAR message automatic typewriter animation me jayega
-#  .type off         → auto mode band (".type of" bhi chalega)
+#  .type on          → EVERY message gets the automatic typewriter animation
+#  .type off         → auto mode off (".type of" also works)
 #  .type styles      → saare styles ki gallery
 #  .type <style>     → style set karo (classic wave glitch scramble matrix
 #                      pulse fire hearts zoom eraser reverse random)
@@ -64,21 +64,21 @@ _TX_CURSORS = {
 }
 _GLITCH_CHARS = "░▒▓█▓▒░▒▓"
 _SCRAMBLE_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789"
-_TX_MAX_CHARS = 300     # isse lambe messages auto-animate nahi hote
+_TX_MAX_CHARS = 300     # longer messages are not auto-animated
 _TX_MAX_FRAMES = 24     # per-message frame cap (flood-safe)
 _TX_STYLE_HINTS = {
-    "classic":  "classi typewriter cursor ▌",
+    "classic":  "classic typewriter cursor ▌",
     "wave":     "bold wave char-by-char",
-    "glitch":   "░▒▓ glitch blocks resolve hote hain",
-    "scramble": "random letters decode ho ke text bante hain",
-    "matrix":   "binary bits ke saath type",
+    "glitch":   "░▒▓ glitch blocks resolving",
+    "scramble": "random letters decode into text",
+    "matrix":   "types with binary bits",
     "pulse":    "💓 heartbeat cursor",
     "fire":     "🔥 fire cursor",
     "hearts":   "❤️ love cursor",
-    "zoom":     "letters spacing se zoom-in hote hain",
+    "zoom":     "letters zoom-in with spacing",
     "eraser":   "type → erase → retype story",
-    "reverse":  "ulta type phir snap flip",
-    "random":   "har message naya style 🎲",
+    "reverse":  "types reversed then flips",
+    "random":   "every message gets a new style 🎲",
 }
 
 
@@ -205,7 +205,7 @@ async def _tx_animate(msg, text: str, style: str = None,
     """Play typewriter frames on an existing message (flood-safe).
 
     plain=True → final edit raw text with NO entities (auto-mode: message
-    bilkul waise hi dikhta hai jaise user ne type kiya tha).
+    looks exactly like the user typed it live).
     """
     frames = _tx_frames(text, style)
     if len(frames) < 2:
@@ -430,8 +430,8 @@ def register_fun(client):
         if not arg:
             return await event.edit(
                 "✦ ━━━〔 ⌨️ **TYPE-X SYSTEM** 〕━━━ ✦\n"
-                "┃ `.type on` — har message auto animation me\n"
-                "┃ `.type off` — auto mode band\n"
+                "┃ `.type on` — every message gets auto animation\n"
+                "┃ `.type off` — auto mode off\n"
                 "┃ `.type styles` — 12 animation styles\n"
                 "┃ `.type <style>` — style set (`.type glitch`)\n"
                 "┃ `.type speed 0.2` — frame speed (0.05–1.0s)\n"
@@ -446,10 +446,10 @@ def register_fun(client):
             _tx_save()
             return await event.edit(
                 "✦ ━━━〔 ⌨️ **TYPE-X: ON** 〕━━━ ✦\n"
-                "✅ Ab tumhara **har message** automatic typewriter animation\n"
-                "   me jayega — jaise `.type` hota hai, bas auto!\n\n"
+                "✅ Every **message** you send now gets the automatic typewriter\n"
+                "   animation — like `.type`, but fully automatic!\n\n"
                 f"🎬 Style: **{_TX_STATE['style']}** · ⚡ Speed: `{_TX_STATE['speed']}s`\n"
-                "💡 `.type styles` — 12 styles · `.type off` — band karo\n"
+                "💡 `.type styles` — 12 styles · `.type off` — turn off\n"
                 "_🛡 Storm/flood me auto-skip (ID safe)_",
                 link_preview=False)
 
@@ -457,18 +457,18 @@ def register_fun(client):
             _TX_STATE["on"] = False
             _tx_save()
             return await event.edit(
-                "⏹ **TYPE-X auto mode OFF** — messages ab normal jayenge.\n"
-                "💡 `.type on` — dobara chalu · `.type <text>` — one-shot",
+                "⏹ **TYPE-X auto mode OFF** — messages now go out normal.\n"
+                "💡 `.type on` — resume · `.type <text>` — one-shot",
                 link_preview=False)
 
         if low in ("status", "info"):
             return await event.edit(
                 "✦ ━━━〔 ⌨️ **TYPE-X STATUS** 〕━━━ ✦\n"
-                f"┃ Mode  : {'🟢 ON — har message animated' if _TX_STATE['on'] else '⛔ OFF'}\n"
+                f"┃ Mode  : {'🟢 ON — every message animated' if _TX_STATE['on'] else '⛔ OFF'}\n"
                 f"┃ Style : **{_TX_STATE['style']}**\n"
                 f"┃ Speed : `{_TX_STATE['speed']}s` per frame\n"
                 f"┃ Frames: ≤{_TX_MAX_FRAMES * 2}/message (flood-safe cap)\n"
-                f"┃ Saved : restart ke baad bhi yaad ✅\n"
+                f"┃ Saved : persists across restarts ✅\n"
                 "✦ ━━━━━━━━━━━━━━━━━━ ✦",
                 link_preview=False)
 
@@ -480,7 +480,7 @@ def register_fun(client):
                 f"{style_list}\n"
                 "✦ ━━━━━━━━━━━━━━━━━━ ✦\n"
                 "💡 `.type glitch` — set karo · `.type on` — auto mode\n"
-                "_`random` = har message naya style_",
+                "_`random` = every message gets a new style_",
                 link_preview=False)
 
         if low.split()[0] in ("speed", "spd") and len(low.split()) == 2:
@@ -504,7 +504,7 @@ def register_fun(client):
                 f"🎬 TYPE-X style set: **{low}** {_TX_STYLE_HINTS[low]}\n"
                 f"⚡ Speed: `{_TX_STATE['speed']}s` · Mode: "
                 f"{'🟢 ON' if _TX_STATE['on'] else '⛔ OFF'}\n"
-                "_`.type on` se auto mode chalu karo_",
+                "_turn on the auto mode with `.type on`_",
                 link_preview=False)
 
         # ---- one-shot animation (purana behaviour — ab styles ke saath) ----
@@ -660,7 +660,7 @@ COMMANDS_FUN = {
         (".choose a | b | c", "random picker"),
         (".roll [N|XdY]", "dice roller"),
         (".echo / .say <text>", "repeat text (deletes command)"),
-        (".type on / .type off", "AUTO typewriter mode — har message animated"),
+        (".type on / .type off", "AUTO typewriter mode — every message animated"),
         (".type styles / <style>", "12 styles: glitch wave matrix scramble…"),
         (".type speed 0.2 / status", "frame speed / TYPE-X status card"),
         (".type <text>", "one-shot typewriter (current style me)"),

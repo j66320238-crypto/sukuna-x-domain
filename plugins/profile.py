@@ -291,16 +291,12 @@ async def _clone_profile(client, event, target, full: bool = False):
             await asyncio.sleep(fw.seconds + 1)
             await client(UpdateProfileRequest(first_name=first_name, last_name=last_name, about=bio))
 
-        # delete old photos
-        if downloaded:
-            await safe_sleep(0.8, floor=0.4)
-            if full:
-                await _delete_all_profile_photos(client)
-            else:
-                # for main clone, delete all too to make clean (or just 1)
-                await _delete_all_profile_photos(client)
+        # v7.6 FIX: ALWAYS clear our photos first — if the target has no DP
+        # the clone stays clean (no DP), if they have one it gets replaced.
+        await safe_sleep(0.8, floor=0.4)
+        await _delete_all_profile_photos(client)
 
-        # upload new photos
+        # upload new photos (only if the target actually has any)
         if downloaded:
             # for full clone, upload oldest first so newest becomes main
             to_upload = list(reversed(downloaded)) if full else downloaded
@@ -328,7 +324,7 @@ async def _clone_profile(client, event, target, full: bool = False):
             )
         else:
             await event.edit(
-                f"`✅ Profile cloned (no photo)\n"
+                f"`✅ Profile cloned — no DP (all photos cleared, exact copy)\n"
                 f"Name: {first_name} {last_name}\n"
                 f"Bio: {bio or 'N/A'}`"
             )
@@ -350,40 +346,69 @@ def register_profile(client):
     if not hasattr(client, "vo_enabled"):
         client.vo_enabled = False
 
-    # .clone — main clone
+    # .clone — main clone (reply to a user OR give a @username)
     @client.flood_safe
     async def clone_handler(event):
-        if not event.is_reply:
-            await event.edit("`➤ Reply to user to clone. Use .fclone for full copy.`")
+        arg = (event.pattern_match.group(1) or "").strip()
+        is_full = arg.lower() in ("full", "f", "all", "fullcopy")
+        target = None
+        if event.is_reply:
+            reply = await event.get_reply_message()
+            if not reply:
+                await event.edit("`➤ No replied message.`")
+                return
+            try:
+                target = await reply.get_input_sender()
+            except Exception as e:
+                await event.edit(f"`➤ Failed to get target: {e}`")
+                return
+        elif arg and not is_full:
+            # v7.6: clone by username — .clone @name / .clone t.me/name
+            uname = (arg.replace("https://t.me/", "").replace("t.me/", "")
+                     .lstrip("@").split("?")[0].strip())
+            if not uname:
+                await event.edit("`➤ Usage: reply to a user, or .clone @username`")
+                return
+            try:
+                target = await client.get_input_entity(uname)
+            except Exception as e:
+                await event.edit(
+                    f"`➤ Could not resolve @{uname}: {e}`\n"
+                    "`   (open a chat with them once, then try again)`")
+                return
+        else:
+            await event.edit("`➤ Reply to a user to clone, or use .clone @username. Use .fclone for full copy.`")
             return
-        reply = await event.get_reply_message()
-        if not reply:
-            await event.edit("`➤ No replied message.`")
-            return
-        try:
-            target = await reply.get_input_sender()
-        except Exception as e:
-            await event.edit(f"`➤ Failed to get target: {e}`")
-            return
-        # check arg full
-        arg = (event.pattern_match.group(1) or "").strip().lower()
-        is_full = arg in ("full", "f", "all", "fullcopy")
         await _clone_profile(client, event, target, full=is_full)
 
-    # .fclone — full clone (all photos/videos)
+    # .fclone — full clone (all photos/videos), reply OR @username
     @client.flood_safe
     async def fclone_handler(event):
-        if not event.is_reply:
-            await event.edit("`➤ Reply to user for full clone (.fclone).`")
-            return
-        reply = await event.get_reply_message()
-        if not reply:
-            await event.edit("`➤ No replied message.`")
-            return
-        try:
-            target = await reply.get_input_sender()
-        except Exception as e:
-            await event.edit(f"`➤ Failed: {e}`")
+        arg = (event.pattern_match.group(1) or "").strip()
+        target = None
+        if event.is_reply:
+            reply = await event.get_reply_message()
+            if not reply:
+                await event.edit("`➤ No replied message.`")
+                return
+            try:
+                target = await reply.get_input_sender()
+            except Exception as e:
+                await event.edit(f"`➤ Failed: {e}`")
+                return
+        elif arg:
+            uname = (arg.replace("https://t.me/", "").replace("t.me/", "")
+                     .lstrip("@").split("?")[0].strip())
+            if not uname:
+                await event.edit("`➤ Usage: reply to a user, or .fclone @username`")
+                return
+            try:
+                target = await client.get_input_entity(uname)
+            except Exception as e:
+                await event.edit(f"`➤ Could not resolve @{uname}: {e}`")
+                return
+        else:
+            await event.edit("`➤ Reply to a user for full clone (.fclone), or .fclone @username.`")
             return
         await _clone_profile(client, event, target, full=True)
 
@@ -400,7 +425,7 @@ def register_profile(client):
                 await _delete_all_profile_photos(client)
                 await event.edit(
                     f"`✅ Reverted to {DEFAULT_NAME}`\n"
-                    "⚠️ Backup nahi tha — agli baar `.clone` se pehle backup auto-save ho jayega.")
+                    "⚠️ No backup existed — from now on a backup is auto-saved before every `.clone`.")
             except FloodWaitError as e:
                 await event.edit(f"`⏳ FloodWait: {e.seconds}s`")
             except Exception as e:
@@ -425,7 +450,7 @@ def register_profile(client):
                 f"Name: `{first} {last}`\n"
                 f"Bio: `{bio or '—'}`\n"
                 f"DP: `{photo_note}`\n"
-                "💡 Ab profile bilkul pahle jaisa hai.")
+                "💡 Your profile is back exactly how it was before.")
         except FloodWaitError as e:
             await event.edit(f"`⏳ FloodWait: {e.seconds}s`")
         except Exception as e:
@@ -457,11 +482,11 @@ def register_profile(client):
                 members.append(u)
         except Exception:
             return await event.edit(
-                "`➤ .rclone sirf group/chat me chalega — participants fetch nahi hue.`")
+                "`➤ .rclone works only in groups/chats — could not fetch participants.`")
 
         if not members:
             return await event.edit(
-                "`➤ Group me clone karne layak koi member nahi mila.`")
+                "`➤ No cloneable member found in this group.`")
 
         victim = random.choice(members)
         disp = " ".join(x for x in (
@@ -475,7 +500,7 @@ def register_profile(client):
             target = victim  # full User object also works as entity
 
         await event.edit(
-            f"`🎲 Random target mil gaya: {disp} — cloning...`")
+            f"`🎲 Random target picked: {disp} — cloning...`")
         await _clone_profile(client, event, target, full=is_full)
 
     # .saveprofile <name> — save replied user's full profile
@@ -1046,7 +1071,7 @@ def register_profile(client):
             old.cancel()
             await asyncio.sleep(0.5)
 
-        await event.edit(f"`✅ AutoPFP started: {len(files)} photo(s) every {hours}h from `{source_dir}`\nHuman-like delays + no flood.`")
+        await event.edit(f"✅ AutoPFP started: {len(files)} photo(s) every {hours}h from `{source_dir}`\nHuman-like delays + no flood.")
 
         async def _autopfp_loop():
             idx = 0
@@ -1128,14 +1153,14 @@ def register_profile(client):
 COMMANDS_PROFILE = {
     "description": "Profile & PFP Tools (Full Clone + Video)",
     "commands": [
-        (".clone [full]", "clone main profile (reply) — add 'full' for all photos"),
-        (".fclone", "full clone — all photos/videos (reply)"),
-        (".rclone [full]", "group me RANDOM member ka clone — bina reply ke"),
-        (".revert", "pahle jaisa — pre-clone state wapas restore"),
+        (".clone [full] / .clone @username", "clone a profile (reply to them OR give their @username) — add 'full' for all photos"),
+        (".fclone / .fclone @username", "full clone — all photos/videos"),
+        (".rclone [full]", "clone a RANDOM group member — no reply needed"),
+        (".revert", "restore your pre-clone state (name/bio/DP)"),
         (".saveprofile <name>", "save full profile (all pfps)"),
         (".loadprofile <name>", "load main photo + name/bio"),
         (".floadprofile <name> / .loadprofile <name> full", "load full copy (all photos)"),
-        (".savedprofiles / .delprofile", "list / delete saved"),
+        (".savedprofiles / .delprofile", "list / delete saved profiles"),
         (".pfpsave / .savepfp", "save own or replied user's pfps"),
         (".getpfp [n]", "get replied user's pfps (1-20)"),
         (".setpfp", "set pfp from replied photo/video"),

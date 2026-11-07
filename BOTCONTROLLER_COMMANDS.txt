@@ -1,5 +1,5 @@
 ════════════════════════════════════════════════════════════════════
-  🤖 BOTCONTROLLER v7.4.1 — POORI COMMAND LIST (Hinglish)
+  🤖 BOTCONTROLLER v7.5 — POORI COMMAND LIST (Hinglish)
 ════════════════════════════════════════════════════════════════════
 
 📦 INSTALL (zip poora ready-made hai):
@@ -12,7 +12,7 @@
   ⚠️ hamesha python userbot.py chalao — bot.py sirf TEST-BOT mode hai
      (usme BotController ke commands NAHI hote!)
 
-🆕 = v7.4/7.4.1 me NEW ya bada-badla hua · ✅ = pehle se tha, ab bug-free
+🆕 = v7.4/7.4.1 me NEW · ⚡ = v7.5 me NEW/FIXED · ✅ = pehle se tha, ab bug-free
 
 ──────────────────────────────────────────────────────────────────────
  1️⃣  BOT ADD / MANAGE
@@ -70,10 +70,12 @@
                           saved slots rotate (1st → 2nd → 3rd…)
      ex: .raid 20  ·  .raid 20 hello  ·  reply + .raid 20
 
-  .raidb [slots] <n> [txt] 🆕 BOT raid — ab reply OPTIONAL hai
-     ex: reply + .raidb 10     → victim par bot raid
-          .raidb 10 hello      → pura chat raid (bina reply)
-          .raidb1-3 10         → sirf 1st-3rd bots
+  .raidb [slots] <n> [gap] [txt] ⚡ v7.5 — reply+TAG dono + GAP support
+     ex: reply + .raidb 10 .1  → victim par 10 baar, 0.1s gap (reply+tag)
+          .raidb 10 .1         → saved messages se, 10x @ 0.1s gap
+          .raidb 10 .1 hello   → apne text se (gap ke saath)
+          .raidb1-3 10 .1      → sirf 1st-3rd bots
+          .raidb 10            → pura chat raid (default 0.3s gap)
 
   📜 RAID MESSAGE SLOTS (saverm system):
   .saverm <text>        ✅ slot save — 1st, phir 2nd, 3rd...
@@ -84,11 +86,12 @@
      (3rd delete karo → purana 4th ab 3rd ban jayega)
   .delallrm             🆕 sab slots ek saath delete
 
-  .rrt                  ✅ REPLY-RAID TURBO (user): kisi par reply karke
+  .rr / .rrt            ⚡ v7.5 REPLY-RAID (user, TOGGLE): reply karke
                           likho → uska HAR message reply me saved slots
                           me se ek-ek aayega
-  .rrtb [slots]         ✅ BOTS wala RRT  · ex: .rrtb  /  .rrtb2-3
-  .stoprrt              ✅ sab RRT band
+  .rrb / .rrtb [slots]  ⚡ BOTS wala reply-raid · ex: .rrb / .rrb2-3
+     ♻️ TOGGLE: dobara .rr/.rrb usi user par = band ho jata hai
+  .stoprrt / .stoprr    ⚡ sab RRT/RR band (user + bots)
 
   🛠 v7.4 NOTE: purane error-wale .drraid + uska listener HATA diye gaye.
      Ab sirf .rrt / .rrtb hai (better + bots support).
@@ -177,6 +180,8 @@
   🆕 NAYE: .addnewbotauto · .loadprofileb · .ct (one-shot) · .ctb
       (one-shot) · .stopall · .spamstop · .sspamstop · .stopraid ·
       .raidstop · .raidbstop · .stopraidb · .animstop · .autodelete ·
+      .autodeletem <sec> ⚡ (har output <sec> me khud delete — help card,
+      spam-done, raid-done info sab) · off: .autodeletem off ·
       .addsudo · .delsudo · .listsudo · .delallrm · .bccheck
   🛠 FIX HUE: .addallb (ImportError) · .cloneb/.revertb
       (BotMethodInvalid) · .raidb (reply optional) · .help auto-upgrade

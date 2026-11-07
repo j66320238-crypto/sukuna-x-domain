@@ -1,124 +1,453 @@
-╔══════════════════════════════════════════════════════════════════════╗
-║        SUKUNA-X DOMAIN v7.4.2 — NAYE / PURANE COMMANDS KI LIST        ║
-╚══════════════════════════════════════════════════════════════════════╝
+SUKUNA-X DOMAIN v7.6 — FULL COMMAND LIST (auto-generated)
+============================================================
 
-━━━ 🚨 IS UPDATE (v7.4.2) ME KYA-KYA FIX HUA ━━━━━━━━━━━━━━━━━━━━━━━━━
+### admin — Group Admin Tools  (16 cmds)
+  .ban [reason]                                  ban replied user
+  .unban                                         unban user
+  .kick [reason]                                 kick replied user
+  .promote [title]                               promote to admin
+  .demote                                        demote admin
+  .mute [min]                                    mute user
+  .unmute                                        unmute user
+  .pin / .unpin / .unpinall                      manage pins
+  .del                                           delete replied msg
+  .purge [n]                                     mass delete
+  .lock <type> / .unlock <type>                  chat locks
+  .autobl on|off|list — user messages auto-delete (admin) auto-delete a user's msgs
+  .admins                                        list chat admins
+  .warn / .warnings / .resetwarn                 warn system (3=ban)
+  .gban / .ungban                                global ban across chats
+  .antiflood on|off|status                       anti-flood mute
 
-  1. ⛔ SUDO-GATE FATAL BUG: `_bc_allow` galat attribute (`is_outgoing`)
-     check karta tha — wo Telethon me exist HI nahi karta → OWNER ke
-     apne commands bhi SILENTLY reject ho rahe the. Ab sahi (`out`).
-     → Yahi "bot ke commands kaam nahi kar rahe" ka ASLI ROOT CAUSE tha.
-  2. ⛔ AUTODELETE RACE: command ka apna output usi ke dispatch me
-     khud delete ho jata tha (instant-vanish). Ab protect_id guard.
-  3. ⛔ DOUBLE-START LOCK: do instances ek hi session par = "database
-     is locked" + session corruption (edits galat chat par jaate the).
-     Ab instance-lock — dusri instance turant clear message ke saath exit.
-  4. ⛔ .revert STALE-BACKUP: sirf pehli-baar backup hota tha — purana
-     (stale) profile restore ho jata tha. Ab HAR .clone se pehle FRESH
-     backup → .revert hamesha "pichla" state restore karta hai.
-  5. ⛔ .revertb PHOTO LEAK: bot ka original state photo-less tha to
-     cloned photo revert ke baad bhi lagi reh jaati thi. Ab clear hoti hai.
-  6. 🧹 DUPLICATE COMMANDS: .ping/.sysinfo/.matrix/.fire/.8ball/.wiki
-     do-do baar register the (double responses). Ab ek hi sahi version.
-  7. 🧹 .autodelete CONFLICT: admin.py ka user-autobl feature vs
-     botcontroller ka output-autodelete — dono same naam. Admin wala
-     ab `.autobl` hai.
-  8. 🔍 SILENT ERRORS: _Ev.edit/reply ke chhupe exceptions ab log me
-     dikhte hain (invisible failures khatam).
-  9. 🔑 SESSION/ACCOUNT FIX: userbot.py stale ACCOUNT import — ab
-     account-name session sahi use hota hai (live check).
- 10. 🤖 BOTS: `Bots can't send messages to other bots` jaise errors ke
-     saath BotFather automation (addnewbotauto / cloneb / revertb)
-     live-tested & working. Bot clients ka lazy-connect bhi tested.
+### afk — AFK — Away From Keyboard  (2 cmds)
+  .afk [reason]                                  go AFK, auto-reply to mentions/DMs
+  .back                                          return from AFK (shows away time)
 
-━━━ 🆕 NAYE COMMANDS (BotController — bot ARMY) ━━━━━━━━━━━━━━━━━━━━━━━
+### ai — AI Tools  (6 cmds)
+  .ai <prompt>                                   chat with AI (free, no key)
+  .gpt <prompt>                                  alias of .ai
+  .imagine <prompt>                              AI image generation
+  .imgai <prompt>                                alias of .imagine
+  .fact                                          random mind-blowing fact
+  .advice                                        random life advice
 
-  BOT MANAGEMENT
-    .addbottoken <token>      bot add karo (validate + list + frozen check)
-    .addnewbotauto [n]         BotFather se KHUD naya bot banao
-                              (name: worker, username auto …bot, retry ke saath)
-    .botlist / .listbots       saare bots + frozen status
-    .monitorb                  LIVE online/frozen status + naam
-    .refreshb                  sab bots reconnect
-    .delbottoken/.delbot <n>   bot delete + slots auto-shift
-    .bccheck                   🩺 self-diagnosis (versions/creds/dirs/bots)
+### animations — Animations (88)  (25 cmds)
+  .hack .matrix .bomb .shoot                     terminal / action
+  .deploy .os .server .download                  v7 tech stories
+  .solarsystem .radar .wifi .charging            v7 systems & space
+  .music .gamer .spinner .energy                 v7 vibes
+  .quickheal .heartbeat .shield                  v7 protection & life
+  .moon .clock .earth .stars                     sky loops
+  .heart .love .kiss .slap                       love & fun
+  .fire .rocket .loading .loader                 energy / progress
+  .dance .wave .ghost .party                     party loops
+  .rain .snow .storm .siren                      weather / alert
+  .snake .dino .ninja .fight                     characters
+  .plane .train .tank .run                       vehicles
+  .dice .cointoss .coin .magic                   games & magic
+  .brain .think .sleep .typing                   mind & chat
+  .typewriter .balloon .fuck                     text / fun
+  .countdown                                     10 → GO countdown
+  .pacman .pong .coffee .sunrise                 games & morning vibes
+  .car .ship .ufo                                more vehicles
+  .portal .wizard .galaxy                        magic & space
+  .fireworks .dj .battery                        party vibes
+  .nuke .kill .dragon .zombie                    action stories
+  .rose .moneyrain .ocean .holi                  vibes
+  .diwali .virus .race .casino                   desi & games
+  .bigoof .theart .police .butterfly             v5.3 showcase
+  .anims                                         this gallery
 
-  GROUP ADD/REMOVE
-    .addallb [slots]           sab bots current group me add
-    .addall 1-3                specific bots add
-    .removeallb                sab bots group se hatao
+### antipm — PM Guard (Anti-PM)  (7 cmds)
+  .pmguard on|off                                toggle PM guard
+  .setpmmsg <text>                               custom warning message
+  .setblockmsg <text>                            custom block message
+  .setlimit <n>                                  messages allowed before block
+  .approve / .a                                  approve replied user
+  .disapprove / .d                               disapprove replied user
+  .approved                                      list approved users
 
-  BOT DELEGATION (b = sab bots, b1-2 = specific)
-    .spamb <n> <gap> <text>    bots se spam      (.spamb1-2 = sirf 1st-2nd)
-    .sspamb <n> <gap> <text>   user + bots dono se spam
-    .raidb [n] <text>          bots se raid (reply = victim mention ke saath)
-    .rrt                       reply-raid turbo (user version)
-    .rrtb [slots]              bots reply-raid (target ke har msg ka reply)
-    .ctb                       bots replied message ka copy bhejein
-    .botsay <text>             bots bolein
-    .<animation>b              koi bhi animation bots se
-                              (.roseb .hackb .matrixb .countdownb …)
-    .<animation>b1-2           specific bots se animation
+### apis — API Toolkit (13)  (13 cmds)
+  .age <name>                                    age guess from name (census data)
+  .gender <name>                                 gender probability for a name
+  .nat <name>                                    top nationalities for a name
+  .horo <sign>                                   daily horoscope (desi naam bhi: singh, mesh…)
+  .news [topic]                                  top headlines / topic news search
+  .dns <domain> [type]                           DNS records lookup (A/AAAA/MX/TXT…)
+  .riddle                                        riddle + 10s baad answer reveal
+  .catfact                                       random cat fact 🐱
+  .uselessfact                                   random useless fact 🤓
+  .kanye                                         random Kanye West quote 🎤
+  .duck                                          random duck pic 🦆
+  .cafe                                          random coffee pic ☕
+  .nasa                                          NASA astronomy picture of the day 🔭
 
-  CLONE SYSTEM
-    .cloneb [slots]            bots = replied user ka clone
-                              (name+bio BotFather se, pfp MTProto se)
-    .revertb/.uncloneb [slots] bots wapas ORIGINAL state
-    .loadprofileb [slots] <nm> saved profile bots par
+### botcontroller — 🤖 BotController — Multi-Bot Army Command Center  (37 cmds)
+  .addbottoken <token>                           register a bot + verify the token (1st/2nd/3rd slots)
+  .addnewbotauto [n]                             create a new bot via BotFather automatically (name: worker, auto username, retries)
+  .delbottoken / .delbot <n>                     delete a bot — slots auto-shift
+  .listbots / .botlist                           all bots + frozen status
+  .monitorb                                      LIVE online/frozen check + every bot's name
+  .refreshb                                      reconnect all bots + try to clear frozen
+  .addallb [slots] / .addall 1-3                 add bots to the group (all / specific)
+  .removeallb                                    remove all bots from the group
+  .spamb <n> <sec> <txt>                         all bots text spam — interval has NO lower limit
+  .spamb1-2 <n> <sec> <txt>                      only specific bots spam
+  .sspam <n> <sec>                               user sticker spam (reply)
+  .sspamb <n> <sec>                              bots sticker spam (reply)
+  .raidb [slots] <n> [gap] [txt]                 bot raid — `.raidb 10 .1` = 10x, 0.1s gap; reply+tag both (use via reply) + saved slots rotate
+  .cloneb [slots]                                bots clone the replied user's profile (BotFather engine, DP logic included)
+  .revertb / .uncloneb [slots]                   bots back to their pre-clone (original) state
+  .loadprofileb [slots] <name>                   load a .saveprofile profile onto the bots
+  .botsay [slots] <txt>                          make the bots say something
+  .<anim>b [slots] [sec]                         run any animation on bots (.roseb, .hackb1-2)
+  .saverm <text>                                 save a raid message slot (reply works too · 1st, 2nd…)
+  .listrm / .delrm <n> / .delallrm               raid message slots (auto-shift + delete all)
+  .rrt / .rr                                     reply-raid — every message the target sends gets a saved slot as reply (TOGGLE)
+  .rrb [slots]                                   BOTS reply-raid — bots send the saved messages (toggle)
+  .rrtb [slots]                                  same — full name version (toggle)
+  .stoprrt / .stoprr                             stop all reply-raid (user + bots)
+  .ct (reply) / .ct on/off                       MIRROR a user's every message same-to-same / self-copycat mode · `.ct copy` = one-shot
+  .ctb (reply) [slots] / .ctb on/off             BOTS mirror a user — specific bots too (`.ctb1-2`)
+  .stopct / .ctstop                              stop copycat + all mirrors
+  .stop / .stopall                               stop all tasks / everything (tasks+reply-raid+copycat)
+  .stopb / .animstop                             bot tasks / animations stop
+  .spamstop / .sspamstop                         text spam / sticker spam stop
+  .stopraid / .raidstop                          raid tasks + reply-raid off
+  .raidbstop / .stopraidb                        stop only the bot raid
+  .autodelete on/off                             previous command output auto-delete — DEFAULT ON
+  .autodeletem <sec>                             every command output self-deletes after <sec> seconds (help/spam-done/raid-done) — 0/off = disable
+  .addsudo / .delsudo / .listsudo                give SUDO users control of the bots
+  .bccheck                                       self-diagnosis — versions/API/bots/dirs/states in one card
+  .bchelp / .bch / .bothelp                      this help card
 
-  RAID MESSAGE SLOTS
-    .saverm <text>             raid message slot save (1st, 2nd, 3rd…)
-    .listrm                    saved slots dekho
-    .delrm <n>                 slot delete + baaki AUTO-SHIFT
-    .delallrm                  sab slots delete
+### chat — Chat Filters & Notes (10)  (10 cmds)
+  .filter <word>                                 reply to a msg → auto-reply when <word> appears
+  .stopfilter <word>                             remove one filter in this chat
+  .filters                                       list filters of this chat
+  .delallfilters                                 delete ALL filters of this chat
+  .savenote <name>                               reply to a msg → save it as a note
+  .note <name>                                   send a saved note
+  .notes                                         list saved notes here
+  .delnote <name>                                delete one note
+  .delallnotes                                   delete all notes here
+  .sed s/old/new/                                reply → fix a typo in your own message
 
-  SUDO (bot control in logon ko bhi)
-    .addsudo (reply/id)        sudo user add
-    .delsudo (reply/id)        sudo user remove
-    .listsudo                  sudo list
+### dp — DP Pool & Auto Rotator  (11 cmds)
+  .adddp [n]                                     reply to a photo → save into the numbered pool
+  .dplist                                        list every pooled DP with its number
+  .getdp <n>                                     show pool DP number n in chat
+  .setdp <n>                                     apply pool DP number n as profile photo
+  .curdp                                         which pool number is the current DP?
+  .nextdp                                        instantly rotate to the next DP
+  .deldp <n|all>                                 delete one or all DPs (auto renumber)
+  .autodp <time> [shuffle]                       auto rotator: .autodp 2h / 45m / 6h shuffle
+  .dptime <time>                                 change the rotator timer LIVE
+  .dpstatus                                      full rotator status: interval/next ETA/current
+  .stopautodp                                    stop the rotator
 
-  AUTODELETE (output self-cleanup — default ON)
-    .autodelete on/off/status  naya command = pichla output khud delete
+### events — Welcome · Goodbye · Blacklist (8)  (8 cmds)
+  .welcome on|off                                greet new members of this group
+  .setwelcome <text>                             custom welcome text ({mention} {chat} {count})
+  .goodbye on|off                                farewell message when someone leaves
+  .setgoodbye <text>                             custom goodbye text
+  .blacklist on|off                              auto-delete banned words here
+  .blacklist add <words>                         add words (space separated)
+  .blacklist del <word>                          remove a word
+  .blacklist list                                show banned words
 
-  STOP FAMILY (sab kuch band karne ke liye)
-    .stop                      current chat ke tasks
-    .stopall                   SAB tasks (har jagah)
-    .stopb                     bot tasks
-    .spamstop / .sspamstop     user/user+bot spam
-    .stopraid / .raidstop      raid + RRT
-    .raidbstop / .stopraidb    bot raid
-    .stoprrt                   RRT (user+bots)
-    .animstop                  animations
-    .tasks                     running tasks list
+### extra — Extra Addons  (18 cmds)
+  .figlet <text>                                 fancy ASCII art
+  .imdb <movie>                                  IMDb search
+  .anime <name>                                  anime search (AniList)
+  .waifu                                         random waifu image
+  .pokedex <name>                                pokemon info
+  .truth                                         random truth question
+  .dare                                          random dare
+  .morse <text>                                  text → morse
+  .demorse <code>                                morse → text
+  .wiki <query>                                  Wikipedia summary
+  .covid [country]                               COVID stats
+  .fakeid                                        fake identity generator
+  .qrcode <text>                                 generate QR code
+  .ccarbon <code>                                color carbon info
+  .insta <url>                                   Instagram info
+  .ytdl <url>                                    YouTube info
+  .autobio on|off                                auto bio with time
+  .accounts                                      list saved accounts (startup manager)
 
-━━━ 🔄 BADLE HUE / RENAMED COMMANDS ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+### farmer — Isolation Farmer  (23 cmds)
+  .mstart <mode> [amt] [limit] [gap] [gap]       start farming THIS group (kill/rob/mixed/smart)
+  .msmart [limit] [acc_gap] [cmd_gap]            smart mode: auto /bal → exact /rob → protection skip
+  .mspeed <slow|medium|fast>                     pace for THIS group
+  .mmode <slow|medium|fast>                      global pace (all groups)
+  .mstop                                         stop in THIS group only
+  .mstopall                                      stop farming everywhere
+  .mjobs                                         list active groups
+  .mpause                                        pause everywhere
+  .mresume                                       resume farming
+  .mreset                                        clear processed-user memory
+  .mrevive                                       un-bench + reset flood strikes & quota
+  .mstatus                                       full farmer dashboard
+  .mlog                                          recent farmer log
+  .mignore                                       never target a user (reply or .mignore <id>)
+  .munignore <id>                                remove from ignore-list
+  .mignored                                      show ignore-list
+  .mskip <on|off>                                skip protected users or not
+  .mmin <n>                                      min coins worth robbing
+  .mdepth <n>                                    scan depth 100-1000 (older members too)
+  .mbot <username>                               set the game bot (default im_bakabot)
+  .mid                                           show logged-in identity
+  .mping                                         farmer alive check
+  .mhelp                                         full farmer menu
 
-  .autobl on/off/list     ← PEHLE .autodelete (admin wala — user blacklist)
-                           (botcontroller ka .autodelete alag hai — output cleanup)
-  .mping                  ← PEHLE .ping (farmer) — ab misc ka .ping hi sahi
-  .sysinfo                → ab sirf tools.py version (full CPU/RAM/disk)
-  .matrix / .fire         → ab sirf animations.py (count arg ke saath)
-  .8ball [sawal]          → ab fun.py (bina sawal ke bhi chalta hai)
-  .wiki <topic>           → ab extra.py (usage card + summary)
+### fun — Fun & Games  (14 cmds)
+  .mock <text>                                   sPoNgE tExT
+  .shout <text>                                  big vertical text
+  .shrug [.lenny .tableflip .unflip]             classic text faces
+  .flip <text>                                   upside-down text
+  .8ball <question>                              magic 8-ball answers
+  .choose a | b | c                              random picker
+  .roll [N|XdY]                                  dice roller
+  .echo / .say <text>                            repeat text (deletes command)
+  .type on / .type off                           AUTO typewriter mode — har message animated
+  .type styles / <style>                         12 styles: glitch wave matrix scramble…
+  .type speed 0.2 / status                       frame speed / TYPE-X status card
+  .type <text>                                   one-shot typewriter (current style me)
+  .joke .quote .ud <word>                        joke / quote / urban dictionary
+  .meme .dog .cat                                random meme / dog / cat pics
 
-━━━ ✅ TEST GROUP ME LIVE-TESTED (v7.4.2, 53 tests) ━━━━━━━━━━━━━━━━━━━
+### games — Mini Games  (3 cmds)
+  .rps rock|paper|scissors                       rock-paper-scissors vs Sukuna (Hindi aliases work)
+  .quiz                                          random trivia — 8s me answer reveal
+  .scratch                                       lucky scratch card
 
-  .alive .ping .help .menu .cmds .plist .stats .uptime .sysinfo
-  .autodelete status .listsudo .bccheck .botlist .monitorb .addallb
-  .botsay .spamb .stopb .raid .raidb .stopraid .spamstop .stopall
-  .saverm .listrm .delrm .delallrm .ct .ctb .rrt .rrtb .stoprrt
-  .cloneb .revertb .clone .revert .matrix .stop .8ball .random
-  .addbottoken (error-path) .addsudo .delsudo .addnewbotauto
-  (REAL bot banaya: @worker428025_bot) .refreshb + PRODUCTION E2E
-  (bot → sudo → .saverm/.delallrm — file-proof verified)
+### idvault — ID Backup & Restore  (5 cmds)
+  .pbsave [name]                                 snapshot the current ID (name+bio+DP)
+  .pblist                                        list all snapshots
+  .pbload <name>                                 restore that ID fully (name+bio+DP)
+  .pbdel <name>                                  delete a snapshot
+  .undp / .prevdp                                undo the last DP change (auto-backup)
 
-  Bots army me ab: @worker0202bot + @worker428025_bot (dono tested)
+### info — User Info & Lookup  (8 cmds)
+  .id                                            quick user card (reply)
+  .info                                          detailed user card (reply)
+  .sg / .namehistory                             name & username history (reply)
+  .common                                        common chats (reply)
+  .pfp / .pp                                     send profile photo (reply)
+  .uname                                         just the username (reply)
+  .dc                                            user's data-centre (reply)
+  .me                                            full info about yourself
 
-━━━ 📦 DEPLOY / TEST / RESTART ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+### media — Media & Image Tools (9)  (9 cmds)
+  .q (reply)                                     turn a message into a quote card image
+  .fileinfo (reply)                              details of any replied file/media
+  .toaudio (reply)                               voice note / video → audio file
+  .blur [n]                                      blur the replied image (default 8)
+  .mirror                                        mirror the replied image
+  .rotate [deg]                                  rotate the replied image
+  .gray                                          black & white image
+  .invert                                        negative / inverted colours
+  .circle                                        round sticker from the image
 
-  START   :  screen -dmS sukuna bash sukuna_run.sh
-  STOP    :  bash sukuna_stop.sh
-  LOGS    :  screen -r sukuna   (detach: Ctrl+A, D)  ·  tail -f run.out
-  TEST    :  python3 selftest.py   (poora 53-command live test + report)
-  NOTE    :  bash start.sh se double-start ab BLOCK hoga (lock) —
-             ek hi instance chalta hai, warna session corrupt hoti hai.
+### misc — Misc & Utilities  (10 cmds)
+  .ping                                          measure Telegram latency
+  .uptime                                        bot uptime
+  .calc <expr>                                   safe calculator
+  .google <query>                                Google search link
+  .time                                          server date & time
+  .random [max]                                  random number
+  .reverse <text>                                reverse text
+  .count <text>                                  character/word count
+  .gc                                            memory cleanup + stats (optimise)
+  .speed                                         event-loop + Telegram speed test
+
+### music — Music (JioSaavn)  (4 cmds)
+  .song <name>                                   full song direct chat me (JioSaavn 320k)
+  .gaana <name>                                  alias of .song
+  .songs <name>                                  top-5 results list card
+  .songlist <name>                               alias of .songs
+
+### net — Web Lookups (10)  (9 cmds)
+  .weather [city]                                live weather (no city = your area)
+  .lyrics artist - title                         song lyrics
+  .ipinfo [ip]                                   IP / ISP / country lookup
+  .crypto <coin>                                 crypto price (BTC, ETH, …)
+  .currency 100 usd inr                          live currency conversion
+  .date [timezone]                               date & time (optional zone, e.g. Asia/Kolkata)
+  .shorten <url>                                 make a short link
+  .unshorten <url>                               reveal the real link behind a short one
+  .gh <username>                                 GitHub profile summary
+
+### party — Party & games — fake actions, rigged dice, fancy fonts  (6 cmds)
+  .scam <action> [secs]                          fake "typing…" status (11 actions)
+  .rdice [1-6]                                   rigged Telegram dice 🎲
+  .dart [1-6] / .basket [1-5]                    rigged darts 🎯 / basketball 🏀
+  .football [1-5] / .bowl [1-6]                  rigged football ⚽ / bowling 🎳
+  .slotwin [1-64]                                rigged slot machine 🎰
+  .fancy [n] <text>                              fancy Unicode fonts (11 styles)
+
+### prememoji — Premium Emojis  (6 cmds)
+  .premiumsticker on|off                         AUTO premium emoji mode (no bot tag)
+  .premiumsticker <text>                         one-time premium emoji message
+  .pemoji <text>                                 alias — one-time convert
+  .petest                                        test premium rendering on this account
+  .pereset                                       clear cached emoji documents
+  .pestatus                                      mode + cached emoji documents
+
+### profile — Profile & PFP Tools (Full Clone + Video)  (17 cmds)
+  .clone [full] / .clone @username               clone a profile (reply to them OR give their @username) — add 'full' for all photos
+  .fclone / .fclone @username                    full clone — all photos/videos
+  .rclone [full]                                 clone a RANDOM group member — no reply needed
+  .revert                                        restore your pre-clone state (name/bio/DP)
+  .saveprofile <name>                            save full profile (all pfps)
+  .loadprofile <name>                            load main photo + name/bio
+  .floadprofile <name> / .loadprofile <name> full load full copy (all photos)
+  .savedprofiles / .delprofile                   list / delete saved profiles
+  .pfpsave / .savepfp                            save own or replied user's pfps
+  .getpfp [n]                                    get replied user's pfps (1-20)
+  .setpfp                                        set pfp from replied photo/video
+  .pfplist / .pfps                               list saved pfp collections
+  .autopfp <h> [name] / .pfprotate               auto-rotate pfps every h hours (human-like, no flood)
+  .stopautopfp                                   stop auto rotate
+  .delpfp [n]                                    delete all or n pfps
+  .setname / .setbio                             set name/bio
+  .vo on|off                                     view-once saver
+
+### raid — Raid Tools  (11 cmds)
+  .raid [n] [gap] [text]                         raid — reply optional (reply+tag), saved slots rotate
+  .setraid <text>                                save raid text ({name} / {tag} placeholders optional)
+  .listraid                                      view saved raid text
+  .delraid / .clrraid                            delete raid text (default text is used)
+  .saverm <text>                                 save a raid message slot — 1st, 2nd, 3rd… (BotController)
+  .listrm / .delrm <n> / .delallrm               slots list / delete (auto-shift) / delete all
+  .rr / .rrt                                     reply-raid TOGGLE — every message the target sends gets a saved slot as reply (userbot)
+  .rrb / .rrtb [slots]                           reply-raid via BOTS — bots send the saved messages (toggle)
+  .raidb [slots] <n> [gap] [txt]                 BOT raid — `.raidb 10 .1` = 10x @ 0.1s gap; reply+tag (BotController)
+  .stopraid / .raidstop / .raidbstop / .stopraidb raid stop commands (BotController)
+  .stoprrt / .stoprr                             stop all reply-raid (user + bots)
+
+### remind — Reminders  (2 cmds)
+  .remind <time> <text>                          remind you in this chat (30s / 5m / 2h / 1d)
+  .reminders                                     list pending reminders
+
+### safety — Safety & Anti-Ban (7)  (8 cmds)
+  .safemode on|off                               toggle anti-ban protection
+  .safemode fast|normal|paranoid                 speed profile (fast = snappier, paranoid = extra safe)
+  .antiban                                       same as .safemode status
+  .limits                                        live rate-limit dashboard
+  .warmup                                        new-session warm-up status
+  .session                                       backup your login as a string (Saved Messages)
+  .panic                                         stop everything + enable Safe Mode
+  .raksha on|off|status                          v7.1 BAN-PROOF autopilot (storm detect + hard caps)
+
+### settings — ⚙️ Settings — bot customization (v7.6)  (17 cmds)
+  .autodeletem <sec>                             every command OUTPUT (help card, spam-done, raid-done info) auto-deletes after <sec> seconds — `.autodeletem 10` · 0/off = disable
+  .autodelete on/off                             new command = previous output auto-deletes (DEFAULT ON)
+  .addsudo / .delsudo / .listsudo                SUDO users — let them control the BOT ARMY too (owner only)
+  .setraid <text>                                save raid text — {name}/{tag} placeholders
+  .listraid / .delraid                           view / delete raid text (default returns)
+  .saverm <text>                                 raid message slots — 1st, 2nd, 3rd… (reply works too)
+  .listrm / .delrm <n> / .delallrm               slots list / delete (auto-shift) / delete all
+  .ct / .ctb [slots]                             mirror a user's every message same-to-same (reply to them) · self modes: `.ct on/off`
+  .stopct                                        stop copycat + all mirrors
+  .safemode / .antiban                           5-layer anti-ban engine on/off
+  .limits / .warmup                              speed limits view / warmup status
+  .raksha / .panic                               hour/day ban-shield / emergency full stop
+  .stop / .stopall                               stop all tasks / everything (tasks+reply-raid+copycat)
+  .restart / .update                             restart the bot / git pull update
+  .updateuserbot                                 update the whole userbot from the GitHub repo + auto-restart
+  .bccheck                                       🩺 self-diagnosis — versions/bots/states/dirs in one card
+  .stats / .plist                                bot statistics / plugin table
+
+### spam — Spam & Stickers  (9 cmds)
+  .spam <n> <text>                               spam text (1s delay)
+  .fastspam <n> <text>                           spam fast (0.1s)
+  .uspam <n> <text>                              ultra spam (no delay)
+  .delayspam <n> <sec> <text>                    custom delay
+  .dmspam <n> @user <text>                       spam user DM
+  .mspam <n>                                     spam replied sticker
+  .setgspam                                      save global sticker
+  .gspam <n>                                     spam saved sticker
+  .listgspam / .clrgspam                         view/clear saved sticker
+
+### stickers — Sticker Tools  (3 cmds)
+  .steal [emoji] / .kang                         steal replied sticker/photo to YOUR pack
+  .stickerinfo                                   pack + emoji + size of replied sticker
+  .getsticker                                    download replied sticker as a file
+
+### sukuna — Sukuna Special  (17 cmds)
+  .sukuna                                        King of Curses intro — animated
+  .domainx                                       Domain Expansion: Malevolent Shrine
+  .cleave [@user]                                Sukuna's Cleave technique
+  .dismantle [@user]                             Sukuna's Dismantle slashes
+  .fuga                                          Fuga — Divine Flame (Open)
+  .shrine                                        Malevolent Shrine info
+  .cursed                                        Cursed energy levels
+  .heian                                         Heian era Sukuna lore
+  .king                                          King of Curses title animation
+  .khatarnak                                     Khatarnak mode — next-level power
+  .tagra                                         Tagra (strong) mode — SUKUNA-X DOMAIN
+  .boom                                          Boom explosion
+  .glitch                                        Glitch text effect
+  .lightning                                     Lightning fast
+  .domain                                        Domain info + stats
+  .bingo                                         Bingo lucky draw
+  .slots                                         Slot machine
+
+### tags — Mass Tagging  (4 cmds)
+  .tagall [text]                                 tag everyone in batches
+  .onetag [text]                                 tag everyone one-by-one
+  .tagadmins [text]                              tag all admins
+  .cancel / .tagstop                             stop tagging tasks
+
+### texttools — Text transforms  (6 cmds)
+  .clap [text|reply]                             👏 clap 👏 between 👏 words
+  .vapor [text|reply]                            ｆｕｌｌｗｉｄｅ ｖａｐｏｒｗａｖｅ
+  .str [text|reply]                              streeeeetch the vowels
+  .zal [1-5] [text|reply]                        z̷a̶l̸g̷o̴ chaos text
+  .owo [text|reply]                              owo-ify your text UwU
+  .lfy <query>                                   Let Me Google That For You link
+
+### tools — Web & Group Tools  (19 cmds)
+  .qr <text>                                     generate a QR code image
+  .tr <lang> <text>                              translate (auto-detect source)
+  .paste <text|reply>                            upload text, get a link
+  .tts [lang] <text>                             text → speech audio
+  .dl                                            download replied media to Saved Msgs
+  .save                                          forward replied msg to Saved Msgs
+  .zombies                                       list deleted accounts
+  .cleandeleted                                  kick deleted accounts
+  .lockall / .unlockall                          lock/unlock whole group
+  .antilink on|off                               auto-delete link messages
+  .invite                                        invite replied user (reply)
+  .bots                                          list bots in chat
+  .ginfo                                         group/channel info card
+  .join <link|@user>                             join a chat
+  .leave                                         leave current chat
+  .report [reason]                               report replied msg to admins
+  .link                                          get chat invite link
+  .pinned                                        show pinned message
+  .sysinfo                                       CPU / RAM / disk / versions
+
+### util — Chat utilities  (4 cmds)
+  .del                                           delete replied message (or yourself)
+  .copy                                          duplicate the replied message below it
+  .edit <text>                                   edit your previous/replied message
+  .reply                                         send your previous message as a reply
+
+### web — Web & Media Tools  (12 cmds)
+  .img <query> [1-6]                             multi-image search (Bing)
+  .pic <query> [1-6]                             alias of .img
+  .telegraph                                     reply media/text → telegra.ph link
+  .carbon <code>                                 code → beautiful carbon image
+  .define <word>                                 dictionary definition
+  .pypi <package>                                Python package info
+  .yt <query>                                    YouTube search (top 6 results)
+  .country <name>                                country info card
+  .xkcd [num]                                    random xkcd comic
+  .shiba .fox                                    cute shibe / fox pics
+  .json                                          dump replied message as JSON
+  .getid                                         chat / user / message ids
+
+TOTAL: 35 plugin modules · 379 commands

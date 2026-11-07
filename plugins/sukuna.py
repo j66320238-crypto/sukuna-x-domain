@@ -161,14 +161,14 @@ def register_sukuna(client: TelegramClient) -> None:
     @client.on(events.NewMessage(outgoing=True, pattern=r"^\.khatarnak$"))
     async def _khatarnak(event):
         anim = [
-            "💀 Khatarnak mode ON…",
+            "💀 Dangerous mode ON…",
             "💀 Khatarnak mode ON…\n🔥 Loading…",
             "💀 Khatarnak mode ON…\n🔥 Loading…\n⚔️ Cursed energy MAX…",
-            "✦ ━━━〔 💀 KHATARNAK MODE 〕━━━ ✦\n"
-            "┃ 🔥 Status: Khatarnak — alag level\n"
+            "✦ ━━━〔 💀 DANGEROUS MODE 〕━━━ ✦\n"
+            "┃ 🔥 Status: Dangerous — next level\n"
             "┃ ⚔️ Power: ∞\n"
             "┃ 👑 Domain: SUKUNA-X DOMAIN v6.5\n"
-            "┃ 💀 Warning: Samne wala dar jayega\n"
+            "┃ 💀 Warning: anyone in front will tremble\n"
             "✦ ━━━━━━━━━━━━━━━━━━━━━━━━━━━ ✦",
         ]
         for a in anim:

@@ -47,7 +47,7 @@ def flood_safe(func):
                 if secs > FLOOD_BAIL_SECONDS or retries > FLOOD_MAX_RETRIES:
                     log.warning(
                         "🛡 flood_safe[%s]: bailing after %d flood(s), "
-                        "last wait %ds — ID safe rakhne ke liye skip.",
+                        "last wait %ds — skipping to keep the ID safe.",
                         func.__name__, retries, secs)
                     return None
                 log.warning(

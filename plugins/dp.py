@@ -420,13 +420,13 @@ def register_dp(client):
             if not dl:
                 return await event.edit("❌ Could not download the current DP.")
             if str(dl).lower().endswith((".mp4", ".mov")):
-                return await event.edit("🎥 Current DP **video** hai — pool me sirf images milti hain.")
+                return await event.edit("🎥 Current DP is a **video** — the pool only holds images.")
             cur_fp = _dp_fingerprint(dl)
             if cur_fp is None:
                 # no PIL fallback: state-based answer
                 cur = state.get("current")
                 return await event.edit(
-                    f"🖼 Last rotation ke hisaab se current DP: **#{cur}**\n"
+                    f"🖼 Current DP (per last rotation): **#{cur}**\n"
                     "_(Pillow not installed — pixel match skipped)_" if cur else
                     "❌ Unknown — use `.setdp <n>` or `.nextdp`.")
             best, best_d = None, 9999.0
@@ -540,7 +540,7 @@ def register_dp(client):
             f"✅ every **{_fmt_interval(mins)}** your DP will change every interval!\n"
             f"📚 Pool: `{len(files2)}` DP • Mode: {mode_txt}\n"
             f"🛡 Flood-safe + human jitter + auto-retry\n"
-            f"♻️ Restart-proof — bot restart hone par bhi rotation continue rahegi\n\n"
+            f"♻️ Restart-proof — the rotation continues even after a restart\n\n"
             f"⏱ `.dptime <new time>` live change · `.dpstatus` for details\n"
             f"`.stopautodp` stop · `.nextdp` manual",
             link_preview=False)
@@ -585,7 +585,7 @@ def register_dp(client):
         was_running = old_min is not None
         await event.edit(
             f"✦ ━━━〔 ⏱ TIMER UPDATED 〕━━━ ✦\n"
-            f"✅ Your DP will now change every **{_fmt_interval(mins)}** me change hogi.\n"
+            f"✅ Your DP will now change every **{_fmt_interval(mins)}**.\n"
             + (f"🔁 Previous timer {_fmt_interval(old_min)} replaced.\n" if was_running and old_min else "")
             + f"🔀 Mode: {'shuffle' if shuffle else 'order'} • 🛡️ Rotator restarted.\n"
             f"`.dpstatus` details · `.stopautodp` stop",

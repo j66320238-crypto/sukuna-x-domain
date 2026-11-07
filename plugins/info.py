@@ -294,7 +294,7 @@ def register_info(client):
 
             if _sg_busy["on"]:
                 await event.reply(
-                    "⏳ **Ek query already chal rahi hai — thoda ruk ke try karo.**")
+                    "⏳ **A query is already running — wait a moment and try again.**")
                 return
             _sg_busy["on"] = True
 
@@ -358,15 +358,15 @@ def register_info(client):
                                 pass
                 except YouBlockedUserError:
                     await status_msg.edit(
-                        "❌ **History service blocked hai — unblock karke dobara try karo.**")
+                        "❌ **History service is blocked — unblock it and try again.**")
                     return
                 except asyncio.TimeoutError:
                     await status_msg.edit(
-                        "⏰ **History service timeout — thodi der baad try karo.**")
+                        "⏰ **History service timed out — try again in a bit.**")
                     return
                 except Exception:
                     await status_msg.edit(
-                        "❌ **History service se contact nahi ho paya — thodi der baad try karo.**")
+                        "❌ **Could not reach the history service — try again in a bit.**")
                     return
 
                 # ── "no records" style replies ──────────────────────────

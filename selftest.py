@@ -78,6 +78,15 @@ class Dispatcher:
         for cb, builder in self.client.list_event_handlers():
             if not isinstance(builder, _NM):
                 continue
+            # v7.6 FIX: builders must be resolved before filter() works.
+            # The real dispatcher resolves them on the first live update;
+            # the synthetic path must do it explicitly or the first few
+            # commands (before any real update) silently match nothing.
+            try:
+                if not getattr(builder, "resolved", True):
+                    await builder.resolve(self.client)
+            except Exception:
+                pass
             try:
                 res = builder.filter(ev)
             except Exception:
@@ -310,6 +319,12 @@ async def main():
     await run_cmd(".uptime", 3)
     await run_cmd(".sysinfo", 5)
     await run_cmd(".autodelete status", 4)
+    await run_cmd(".autodeletem 10", 3, expect="timer set",
+                  note="v7.6 timed auto-delete ON (10s)")
+    await run_cmd(".autodeletem off", 2, expect="off",
+                  note="timer off again (keep test clean)")
+    await run_cmd(".autodeletem status", 3, expect="off",
+                  note="timer status confirms OFF")
 
     print("\n   PHASE B — BOT ARMY (sudo-gate: owner outgoing path)")
     await run_cmd(".listsudo", 3)
@@ -345,17 +360,31 @@ async def main():
     await run_cmd(".listrm", 3, expect="beta", note="auto-shift: beta ab 1st")
     await run_cmd(".delallrm", 3, expect="delete")
 
-    print("\n   PHASE E — REPLY-BASED (.ct/.ctb/.rrt)")
+    print("\n   PHASE E — REPLY-BASED (.ct/.ctb mirror + .rr/.rrt reply-raid)")
     r_to = st["bot_msg_id"]
-    await run_cmd(".ct", 6, reply_to=r_to, expect="copy", note="user ka copy")
-    await run_cmd(".ctb", 10, reply_to=r_to, expect="bot", note="bots ka copy")
+    await run_cmd(".ct copy", 6, reply_to=r_to, expect="copied",
+                  note="one-shot copy of bot msg")
+    await run_cmd(".ct", 5, reply_to=r_to, expect="mirror on",
+                  note="v7.6 user MIRROR toggle → ON")
+    await run_cmd(".ct", 5, reply_to=r_to, expect="mirror off",
+                  note="v7.6 user MIRROR toggle → OFF")
+    await run_cmd(".ctb", 10, reply_to=r_to, expect="mirror on",
+                  note="v7.6 bots MIRROR → ON")
+    await run_cmd(".ctb", 8, reply_to=r_to, expect="mirror off",
+                  note="v7.6 bots MIRROR → OFF")
     await run_cmd(".saverm selftest rrt slot msg", 3)
-    await run_cmd(".rrt", 4, reply_to=r_to, expect="RRT", note="RRT armed on bot")
+    await run_cmd(".rrt", 4, reply_to=r_to, expect="started",
+                  note=".rrt reply-raid armed (auto-saves replied msg)")
+    await run_cmd(".listrm", 3, expect="slot", note=".rrt auto-saved the replied msg into slots")
     # bot ko phir se message bhejao → RRT listener incoming par chalega
     await run_cmd(".botsay selftest rrt trigger ping", 6, note="bot msg for RRT")
     if st["bot_msg_id"]:
         await fire_on_msg(st["bot_msg_id"], wait=8, label="RRT listener (incoming)")
-    await run_cmd(".stoprrt", 3, expect="band")
+    await run_cmd(".stoprrt", 3, expect="stopped")
+    if st["bot_msg_id"]:
+        await run_cmd(".raidb 2 0.5 selftest reply-tag ok", 14,
+                      reply_to=st["bot_msg_id"], expect="raid started",
+                      note="v7.6 raidb reply+tag both")
 
     print("\n   PHASE F — CLONE / REVERT (bots)")
     await run_cmd(".cloneb", 30, reply_to=st["self_msg_id"],
