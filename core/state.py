@@ -25,3 +25,7 @@ OWNER_ID: int = 0
 # zaroorat nahi.
 ACTIVE_API_ID: int = 0
 ACTIVE_API_HASH: str = ""
+
+# 🔧 v7.7.1: strong references for long-lived background tasks (an
+# unreferenced asyncio task can be garbage-collected mid-run!)
+BG_TASKS: list = []

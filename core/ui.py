@@ -31,6 +31,119 @@ from .accounts import ACCOUNT
 import logging
 log = logging.getLogger("userbot")
 
+
+# ────────────────────────────────────────────────────────────────────────
+#  v7.8 SHARED UPDATE ENGINE — used by .update AND .updateuserbot
+#  Routes: (1) git fetch → version-guard → reset --hard (safe on ZIP
+#  deployments whose working tree is dirty BY DESIGN — the old
+#  `git pull --ff-only` used to refuse and .update always failed),
+#  (2) GitHub tarball fallback when .git is missing or git breaks.
+#  NEVER touches data/ or *.session. Version guard: never downgrades.
+# ────────────────────────────────────────────────────────────────────────
+_REPO = "j66320238-crypto/sukuna-x-domain"
+
+
+def _ver_tuple(v):
+    try:
+        return tuple(int(x) for x in re.findall(r"\d+", str(v))[:3])
+    except Exception:
+        return (0,)
+
+
+def _update_engine(base, force):
+    """Synchronous (run in executor). Returns (ok: bool, message: str)."""
+    import subprocess
+    # ── route 1: git (reset --hard — dirty-tree safe) ──
+    if os.path.isdir(os.path.join(base, ".git")):
+        try:
+            subprocess.run(["git", "fetch", "origin"], cwd=base,
+                           capture_output=True, text=True, timeout=120)
+            b = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                               cwd=base, capture_output=True, text=True,
+                               timeout=30)
+            branch = (b.stdout or "main").strip() or "main"
+            r = subprocess.run(
+                ["git", "show", f"origin/{branch}:core/config.py"],
+                cwd=base, capture_output=True, text=True, timeout=30)
+            m = re.search(r"BOT_VERSION\s*=\s*[\"']([\d.]+)[\"']",
+                          r.stdout or "")
+            rv = m.group(1) if m else None
+            # 🛡 version guard — refuse to downgrade a newer deployment
+            if rv and not force and _ver_tuple(rv) <= _ver_tuple(BOT_VERSION):
+                return False, (f"already-latest|local v{BOT_VERSION} ≥ "
+                               f"remote v{rv}")
+            r = subprocess.run(["git", "reset", "--hard", f"origin/{branch}"],
+                               cwd=base, capture_output=True, text=True,
+                               timeout=120)
+            if r.returncode == 0:
+                return True, ("git reset --hard origin/" + branch)[-300:]
+            return False, ((r.stdout or "") + (r.stderr or ""))[-300:]
+        except Exception:
+            pass            # git broken → tarball route below
+    # ── route 2: GitHub tarball (no .git / git failed) ──
+    import tarfile as _tarfile
+    import tempfile as _tempfile
+    import urllib.request as _urlreq
+    url = f"https://codeload.github.com/{_REPO}/tar.gz/refs/heads/main"
+    tmpd = _tempfile.mkdtemp(prefix="sukuna_up_")
+    tgz = os.path.join(tmpd, "repo.tar.gz")
+    try:
+        req = _urlreq.Request(url, headers={
+            "User-Agent": "SukunaX-Updater/" + BOT_VERSION})
+        with _urlreq.urlopen(req, timeout=90) as resp, open(tgz, "wb") as fh:
+            fh.write(resp.read())
+        # 🛡 version guard — read remote BOT_VERSION from the tarball
+        if not force:
+            with _tarfile.open(tgz, "r:gz") as tf:
+                for m in tf.getmembers():
+                    if m.name.endswith("core/config.py"):
+                        try:
+                            head = tf.extractfile(m).read(4096).decode(
+                                "utf-8", "ignore")
+                        except Exception:
+                            head = ""
+                        mm = re.search(
+                            r"BOT_VERSION\s*=\s*[\"']([\d.]+)[\"']", head)
+                        if (mm and _ver_tuple(mm.group(1))
+                                <= _ver_tuple(BOT_VERSION)):
+                            return False, (
+                                f"already-latest|local v{BOT_VERSION} ≥ "
+                                f"remote v{mm.group(1)}")
+                        break
+        extracted = 0
+        with _tarfile.open(tgz, "r:gz") as tf:
+            for m in tf.getmembers():
+                parts = m.name.split("/", 1)
+                if len(parts) != 2:
+                    continue          # top-level dir itself — skip
+                rel = parts[1]
+                if (rel.startswith("data/") or rel.startswith(".git/")
+                        or "/.git/" in rel or rel.endswith(".session")
+                        or rel.endswith(".session-journal")):
+                    continue          # never touch sessions/data
+                dest = os.path.join(base, rel)
+                if m.isdir():
+                    try:
+                        os.makedirs(dest, exist_ok=True)
+                    except Exception:
+                        pass
+                    continue
+                if not m.isfile():
+                    continue
+                os.makedirs(os.path.dirname(dest), exist_ok=True)
+                with tf.extractfile(m) as srcf, open(dest, "wb") as out:
+                    out.write(srcf.read())
+                extracted += 1
+        return True, f"{extracted} files updated from GitHub"
+    except Exception as e:
+        return False, f"{type(e).__name__}: {e}"[:200]
+    finally:
+        try:
+            import shutil as _sh
+            _sh.rmtree(tmpd, ignore_errors=True)
+        except Exception:
+            pass
+
 # ────────────────────────────────────────────────────────────────────────
 #  MODULE ICONS + ORDER
 # ────────────────────────────────────────────────────────────────────────
@@ -553,34 +666,29 @@ def register_builtin_commands(client) -> None:
         os.execl(sys.executable, sys.executable, *sys.argv)
 
     # ── .update ──────────────────────────────────────────────────────────
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^\.update$"))
+    @client.on(events.NewMessage(outgoing=True,
+                                 pattern=r"^\.update(?:\s+(force))?$"))
     async def _update_handler(event):
         base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        if not os.path.isdir(os.path.join(base, ".git")):
-            return await event.edit(
-                "ℹ️ Not a git repo — clone fresh:\n"
-                "`git clone https://github.com/j66320238-crypto/sukuna-x-domain.git`",
-                link_preview=False,
-            )
+        force = bool(event.pattern_match.group(1))
         await event.edit("🔄 Pulling latest from GitHub…")
-
-        def _git():
-            import subprocess
-            try:
-                out = subprocess.run(["git", "pull", "--ff-only"], cwd=base,
-                                     capture_output=True, text=True, timeout=90)
-                return out.returncode, (out.stdout or "") + (out.stderr or "")
-            except Exception as e:
-                return 1, str(e)
-
-        code, out = await asyncio.get_running_loop().run_in_executor(None, _git)
-        out = out.strip()[:400]
-        if code == 0 and "Already up to date" in out:
-            return await event.edit("✅ Already on latest. 👑")
-        if code == 0:
-            return await event.edit(f"⬇️ **Updated!**\n`{out}`\n\nNow do `.restart` to reload.",
-                                    link_preview=False)
-        await event.edit(f"❌ Update failed:\n`{out}`", link_preview=False)
+        code, out = await asyncio.get_running_loop().run_in_executor(
+            None, _update_engine, base, force)
+        out = str(out).strip()
+        if "already-latest|" in out:
+            return await event.edit(
+                "✅ **Already on the latest build.** 👑\n"
+                f"┃ `{out.split('|', 1)[1]}`\n"
+                "┃ push newer code to GitHub first, or `.update force`",
+                link_preview=False)
+        if code:
+            return await event.edit(
+                f"⬇️ **Updated!**\n`{out}`\n\n♻️ Now do `.restart` to load it.",
+                link_preview=False)
+        await event.edit(
+            f"❌ Update failed:\n`{out}`\n"
+            "💡 Check the server's internet, or deploy via SSH.",
+            link_preview=False)
 
     # ── .updateuserbot — update from GitHub repo + auto-restart ─────────
     # v7.7: VERSION GUARD — never downgrades. If the GitHub version is
@@ -594,121 +702,9 @@ def register_builtin_commands(client) -> None:
         await event.edit("🔄 **SUKUNA-X updater** — pulling latest from GitHub…",
                          link_preview=False)
 
-        def _ver_tuple(v):
-            try:
-                return tuple(int(x) for x in re.findall(r"\d+", str(v))[:3])
-            except Exception:
-                return (0,)
-
-        def _remote_git_version():
-            import subprocess
-            try:
-                b = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"],
-                                   cwd=base, capture_output=True, text=True,
-                                   timeout=30)
-                branch = (b.stdout or "main").strip() or "main"
-                r = subprocess.run(["git", "show", f"origin/{branch}:core/config.py"],
-                                   cwd=base, capture_output=True, text=True,
-                                   timeout=30)
-                m = re.search(r"BOT_VERSION\s*=\s*[\"']([\d.]+)[\"']", r.stdout or "")
-                return m.group(1) if m else None
-            except Exception:
-                return None
-
-        def _git_update():
-            import subprocess
-            if not os.path.isdir(os.path.join(base, ".git")):
-                return None, "no-git"
-            try:
-                subprocess.run(["git", "fetch", "origin"], cwd=base,
-                               capture_output=True, text=True, timeout=120)
-                b = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"],
-                                   cwd=base, capture_output=True, text=True,
-                                   timeout=30)
-                branch = (b.stdout or "main").strip() or "main"
-                # 🛡 version guard — refuse to downgrade a newer deployment
-                if not force:
-                    rv = _remote_git_version()
-                    if rv and _ver_tuple(rv) <= _ver_tuple(BOT_VERSION):
-                        return False, (
-                            f"already-latest|local v{BOT_VERSION} ≥ remote v{rv}")
-                r = subprocess.run(["git", "reset", "--hard", f"origin/{branch}"],
-                                   cwd=base, capture_output=True, text=True,
-                                   timeout=120)
-                return (r.returncode == 0), ((r.stdout or "") + (r.stderr or ""))[-300:]
-            except Exception as e:
-                return False, str(e)[:200]
-
-        def _tar_update():
-            """No .git on the server — download the repo tarball instead."""
-            import tarfile as _tarfile
-            import tempfile as _tempfile
-            import urllib.request as _urlreq
-            url = ("https://codeload.github.com/j66320238-crypto/sukuna-x-domain"
-                   "/tar.gz/refs/heads/main")
-            tmpd = _tempfile.mkdtemp(prefix="sukuna_up_")
-            tgz = os.path.join(tmpd, "repo.tar.gz")
-            try:
-                req = _urlreq.Request(url, headers={
-                    "User-Agent": "SukunaX-Updater/" + BOT_VERSION})
-                with _urlreq.urlopen(req, timeout=90) as resp, open(tgz, "wb") as fh:
-                    fh.write(resp.read())
-                # 🛡 version guard — read remote BOT_VERSION from the tarball
-                if not force:
-                    with _tarfile.open(tgz, "r:gz") as tf:
-                        for m in tf.getmembers():
-                            if m.name.endswith("core/config.py"):
-                                try:
-                                    head = tf.extractfile(m).read(4096).decode(
-                                        "utf-8", "ignore")
-                                except Exception:
-                                    head = ""
-                                import re as _re2
-                                mm = _re2.search(
-                                    r"BOT_VERSION\s*=\s*[\"']([\d.]+)[\"']", head)
-                                if mm and _ver_tuple(mm.group(1)) <= _ver_tuple(BOT_VERSION):
-                                    return False, (
-                                        f"already-latest|local v{BOT_VERSION} ≥ "
-                                        f"remote v{mm.group(1)}")
-                                break
-                extracted = 0
-                with _tarfile.open(tgz, "r:gz") as tf:
-                    for m in tf.getmembers():
-                        parts = m.name.split("/", 1)
-                        if len(parts) != 2:
-                            continue          # top-level dir itself — skip
-                        rel = parts[1]
-                        if (rel.startswith("data/") or rel.startswith(".git/")
-                                or "/.git/" in rel or rel.endswith(".session")
-                                or rel.endswith(".session-journal")):
-                            continue          # never touch sessions/data
-                        dest = os.path.join(base, rel)
-                        if m.isdir():
-                            try:
-                                os.makedirs(dest, exist_ok=True)
-                            except Exception:
-                                pass
-                            continue
-                        if not m.isfile():
-                            continue
-                        os.makedirs(os.path.dirname(dest), exist_ok=True)
-                        with tf.extractfile(m) as srcf, open(dest, "wb") as out:
-                            out.write(srcf.read())
-                        extracted += 1
-                return True, f"{extracted} files updated from GitHub"
-            except Exception as e:
-                return False, f"{type(e).__name__}: {e}"[:200]
-            finally:
-                try:
-                    import shutil as _sh
-                    _sh.rmtree(tmpd, ignore_errors=True)
-                except Exception:
-                    pass
-
         loop = asyncio.get_running_loop()
-        code, out = await loop.run_in_executor(None, _git_update)
-        if code is None:                      # not a git repo → tarball route
-            code, out = await loop.run_in_executor(None, _tar_update)
+        code, out = await loop.run_in_executor(None, _update_engine,
+                                               base, force)
         if not code:
             if str(out).startswith("already-latest|"):
                 return await event.edit(

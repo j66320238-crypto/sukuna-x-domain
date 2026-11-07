@@ -44,6 +44,9 @@ COMMANDS_SETTINGS = {
         # mirror / copycat customization
         (".ct / .ctb [slots]", "mirror a user's every message same-to-same (reply to them) · self modes: `.ct on/off`"),
         (".stopct", "stop copycat + all mirrors"),
+        # typing effect (fun + botcontroller)
+        (".type on/off · .type <style>", "AUTO typewriter on YOUR messages — 12 styles, `.type speed 0.2`"),
+        (".typeb on/off [slots]", "⌨️ SAME typing effect on your BOT ARMY — .spamb/.raidb/.botsay messages animate (`.typeb glitch`, `.typeb sync`)"),
         # view-once saver
         (".viewonce on/off", "👁 view-once saver — self-destructing photos AND videos are saved to Saved Messages (DEFAULT ON)"),
         (".vos last / .vos clear", "re-send the last saved view-once media / clear the cache"),

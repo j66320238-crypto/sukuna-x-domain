@@ -34,6 +34,9 @@ BotController — control your whole BOT ARMY from your MAIN account (or SUDO us
   • .cloneb [slots]          — bots clone the victim (name+bio via BotFather,
                                pfp via MTProto — bot-proof, error-free;
                                if the target has NO dp the bot's dp is cleared)
+  • .clonebi [slots]         — 🧨 FORCE clone: ignores the BotFather hourly
+                               cap, sleeps through every FloodWait, retries
+                               each step until the name/bio/pfp REALLY lands
   • .revertb / .uncloneb [slot] — bots back to ORIGINAL (pre-clone) state
   • .loadprofileb [slots] <name> — put a .saveprofile profile on the bots
   • .botsay [slots] <text>   — make the bots say something
@@ -41,6 +44,17 @@ BotController — control your whole BOT ARMY from your MAIN account (or SUDO us
   🎬 ANIMATION DELEGATION
   • .<anim>b [sec]           — any animation on ALL bots (.roseb .hackb)
   • .<anim>b1-2 [sec]        — specific bots (.roseb1-2)
+
+  ⌨️🤖 TYPE-X BOTS — typing effect on the BOT ARMY (v7.7)
+  • .typeb on / off          — every bot message (.spamb .raidb .botsay
+                               .rrb replies) gets the live typewriter effect
+  • .typeb1-2 on             — only specific bots get the effect
+  • .typeb <style>           — 12 styles (classic wave glitch scramble matrix
+                               pulse fire hearts zoom eraser reverse random)
+  • .typeb speed 0.2         — frame speed (0.05–1.0s)
+  • .typeb styles / status   — gallery / mode card
+  • .typeb sync              — copy style+speed from .type (user TYPE-X)
+  • .typeb <text>            — one-shot: bots send <text> WITH the effect
 
   📜 RAID MESSAGES (slots 1st, 2nd, 3rd…)
   • .saverm <text>           — save a slot (reply works too; 1st → 2nd → 3rd…)
@@ -553,6 +567,21 @@ async def _bot_client_locked(main_client, slot: int, data: dict = None):
             pass
         return None
 
+    # v7.7.1 — validate the fresh connection with a PING (capped). A socket
+    # that connected but is wedged (no RPC answers) used to hang every
+    # handler that tried to send through it.
+    try:
+        await asyncio.wait_for(bc.get_me(), timeout=30)
+    except Exception as e:
+        log.warning("[botcontroller] bot slot %s ping failed (%s) — "
+                    "treating as frozen this round", slot,
+                    type(e).__name__)
+        try:
+            await bc.disconnect()
+        except Exception:
+            pass
+        return None
+
     if rec.get("frozen"):
         rec["frozen"] = False
         rec.pop("frozen_error", None)
@@ -566,6 +595,8 @@ async def _bot_client_locked(main_client, slot: int, data: dict = None):
     except Exception:
         pass
     BOT_CLIENTS[slot] = bc
+    # v7.7 TYPE-X B — typing effect hook (.typeb on/off)
+    _txb_patch_bot(main_client, bc, slot)
     # v7.6: record everything this bot SEES (updates) so reply targets can
     # be translated into the bot's own id space (basic-group per-account ids)
     if not getattr(bc, "_bc_seen_hook", False):
@@ -652,7 +683,399 @@ DELEG_EXCLUDE_BASES = {
     "spam", "sspa", "raid", "clone", "revert", "addall", "removeall",
     "monitor", "stop", "botsay", "bchelp", "addbot", "delbot", "list",
     "ct", "rrt", "rr", "refresh", "loadprofile", "unclone", "addnewbotauto",
+    "type",   # v7.7: .typeb = TYPE-X BOT system (NOT an animation)
 }
+
+
+# ─── TYPE-X B ⌨️🤖 — TYPING EFFECT FOR BOTS (v7.7) ────────────────────────
+# `.typeb on`  → every message the BOTS send (`.spamb`, `.raidb`, `.botsay`,
+#                `.rrb` replies…) gets the typewriter animation, live!
+# `.typeb off` → bots send normal again
+# `.typeb1-2 on` → only specific bots get the effect
+# `.typeb <style>` / `.typeb speed 0.2` / `.typeb styles` / `.typeb status`
+# `.typeb sync`  → copy style+speed from the user-side TYPE-X (`.type`)
+# `.typeb <text>` → one-shot: bots send <text> WITH the effect (even if off)
+#
+# Engine: every bot client's send_message is wrapped ONCE at connect time.
+# Plain-text sends are queued per-bot and animated sequentially (flood-safe:
+# frame cap + per-bot queue cap + storm guard + FloodWait retry). Messages
+# with markup (mentions/bold) animate only their plain prefix, then the
+# final edit restores the EXACT original text + entities. Animation
+# delegation (.<anim>b) and copycat mirrors are auto-skipped.
+_TXB_STORE = "typexb"                       # data/typexb.json
+_TXB_STATE = {"on": False, "style": "classic", "speed": 0.15, "slots": []}
+_TXB_SUPPRESS = set()      # slots currently running .<anim>b (self-animating)
+_TXB_ONE_SHOT = set()      # slots doing a `.typeb <text>` demo right now
+_TXB_SKIP_IDS = set()      # msg ids that must NEVER animate (copycat copies)
+_TXB_QUEUES = {}           # {slot: asyncio.Queue}
+_TXB_WORKERS = {}          # {slot: task}
+_TXB_DONE = 0              # lifetime animated counter (stats card)
+_TXB_MAX_PENDING = 12      # per-bot queue cap — heavy spam → extra skips
+_TXB_MAX_FRAMES = 6        # frames per bot message (bots edit-limit safe)
+_TXB_FLOOR = 1.0           # min seconds between bot edits (bots: ~1 edit/s!)
+_TXB_MAX_CHARS = 280       # longer bot messages are not animated
+
+
+def _txb_load():
+    global _TXB_DONE
+    try:
+        d = load_store(_TXB_STORE)
+        if isinstance(d, dict):
+            _TXB_STATE["on"] = bool(d.get("on", False))
+            _TXB_STATE["style"] = str(d.get("style") or "classic")
+            try:
+                _TXB_STATE["speed"] = min(1.0, max(0.05, float(d.get("speed", 0.15))))
+            except (TypeError, ValueError):
+                pass
+            slots = d.get("slots")
+            _TXB_STATE["slots"] = [int(s) for s in slots if int(s) > 0] \
+                if isinstance(slots, list) else []
+            _TXB_DONE = int(d.get("done", 0) or 0)
+    except Exception:
+        pass
+    # default style/speed = user-side TYPE-X (.type) se — same feel everywhere
+    try:
+        fun = _txb_fun()
+        if fun is not None and "style" not in (load_store(_TXB_STORE) or {}):
+            _TXB_STATE["style"] = fun._TX_STATE.get("style", "classic")
+            _TXB_STATE["speed"] = float(fun._TX_STATE.get("speed", 0.15))
+    except Exception:
+        pass
+
+
+def _txb_save():
+    try:
+        save_store(_TXB_STORE, {
+            "on": _TXB_STATE["on"], "style": _TXB_STATE["style"],
+            "speed": _TXB_STATE["speed"], "slots": _TXB_STATE["slots"],
+            "done": _TXB_DONE,
+        })
+    except Exception:
+        pass
+
+
+_txb_fun_mod = None
+
+
+def _txb_fun():
+    """plugins.fun (TYPE-X engine) — shared frames + style hints."""
+    global _txb_fun_mod
+    if _txb_fun_mod is None:
+        try:
+            import importlib
+            _txb_fun_mod = importlib.import_module("plugins.fun")
+        except Exception:
+            _txb_fun_mod = False
+    return _txb_fun_mod or None
+
+
+def _txb_styles():
+    fun = _txb_fun()
+    if fun is not None:
+        try:
+            return tuple(fun._TX_STYLES)
+        except Exception:
+            pass
+    return ("classic", "wave", "glitch", "scramble", "matrix", "pulse",
+            "fire", "hearts", "zoom", "eraser", "reverse", "random")
+
+
+def _txb_style_hints():
+    fun = _txb_fun()
+    if fun is not None:
+        try:
+            return dict(fun._TX_STYLE_HINTS)
+        except Exception:
+            pass
+    return {"classic": "classic typewriter cursor ▌"}
+
+
+_txb_load()
+
+
+def _txb_slot_ok(slot: int) -> bool:
+    """True if this bot slot is inside the TYPE-X B scope (empty = ALL)."""
+    try:
+        scope = _TXB_STATE.get("slots") or []
+        return (not scope) or (int(slot) in scope)
+    except Exception:
+        return True
+
+
+def _txb_split(text: str):
+    """(plain prefix, has_markup) — animate only before the first markup
+    char; the final edit then restores the exact original (mentions safe)."""
+    try:
+        cut, found = len(text), False
+        for ch in "<*_`[":
+            i = text.find(ch)
+            if i != -1 and i < cut:
+                cut, found = i, True
+        if not found:
+            return text, False
+        return text[:cut], True
+    except Exception:
+        return text, False
+
+
+def _txb_frames(text: str, style):
+    """Typewriter frames for a bot message — ≤ _TXB_MAX_FRAMES (fast)."""
+    frames = None
+    fun = _txb_fun()
+    if fun is not None:
+        try:
+            frames = fun._tx_frames(text, style)
+        except Exception:
+            frames = None
+    if not frames:                                  # fallback: classic
+        n = len(text)
+        step = max(1, math.ceil(n / _TXB_MAX_FRAMES))
+        frames = [text[:i] + "▌" for i in range(1, n + 1, step)]
+        frames.append(text)
+    if len(frames) > _TXB_MAX_FRAMES:               # downsample (fast bots)
+        pos = len(frames) / _TXB_MAX_FRAMES
+        frames = [frames[min(len(frames) - 1, int(i * pos))]
+                  for i in range(_TXB_MAX_FRAMES)]
+        if frames[-1] != text:
+            frames.append(text)
+    out = []
+    for f in frames:
+        if not out or f != out[-1]:
+            out.append(f)
+    return out
+
+
+def _txb_skip(msg_or_id):
+    """Mark a message id as never-animate (copycat copies, mirrors…)."""
+    try:
+        _TXB_SKIP_IDS.add(int(getattr(msg_or_id, "id", msg_or_id)))
+        if len(_TXB_SKIP_IDS) > 400:
+            _TXB_SKIP_IDS.clear()
+    except Exception:
+        pass
+
+
+async def _txb_animate(msg, text: str, pm, lp):
+    """Play typewriter frames on a bot-sent message (flood-safe)."""
+    global _TXB_DONE
+    style = _TXB_STATE.get("style") or "classic"
+    try:
+        speed = float(_TXB_STATE.get("speed") or 0.15)
+    except (TypeError, ValueError):
+        speed = 0.15
+    prefix, _markup = _txb_split(text)
+    if len(prefix.strip()) < 2:
+        return
+    frames = _txb_frames(prefix, style)
+    if len(frames) < 2:
+        return
+    delay = max(speed, _TXB_FLOOR)
+    await asyncio.sleep(0.35)                       # natural beat + skip grace
+    if getattr(msg, "id", 0) in _TXB_SKIP_IDS:
+        return
+    last, fails = None, 0
+    for fr in frames:
+        if fr == last:
+            continue
+        try:
+            await msg.edit(fr, parse_mode=None, link_preview=False)
+            last = fr
+        except MessageNotModifiedError:
+            pass
+        except FloodWaitError as e:
+            try:
+                await asyncio.sleep(min(int(e.seconds or 0), 30) + 1)
+                await msg.edit(fr, parse_mode=None, link_preview=False)
+                last = fr
+            except Exception:
+                fails += 1
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            fails += 1
+        if fails >= 2:
+            return
+        await asyncio.sleep(delay + random.uniform(0, 0.06))
+    # final frame — EXACT original text + entities (mention/tag pop in!)
+    if last != text:
+        kw = {}
+        if lp is not None:
+            kw["link_preview"] = lp
+        if pm is not None:
+            kw["parse_mode"] = pm
+        try:
+            await msg.edit(text, **kw)
+        except Exception:
+            pass
+    _TXB_DONE += 1
+
+
+def _txb_worker(main_client, slot: int):
+    """Get (or spawn) the per-bot sequential animation worker."""
+    q = _TXB_QUEUES.setdefault(slot, asyncio.Queue())
+    w = _TXB_WORKERS.get(slot)
+    if w is not None and not w.done():
+        return q
+
+    async def _run():
+        while True:
+            ts, msg, text, pm, lp = await q.get()
+            try:
+                if time.time() - ts > 90:           # stale (queue was stopped)
+                    continue
+                if getattr(msg, "id", 0) in _TXB_SKIP_IDS:
+                    continue
+                if storm_active():                  # 🚨 ID protection first
+                    continue
+                if not (_TXB_STATE.get("on") or slot in _TXB_ONE_SHOT):
+                    continue
+                await _txb_animate(msg, text, pm, lp)
+                # v7.7.1 — animation batch drained? verify the main
+                # account's update stream and heal it if wedged.
+                if q.empty():
+                    await _txb_verify_stream(main_client)
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                pass
+
+    t = asyncio.create_task(_run())
+    _TXB_WORKERS[slot] = t
+    try:
+        (main_client.stop_processes or {})[f"bc_txb_{slot}"] = t
+    except Exception:
+        pass
+    return q
+
+
+def _txb_offer(slot: int, msg, text, kwargs, main_client):
+    """Called after EVERY bot send — decide + enqueue the effect. Never raises."""
+    try:
+        if msg is None or not isinstance(text, str):
+            return
+        t = text.strip()
+        if not t or len(t) > _TXB_MAX_CHARS:
+            return
+        if not (_TXB_STATE.get("on") or slot in _TXB_ONE_SHOT):
+            return
+        if slot in _TXB_SUPPRESS:                   # .<anim>b is self-animating
+            return
+        if storm_active():
+            return
+        if not _txb_slot_ok(slot):
+            return
+        for k in ("file", "photo", "voice", "video", "audio", "document",
+                  "sticker", "buttons", "formatting_entities", "attributes"):
+            if kwargs.get(k):
+                return
+        q = _TXB_QUEUES.get(slot)
+        if q is None:
+            q = _txb_worker(main_client, slot)
+        if q.qsize() >= _TXB_MAX_PENDING:           # overloaded → skip extra
+            return
+        pm = kwargs.get("parse_mode")
+        if pm == ():
+            pm = None                               # Telethon default sentinel
+        q.put_nowait((time.time(), msg, text, pm, kwargs.get("link_preview")))
+    except Exception:
+        pass
+
+
+def _txb_patch_bot(main_client, bc, slot: int):
+    """v7.7 — wrap a bot client's send_message ONCE (TYPE-X B hook)."""
+    try:
+        bc._txb_slot = slot
+        if getattr(bc, "_txb_patched", False):
+            return
+        orig = bc.send_message
+
+        async def _txb_send(entity, message=None, *args, **kwargs):
+            msg = await orig(entity, message, *args, **kwargs)
+            _txb_offer(slot, msg, message, kwargs, main_client)
+            return msg
+
+        bc.send_message = _txb_send
+        bc._txb_patched = True
+    except Exception:
+        pass
+
+
+def _txb_stop_all():
+    """`.typeb off` / engine stop — kill workers, drop queues."""
+    for t in _TXB_WORKERS.values():
+        try:
+            if t is not None and not t.done():
+                t.cancel()
+        except Exception:
+            pass
+    _TXB_WORKERS.clear()
+    _TXB_QUEUES.clear()
+    _TXB_ONE_SHOT.clear()
+
+
+# ─── v7.7.1 STREAM VERIFY-AND-HEAL (after bot animation batches) ─────────
+# EMPIRICAL (live-tested 2026-11-07): plain bot sends are fine, but a bot
+# message EDIT (typewriter frame) can wedge the MAIN account's update push
+# stream server-side for minutes — commands then "don't work" until the
+# stream re-binds. Cure: after an animation batch drains, probe the stream
+# with a Saved-Messages message; if it does not come back as an update,
+# reconnect (fresh getState re-binds the stream in ~1 min).
+_TXB_PROBE = {"seen": False, "busy": False}
+
+
+def _txb_install_probe(client):
+    """One catch-all listener that flags our own Saved-Messages probes."""
+    try:
+        if getattr(client, "_txb_probe_on", False):
+            return
+        client._txb_probe_on = True
+
+        @client.on(events.NewMessage(outgoing=True))
+        async def _txb_probe_touch(event):
+            try:
+                if (event.is_private and event.chat_id == event.sender_id
+                        and (getattr(event, "raw_text", "") or "") == "🩺"):
+                    _TXB_PROBE["seen"] = True
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+
+async def _txb_verify_stream(client):
+    """Probe the update stream; heal with reconnects if wedged.
+
+    Up to 3 rounds of (probe → reconnect → wait) — empirically a fresh
+    connection re-binds the stream in ~1 min."""
+    if _TXB_PROBE["busy"]:
+        return
+    _TXB_PROBE["busy"] = True
+    try:
+        for attempt in range(1, 4):
+            _TXB_PROBE["seen"] = False
+            probe_msg = await client.send_message("me", "🩺")
+            await asyncio.sleep(12)
+            healthy = _TXB_PROBE["seen"]
+            try:
+                await client.delete_messages("me", probe_msg.id)
+            except Exception:
+                pass
+            if healthy:
+                if attempt > 1:
+                    log.warning("[typeb] 🩺 update stream HEALTHY again "
+                                "(heal round %d)", attempt)
+                return
+            log.warning("[typeb] 🩺 update stream wedged after bot animation "
+                        "(round %d/3) — healing reconnect…", attempt)
+            await client.disconnect()
+            await client.connect()
+            await asyncio.sleep(70)          # give the fresh connection time
+    except asyncio.CancelledError:
+        raise
+    except Exception as e:
+        log.warning("[typeb] stream verify failed: %r", e)
+    finally:
+        _TXB_PROBE["busy"] = False
 
 
 # ─── v7.3.1 RRT (reply-raid turbo) + COPYCAT state ────────────────────────
@@ -831,13 +1254,27 @@ async def _bot_reply_target(bc, chat, target_uid, owner_uid=None,
 
 
 async def _bc_send_text(bc, chat, text, **kw):
-    """Send text through a bot with FloodWait retry. Returns msg | None."""
-    for _attempt in range(4):
+    """Send text through a bot with FloodWait retry + v7.7.1 RPC TIMEOUT.
+
+    A zombie bot connection used to wedge handlers FOREVER (send_message
+    never returned → .typeb/.botsay/.rrb handlers stuck). Now every attempt
+    is capped and a wedged connection is discarded.
+    Returns msg | None."""
+    for _attempt in range(3):
         try:
-            return await bc.send_message(chat, text, link_preview=False, **kw)
+            return await asyncio.wait_for(
+                bc.send_message(chat, text, link_preview=False, **kw),
+                timeout=75)
         except FloodWaitError as fw:
             note_flood(fw.seconds)          # 🛡 safety engine auto slow-down
             await asyncio.sleep(fw.seconds + 1)
+        except asyncio.TimeoutError:
+            log.warning("[botcontroller] bot send timed out (75s) — "
+                        "recycling connection")
+            try:
+                await bc.disconnect()
+            except Exception:
+                pass
         except asyncio.CancelledError:
             raise
         except Exception:
@@ -902,38 +1339,51 @@ def _bf_hourly_count():
     return len(_BF_STATE["calls"])
 
 
-async def _bf_run(main_client, sends, timeout: int = 90):
+async def _bf_run(main_client, sends, timeout: int = 90, force: bool = False):
     """BotFather conversation chalao — RATE-SAFE (lock + gap + cap + pacing).
 
-    sends: [ ("text", str) | ("file", path) ] — har send ke baad response padho.
+    force=True (used by .clonebi) → the internal hourly cap is IGNORED, the
+    anti-spam gap is shortened, every Telegram FloodWait is slept through in
+    full and every send is retried — the change ALWAYS lands in the end.
+    sends: [("text", str) | ("file", path)] — har send ke baad response padho.
     Returns (responses: [str], error: str|None)."""
     res = []
     try:
         async with _bf_gate():
-            # ── per-hour cap (ID spam-shield) ──
-            if _bf_hourly_count() >= _BF_MAX_PER_HOUR:
+            # ── per-hour cap (ID spam-shield) — force mode BYPASSES it ──
+            if not force and _bf_hourly_count() >= _BF_MAX_PER_HOUR:
                 return res, ("BotFather hourly safety limit reached — try again "
-                             "in a while (your ID is being kept safe)")
-            # ── min gap between conversations ──
-            wait = _BF_MIN_GAP - (time.time() - _BF_STATE["last"])
+                             "in a while, or use `.clonebi` (force mode) to "
+                             "ignore the cap")
+            # ── min gap between conversations (shorter when forced) ──
+            wait = (1.2 if force else _BF_MIN_GAP) - (time.time() - _BF_STATE["last"])
             if wait > 0:
                 await asyncio.sleep(wait)
             _BF_STATE["last"] = time.time()
             _BF_STATE["calls"].append(time.time())
             async with main_client.conversation(_BF, timeout=timeout) as conv:
                 for kind, val in sends:
-                    if kind == "file":
-                        await conv.send_file(val)
-                    else:
+                    sent = False
+                    for _attempt in range(3 if force else 1):
                         try:
-                            await conv.send_message(val)
+                            if kind == "file":
+                                await conv.send_file(val)
+                            else:
+                                await conv.send_message(val)
+                            sent = True
+                            break
                         except FloodWaitError as fw:
                             note_flood(fw.seconds)
+                            # force mode SLEEPS the full wait, then retries
                             await asyncio.sleep(fw.seconds + 2)
-                            await conv.send_message(val)
+                        except asyncio.TimeoutError:
+                            await asyncio.sleep(1.0)
+                    if not sent:
+                        return res, ("could not reach BotFather after retries "
+                                     "— Telegram is rate-limiting right now")
                     r = await conv.get_response()
                     res.append((getattr(r, "raw_text", "") or "") if r else "")
-                    await asyncio.sleep(_BF_SEND_PACE)   # pacing — no spam
+                    await asyncio.sleep(0.8 if force else _BF_SEND_PACE)
         return res, None
     except asyncio.TimeoutError:
         return res, ("BotFather did not reply in time — it may be busy or "
@@ -966,7 +1416,7 @@ def _bot_selector(rec) -> str:
     return f"@{rec['username']}" if rec.get("username") else str(rec.get("id", ""))
 
 
-async def _bf_set_bot_name(main_client, rec, new_name: str):
+async def _bf_set_bot_name(main_client, rec, new_name: str, force: bool = False):
     """Bot ka naam BotFather /setname se badlo (MTProto bots ke liye hi raasta)."""
     name = (new_name or "").strip()[:64]
     if not name:
@@ -975,7 +1425,7 @@ async def _bf_set_bot_name(main_client, rec, new_name: str):
         ("text", "/setname"),
         ("text", _bot_selector(rec)),
         ("text", name),
-    ])
+    ], force=force)
     if err:
         return False, err
     last = res[-1] if res else ""
@@ -984,7 +1434,7 @@ async def _bf_set_bot_name(main_client, rec, new_name: str):
     return False, last[:90] or "BotFather did not confirm"
 
 
-async def _bf_set_bot_description(main_client, rec, bio: str):
+async def _bf_set_bot_description(main_client, rec, bio: str, force: bool = False):
     """Bot ka bio/description BotFather /setdescription se set karo."""
     bio = (bio or "").strip()[:500]
     if not bio:
@@ -993,7 +1443,7 @@ async def _bf_set_bot_description(main_client, rec, bio: str):
         ("text", "/setdescription"),
         ("text", _bot_selector(rec)),
         ("text", bio),
-    ])
+    ], force=force)
     if err:
         return False, err
     last = res[-1] if res else ""
@@ -1002,7 +1452,7 @@ async def _bf_set_bot_description(main_client, rec, bio: str):
     return False, last[:90] or "BotFather did not confirm"
 
 
-async def _bf_set_bot_pic(main_client, rec, photo_path: str):
+async def _bf_set_bot_pic(main_client, rec, photo_path: str, force: bool = False):
     """Bot ka pfp BotFather /setuserpic se (MTProto fail hone par fallback)."""
     if not photo_path or not os.path.exists(photo_path):
         return False, "photo file missing"
@@ -1010,7 +1460,7 @@ async def _bf_set_bot_pic(main_client, rec, photo_path: str):
         ("text", "/setuserpic"),
         ("text", _bot_selector(rec)),
         ("file", photo_path),
-    ])
+    ], force=force)
     if err:
         return False, err
     last = res[-1] if res else ""
@@ -1175,40 +1625,96 @@ def _invite_hint(e) -> str:
 
 # ─── copy sender (.ct / .ctb one-shot) ───────────────────────────────────
 
-async def _copy_send(cl, chat, msg, tmp_dir: str, reply_to=None):
+async def _copy_send(cl, chat, msg, tmp_dir: str, reply_to=None, helper=None):
     """Replied message ka EXACT copy bhejo (text/sticker/photo/media).
-    v7.6: reply_to support (mirror mode) + copies marked in _COPY_SEEN
-    so the copycat listeners never echo our own copies back.
+
+    v7.8 .ctb FIX — bots mirror engine is now 4-layer:
+      1. direct media-reference send (fast path, sticker attrs kept)
+      2. download via HELPER (the main account — full media access) +
+         re-upload through the SENDING client with ORIGINAL attributes
+         (sticker → sticker, voice → voice, round video → round video)
+      3. download via the sending client itself (last resort)
+      4. text-only fallback
+    FloodWait is slept through on every layer. Copies are marked in
+    _COPY_SEEN so the copycat listeners never echo our own copies back.
     Returns True/False."""
     raw = (getattr(msg, "raw_text", "") or "").strip()
     media = getattr(msg, "media", None)
     sent = None
+    # original file attributes → same-to-same re-upload (sticker/voice/video)
+    _f = getattr(msg, "file", None)
+    _attrs = list(getattr(_f, "attributes", None) or [])
+    _mime = getattr(_f, "mime_type", None)
+    _name = getattr(_f, "name", None)
+
+    def _kw(cap=True, attr=True):
+        kw = {}
+        if cap and raw:
+            kw["caption"] = raw
+        if reply_to:
+            kw["reply_to"] = reply_to
+        if attr and _attrs and _mime:
+            kw["attributes"] = _attrs
+            kw["mime_type"] = _mime
+            if _name:
+                kw["file_name"] = _name
+        return kw
+
     if media is not None:
+        # ── layer 1: direct media-reference send ──
         try:
-            kw = {"caption": raw} if raw else {}
-            if reply_to:
-                kw["reply_to"] = reply_to
-            sent = await cl.send_file(chat, media, **kw)
-        except Exception:
-            sent = None
-        if sent is None:
+            sent = await cl.send_file(chat, media, **_kw())
+        except FloodWaitError as fw:
+            note_flood(fw.seconds)
+            await asyncio.sleep(fw.seconds + 1)
             try:
-                p = await cl.download_media(msg, file=tmp_dir)
-                if p and os.path.exists(p):
-                    kw = {"caption": raw} if raw else {}
-                    if reply_to:
-                        kw["reply_to"] = reply_to
-                    sent = await cl.send_file(chat, p, **kw)
+                sent = await cl.send_file(chat, media, **_kw())
             except Exception:
                 sent = None
-    if sent is None and raw:
-        try:
-            kw = {"link_preview": False}
-            if reply_to:
-                kw["reply_to"] = reply_to
-            sent = await cl.send_message(chat, raw, **kw)
         except Exception:
-            return False
+            sent = None
+        # ── layers 2+3: download + re-upload (helper first, then self) ──
+        if sent is None:
+            for dl_cl in ([helper, cl] if helper is not None and helper is not cl
+                          else [cl]):
+                path = None
+                try:
+                    path = await dl_cl.download_media(msg, file=tmp_dir)
+                except Exception:
+                    path = None
+                if not (path and os.path.exists(path)):
+                    continue
+                for _try in range(2):
+                    try:
+                        sent = await cl.send_file(chat, path, **_kw())
+                        break
+                    except FloodWaitError as fw:
+                        note_flood(fw.seconds)
+                        await asyncio.sleep(fw.seconds + 1)
+                    except Exception:
+                        await asyncio.sleep(0.5)
+                try:
+                    os.remove(path)
+                except OSError:
+                    pass
+                if sent is not None:
+                    break
+    if sent is None and raw:
+        for _try in range(2):
+            try:
+                kw = {"link_preview": False}
+                if reply_to:
+                    kw["reply_to"] = reply_to
+                sent = await cl.send_message(chat, raw, **kw)
+                # v7.7 TYPE-X B: copycat copies are same-to-same — never animated
+                if sent is not None and getattr(cl, "_txb_slot", None) is not None:
+                    _txb_skip(sent)
+                break
+            except FloodWaitError as fw:
+                note_flood(fw.seconds)
+                await asyncio.sleep(fw.seconds + 1)
+            except Exception:
+                break
     if sent is not None:
         try:
             _COPY_SEEN.add(int(sent.id))
@@ -1281,6 +1787,9 @@ def register_botcontroller(client):
     # 🤖 v7.4: RRT + CopyCat + Autodelete state load (restart-proof)
     _ct_load_state()
     _ad_load()
+
+    # ⌨️ v7.7.1 TYPE-X B: Saved-Messages probe listener (stream verify-heal)
+    _txb_install_probe(client)
 
     # ── v7.5 TIMED-DELETE HOOKS (production-safe) ──────────────────────
     # Telegram same-session ke apne edits/sends par update event NAHI
@@ -2236,6 +2745,7 @@ def register_botcontroller(client):
 
         async def _one(slot, bc):
             key = f"bc_anim_{event.id}_{slot}"
+            _TXB_SUPPRESS.add(slot)      # v7.7: apne frames khud chal rahe — TYPE-X B off for now
             try:
                 start = time.time()
                 msg = None
@@ -2266,6 +2776,7 @@ def register_botcontroller(client):
             except asyncio.CancelledError:
                 raise
             finally:
+                _TXB_SUPPRESS.discard(slot)
                 client.stop_processes.pop(key, None)
 
         tasks = []
@@ -2360,19 +2871,35 @@ def register_botcontroller(client):
             pass
         return None
 
-    async def _apply_bot_profile(event, rec, first, last, bio, pfp_path):
+    async def _apply_bot_profile(event, rec, first, last, bio, pfp_path,
+                                 force: bool = False):
         """Ek bot par naam+bio+pfp lagao (BotFather + MTProto mix).
+        force=True (.clonebi) → every failed BotFather step is retried up to
+        3 times with backoff until it lands — limits are pushed through.
         Returns done-list (strings)."""
         done = []
         uname = rec.get("username") or rec.get("id")
+
+        async def _force_step(fn, *a):
+            if not force:
+                return await fn(*a)
+            why = ""
+            for i in range(3):
+                ok, why = await fn(*a)
+                if ok:
+                    return ok, why
+                await asyncio.sleep(min(2 ** i * 2, 8))   # 2s → 4s → 8s backoff
+            return False, why
+
         # ── NAME (BotFather — bots ke liye hi raasta) ──
         full_name = " ".join(x for x in (first, last) if x).strip()[:64] or "User"
-        ok, why = await _bf_set_bot_name(client, rec, full_name)
+        ok, why = await _force_step(_bf_set_bot_name, client, rec, full_name, force)
         done.append("name ✅" if ok else f"name❌ {why[:40]}")
         await asyncio.sleep(0.4)
         # ── BIO (BotFather /setdescription — bot ka "about") ──
         if bio:
-            ok, why = await _bf_set_bot_description(client, rec, bio)
+            ok, why = await _force_step(_bf_set_bot_description,
+                                        client, rec, bio, force)
             done.append("bio ✅" if ok else f"bio❌ {why[:40]}")
             await asyncio.sleep(0.4)
         # ── PFP (MTProto — bots uploadProfilePhoto KAR sakte hain) ──
@@ -2389,7 +2916,8 @@ def register_botcontroller(client):
                     done.append("pfp ✅")
                 except Exception:
                     # BotFather fallback
-                    ok, why = await _bf_set_bot_pic(client, rec, pfp_path)
+                    ok, why = await _force_step(_bf_set_bot_pic,
+                                                client, rec, pfp_path, force)
                     done.append("pfp ✅" if ok else f"pfp❌ {why[:36]}")
         elif first:
             # v7.6: target has NO profile photo → clear the bot's photos too,
@@ -2443,22 +2971,27 @@ def register_botcontroller(client):
             pass
         rec["pre_clone"] = pre
 
-    # ── .cloneb [slots] — bots victim ka clone banein ────────────────────
-    @_on(r"^\.cloneb(\d+(?:-\d+)?)?\s*$")
-    async def _cloneb(event):
+    # ── .cloneb / .clonebi [slots] — bots victim ka clone banein ──────────
+    # .cloneb  = normal (BotFather safety caps ON — 24 ops/hour)
+    # .clonebi = IGNORE-LIMITS mode: caps bypassed, FloodWaits slept in
+    #            full, every step retried until the change lands
+    async def _clone_run(event, force: bool):
         data = _bc_load()
         bots = data["bots"]
         if not bots:
             return await event.edit("🤖 No bots yet — `.addbottoken <token>`.")
         reply = await event.get_reply_message()
         if not reply:
-            return await event.edit("↩️ **Reply to a user** — `.cloneb [slots]`")
+            hint = "`.clonebi [slots]`" if force else "`.cloneb [slots]`"
+            return await event.edit(f"↩️ **Reply to a user** — {hint}")
         first, last, bio, err = await _target_profile(event, reply)
         if err:
             return await event.edit(err)
+        mode_txt = ("⚡ **FORCE mode** — limits ignored, changes WILL land\n"
+                    "┃" if force else
+                    "┃ name/bio are set via BotFather (2-4s per bot)")
         await event.edit(
-            "🎭 **Bots are cloning the profile…**\n"
-            "┃ name/bio are set via BotFather (2-4s per bot)")
+            "🎭 **Bots are cloning the profile…**\n" + mode_txt)
         try:
             tent = await reply.get_input_sender()
         except Exception:
@@ -2481,7 +3014,8 @@ def register_botcontroller(client):
                 rows.append(f"┃ {_ord(s)} @{uname} ❄️ frozen")
                 continue
             await _save_pre_clone(bc, rec, event.id)
-            done = await _apply_bot_profile(event, rec, first, last, bio, pfp_path)
+            done = await _apply_bot_profile(event, rec, first, last, bio,
+                                            pfp_path, force=force)
             rows.append(f"┃ {_ord(s)} @{uname} ✅ {', '.join(done)}")
         _bc_save(data)
         if pfp_path:
@@ -2489,12 +3023,23 @@ def register_botcontroller(client):
                 os.remove(pfp_path)
             except OSError:
                 pass
+        title = "🧨 **BOT CLONE — FORCED**" if force else "🎭 **BOT CLONE**"
+        hint = ("\n┃ ♻️ Same command again = re-force any missed step\n"
+                "┃ ↩️ Restore originals: `.revertb`" if force else
+                "\n┃ ↩️ Restore originals: `.revertb`")
         await event.edit(
-            "✦ ━━━〔 🎭 **BOT CLONE** 〕━━━ ✦\n"
-            f"┃ 👤 Target: `{first} {last}`\n" + "\n".join(rows) +
-            "\n┃ ↩️ Restore originals: `.revertb`\n"
-            "✦ ━━━━━━━━━━━━━━━━━━━━ ✦",
+            f"✦ ━━━〔 {title} 〕━━━ ✦\n"
+            f"┃ 👤 Target: `{first} {last}`\n" + "\n".join(rows) + hint +
+            "\n✦ ━━━━━━━━━━━━━━━━━━━━ ✦",
             link_preview=False)
+
+    @_on(r"^\.cloneb(\d+(?:-\d+)?)?\s*$")
+    async def _cloneb(event):
+        await _clone_run(event, force=False)
+
+    @_on(r"^\.clonebi(\d+(?:-\d+)?)?\s*$")
+    async def _clonebi(event):
+        await _clone_run(event, force=True)
 
     # ── .revertb / .uncloneb [slots] — bots ORIGINAL state me ────────────
     @_on(r"^\.(?:revertb|uncloneb)(\d+(?:-\d+)?)?\s*$")
@@ -2614,6 +3159,175 @@ def register_botcontroller(client):
             await asyncio.sleep(0.4)
         await event.edit(
             f"🗣 **{said}/{len(pairs)}** bot(s) said:\n`{text[:100]}`",
+            link_preview=False)
+
+    # ── .typeb [slots] — TYPE-X BOTS ⌨️🤖 typing effect (v7.7) ─────────────
+    # .typeb on/off · .typeb1-2 on · .typeb <style> · .typeb speed 0.2
+    # .typeb styles / status / sync · .typeb <text> = one-shot demo
+    @_on(r"^\.typeb(\d+(?:-\d+)?)?(?:\s+([\s\S]+))?$")
+    async def _typeb(event):
+        data = _bc_load()
+        bots = data["bots"]
+        suffix = event.pattern_match.group(1)
+        arg = (event.pattern_match.group(2) or "").strip()
+        low = arg.lower()
+        styles = _txb_styles()
+
+        def _scope_txt():
+            sc = _TXB_STATE.get("slots") or []
+            return f"bots `{'/'.join(str(s) for s in sc)}`" if sc else "**ALL** bots"
+
+        if not arg:
+            return await event.edit(
+                "✦ ━━━〔 ⌨️🤖 **TYPE-X BOTS** 〕━━━ ✦\n"
+                "┃ `.typeb on` — every bot message gets the typing effect\n"
+                "┃ `.typeb off` — bots send normal again\n"
+                "┃ `.typeb1-2 on` — only specific bots get the effect\n"
+                "┃ `.typeb <style>` — set style (`.typeb glitch`)\n"
+                "┃ `.typeb speed 0.2` — frame speed (0.05–1.0s)\n"
+                "┃ `.typeb styles` — 12 animation styles\n"
+                "┃ `.typeb status` — mode/style/speed card\n"
+                "┃ `.typeb sync` — copy style+speed from `.type`\n"
+                "┃ `.typeb <text>` — one-shot: bots send text WITH effect\n"
+                "✦ ━━━━━━━━━━━━━━━━━━━━ ✦\n"
+                "⚡ Works on `.spamb` `.raidb` `.botsay` `.rrb` replies\n"
+                "_🛡 Flood-safe: frame cap + queue cap + storm guard_",
+                link_preview=False)
+
+        # scope forms: `.typeb 1-2 on` / `.typeb 1-2 off`
+        toks = low.split()
+        if (len(toks) == 2 and toks[1] in ("on", "enable", "off", "disable")
+                and re.fullmatch(r"(?:all|\d+(?:-\d+)?)", toks[0])):
+            if not bots:
+                return await event.edit("🤖 No bots yet — `.addbottoken <token>`.")
+            if toks[0] == "all":
+                _TXB_STATE["slots"] = []
+            else:
+                _TXB_STATE["slots"] = _parse_slots(toks[0], len(bots)) or []
+            if toks[1] in ("on", "enable"):
+                _TXB_STATE["on"] = True
+            else:
+                _TXB_STATE["on"] = False
+                _txb_stop_all()
+            _txb_save()
+            sc = _scope_txt()
+            return await event.edit(
+                f"✦ ━━━〔 ⌨️🤖 **TYPE-X BOTS: "
+                f"{'ON' if _TXB_STATE['on'] else 'OFF'}** 〕━━━ ✦\n"
+                f"┃ 🎯 Scope: {sc}\n"
+                f"┃ 🎬 Style: **{_TXB_STATE['style']}** · "
+                f"⚡ Speed: `{_TXB_STATE['speed']}s`",
+                link_preview=False)
+
+        if low in ("on", "enable"):
+            if not bots:
+                return await event.edit("🤖 No bots yet — `.addbottoken <token>`.")
+            if suffix:      # .typeb1-2 on → scope wale hi bots
+                _TXB_STATE["slots"] = _parse_slots(suffix, len(bots)) or []
+            _TXB_STATE["on"] = True
+            _txb_save()
+            return await event.edit(
+                "✦ ━━━〔 ⌨️🤖 **TYPE-X BOTS: ON** 〕━━━ ✦\n"
+                f"✅ Every message {_scope_txt()} send(s) now gets the\n"
+                "   live typewriter effect — `.spamb`, `.raidb`, `.botsay`,\n"
+                "   `.rrb` replies… sab!\n\n"
+                f"🎬 Style: **{_TXB_STATE['style']}** · "
+                f"⚡ Speed: `{_TXB_STATE['speed']}s`\n"
+                "💡 `.typeb styles` — 12 styles · `.typeb off` — off",
+                link_preview=False)
+
+        if low in ("off", "disable", "of"):
+            _TXB_STATE["on"] = False
+            _txb_stop_all()
+            _txb_save()
+            return await event.edit(
+                "⏹ **TYPE-X BOTS OFF** — bots send normal messages again.\n"
+                "💡 `.typeb on` — back on · `.typeb <text>` — one-shot demo",
+                link_preview=False)
+
+        if low in ("status", "info"):
+            qd = sum(q.qsize() for q in _TXB_QUEUES.values())
+            return await event.edit(
+                "✦ ━━━〔 ⌨️🤖 **TYPE-X BOTS STATUS** 〕━━━ ✦\n"
+                f"┃ Mode  : {'🟢 ON — bot messages get animated' if _TXB_STATE['on'] else '⛔ OFF'}\n"
+                f"┃ Scope : {_scope_txt()} (of `{len(bots)}` registered)\n"
+                f"┃ Style : **{_TXB_STATE['style']}**\n"
+                f"┃ Speed : `{_TXB_STATE['speed']}s`/frame (floor `{_TXB_FLOOR}s` — bot-safe)\n"
+                f"┃ Frames: ≤{_TXB_MAX_FRAMES}/message · queue ≤{_TXB_MAX_PENDING}/bot\n"
+                f"┃ Queue : `{qd}` pending · 🎬 `{_TXB_DONE}` animated till now\n"
+                "┃ Saved : persists across restarts ✅\n"
+                "✦ ━━━━━━━━━━━━━━━━━━━━ ✦",
+                link_preview=False)
+
+        if low in ("styles", "list"):
+            hints = _txb_style_hints()
+            rows = "\n".join(f"┃ `{s:<10}` {hints.get(s, '')}" for s in styles)
+            return await event.edit(
+                f"✦ ━━━〔 ⌨️🤖 **TYPE-X BOTS STYLES ({len(styles)})** 〕━━━ ✦\n"
+                f"{rows}\n"
+                "✦ ━━━━━━━━━━━━━━━━━━━━ ✦\n"
+                "💡 `.typeb glitch` — set · `.typeb on` — start",
+                link_preview=False)
+
+        if toks and toks[0] in ("speed", "spd") and len(toks) == 2:
+            try:
+                v = min(1.0, max(0.05, float(toks[1])))
+            except ValueError:
+                return await event.edit("❌ Speed must be a number — `.typeb speed 0.2`")
+            _TXB_STATE["speed"] = v
+            _txb_save()
+            return await event.edit(
+                f"⚡ **TYPE-X BOTS speed** → `{v}s` per frame\n"
+                f"┃ 🛡 flood-floor stays `{_TXB_FLOOR}s` — ID safe",
+                link_preview=False)
+
+        if low in ("sync", "copy"):
+            fun = _txb_fun()
+            if fun is None:
+                return await event.edit("❌ User-side TYPE-X (`.type`) not available.")
+            _TXB_STATE["style"] = fun._TX_STATE.get("style", "classic")
+            _TXB_STATE["speed"] = float(fun._TX_STATE.get("speed", 0.15))
+            _txb_save()
+            return await event.edit(
+                "🔄 **Synced from `.type`** — bots now use the SAME style+speed\n"
+                f"┃ 🎬 Style: **{_TXB_STATE['style']}** · "
+                f"⚡ Speed: `{_TXB_STATE['speed']}s`",
+                link_preview=False)
+
+        if low in styles:
+            _TXB_STATE["style"] = low
+            _txb_save()
+            return await event.edit(
+                f"🎬 **TYPE-X BOTS style** → **{low}**\n"
+                f"┃ ⚡ Speed: `{_TXB_STATE['speed']}s` · "
+                f"Mode: {'ON' if _TXB_STATE['on'] else 'OFF'}\n"
+                "💡 `.typeb on` — turn the effect on",
+                link_preview=False)
+
+        # ── one-shot: `.typeb <text>` — bots send <text> WITH the effect ──
+        if not bots:
+            return await event.edit("🤖 No bots yet — `.addbottoken <token>`.")
+        text = arg
+        slots = _parse_slots(suffix, len(bots))
+        if not slots:
+            return await event.edit(f"❌ Invalid bot slot (total `{len(bots)}`).")
+        pairs = await _connect_bots(client, slots, data)
+        if not pairs:
+            return await event.edit("❄️ No bot connected. Check `.monitorb`.")
+        chat = event.chat_id
+        said = 0
+        for slot, bc in pairs:
+            _TXB_ONE_SHOT.add(slot)
+            try:
+                if await _bc_send_text(bc, chat, text) is not None:
+                    said += 1
+            finally:
+                _TXB_ONE_SHOT.discard(slot)
+            await asyncio.sleep(0.3)
+        await event.edit(
+            f"⌨️ **{said}/{len(pairs)}** bot(s) typed:\n`{text[:100]}`\n"
+            f"┃ 🎬 one-shot · style **{_TXB_STATE['style']}**\n"
+            "💡 `.typeb on` — make EVERY bot message animated",
             link_preview=False)
 
     # ════════════════════════════════════════════════════════════════════
@@ -3015,7 +3729,7 @@ def register_botcontroller(client):
                     await _copy_send(mbc, chat_id, event.message,
                                      os.path.join(BC_DIR,
                                                   f"ctmb_{event.id}_{mslot}"),
-                                     reply_to=mrid)
+                                     reply_to=mrid, helper=client)
                 except FloodWaitError as fw:
                     note_flood(fw.seconds)
                     await asyncio.sleep(fw.seconds + 1)
@@ -3170,7 +3884,7 @@ def register_botcontroller(client):
             chat_id = event.chat_id
             sent, rows = 0, []
             for slot, bc in pairs:
-                if await _copy_send(bc, chat_id, reply, tmp):
+                if await _copy_send(bc, chat_id, reply, tmp, helper=client):
                     sent += 1
                     rows.append(f"┃ {_ord(slot)} ✅")
                 else:
@@ -3268,7 +3982,7 @@ def register_botcontroller(client):
                 if bc is None:
                     continue
                 try:
-                    await _copy_send(bc, chat_id, msg, tmp_path)
+                    await _copy_send(bc, chat_id, msg, tmp_path, helper=client)
                 except FloodWaitError as fw:
                     note_flood(fw.seconds)
                     await asyncio.sleep(fw.seconds + 1)
@@ -3678,6 +4392,12 @@ def register_botcontroller(client):
             "┃ `.revertb [slots]` — bots back to ORIGINAL state\n"
             "┃ `.loadprofileb [slots] <name>` — load a saved profile on bots\n"
             "┃ `.botsay [slots] <text>` · `.<anim>b [slots]` (.roseb .hackb1-2)\n"
+            "**⌨️🤖 TYPE-X Bots (typing effect)**\n"
+            "┃ `.typeb on` / `.typeb off` — every bot message gets the\n"
+            "┃    live typewriter effect (.spamb .raidb .botsay .rrb)\n"
+            "┃ `.typeb1-2 on` — only specific bots · `.typeb <style>` — 12 styles\n"
+            "┃ `.typeb speed 0.2` · `.typeb styles` · `.typeb status`\n"
+            "┃ `.typeb sync` — copy style+speed from `.type` · `.typeb <text>` one-shot\n"
             "**📜 Raid Messages**\n"
             "┃ `.saverm <text>` — save a slot (1st, 2nd, 3rd… auto)\n"
             "┃ `.listrm` · `.delrm <n>` (auto-shift) · `.delallrm`\n"
@@ -3825,6 +4545,13 @@ COMMANDS_BOTCONTROLLER = {
         (".loadprofileb [slots] <name>", "load a .saveprofile profile onto the bots"),
         (".botsay [slots] <txt>", "make the bots say something"),
         (".<anim>b [slots] [sec]", "run any animation on bots (.roseb, .hackb1-2)"),
+        # type-x bots (v7.7)
+        (".typeb on / off", "⌨️ TYPING EFFECT on the bot army — every bot message (.spamb/.raidb/.botsay/.rrb) gets the live typewriter animation"),
+        (".typeb1-2 on / .typeb 1-2 on", "typing effect on only specific bots"),
+        (".typeb <style>", "bot typing style — 12 styles (classic wave glitch scramble matrix pulse fire hearts zoom eraser reverse random)"),
+        (".typeb speed 0.2", "bot typing frame speed (0.05–1.0s)"),
+        (".typeb styles / status / sync", "style gallery / mode card / copy style+speed from .type"),
+        (".typeb <text>", "one-shot — bots send <text> WITH the typing effect"),
         # raid messages
         (".saverm <text>", "save a raid message slot (reply works too · 1st, 2nd…)"),
         (".listrm / .delrm <n> / .delallrm", "raid message slots (auto-shift + delete all)"),

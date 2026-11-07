@@ -437,6 +437,7 @@ def register_fun(client):
                 "┃ `.type speed 0.2` — frame speed (0.05–1.0s)\n"
                 "┃ `.type status` — mode/style/speed card\n"
                 "┃ `.type <text>` — one-shot animation\n"
+                "┃ `.typeb on` — same effect on your BOT ARMY 🤖\n"
                 "✦ ━━━━━━━━━━━━━━━━━━ ✦\n"
                 "_🛡 Flood-safe: frame cap + throttle + storm guard_",
                 link_preview=False)
@@ -450,6 +451,7 @@ def register_fun(client):
                 "   animation — like `.type`, but fully automatic!\n\n"
                 f"🎬 Style: **{_TX_STATE['style']}** · ⚡ Speed: `{_TX_STATE['speed']}s`\n"
                 "💡 `.type styles` — 12 styles · `.type off` — turn off\n"
+                "🤖 `.typeb on` — the SAME effect on your bots!\n"
                 "_🛡 Storm/flood me auto-skip (ID safe)_",
                 link_preview=False)
 
@@ -469,6 +471,7 @@ def register_fun(client):
                 f"┃ Speed : `{_TX_STATE['speed']}s` per frame\n"
                 f"┃ Frames: ≤{_TX_MAX_FRAMES * 2}/message (flood-safe cap)\n"
                 f"┃ Saved : persists across restarts ✅\n"
+                "┃ 🤖 Bots: `.typeb status` (bot-army version)\n"
                 "✦ ━━━━━━━━━━━━━━━━━━ ✦",
                 link_preview=False)
 
@@ -664,6 +667,7 @@ COMMANDS_FUN = {
         (".type styles / <style>", "12 styles: glitch wave matrix scramble…"),
         (".type speed 0.2 / status", "frame speed / TYPE-X status card"),
         (".type <text>", "one-shot typewriter (current style me)"),
+        (".typeb on/off [slots]", "⌨️ Same typing effect on your BOT ARMY — .spamb/.raidb/.botsay messages get animated (BotController)"),
         (".joke .quote .ud <word>", "joke / quote / urban dictionary"),
         (".meme .dog .cat", "random meme / dog / cat pics"),
     ],

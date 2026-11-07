@@ -1,5 +1,5 @@
 ════════════════════════════════════════════════════════════════════
-  🤖 BOTCONTROLLER v7.5 — POORI COMMAND LIST (Hinglish)
+  🤖 BOTCONTROLLER v7.7 — POORI COMMAND LIST (Hinglish)
 ════════════════════════════════════════════════════════════════════
 
 📦 INSTALL (zip poora ready-made hai):
@@ -12,7 +12,7 @@
   ⚠️ hamesha python userbot.py chalao — bot.py sirf TEST-BOT mode hai
      (usme BotController ke commands NAHI hote!)
 
-🆕 = v7.4/7.4.1 me NEW · ⚡ = v7.5 me NEW/FIXED · ✅ = pehle se tha, ab bug-free
+🆕 = v7.4/7.4.1 me NEW · ⚡ = v7.5/7.6/7.7 me NEW/FIXED · ✅ = pehle se tha, ab bug-free
 
 ──────────────────────────────────────────────────────────────────────
  1️⃣  BOT ADD / MANAGE
@@ -109,6 +109,11 @@
         bots ko account.updateProfile USE KARNE HI NAHI deta (official
         limit). Ab BotFather /setname + /setdescription se hota hai =
         guaranteed kaam karega.
+  .clonebi [slots]      🧨 FORCE clone (v7.8) — LIMIT IGNORE mode:
+                          — BotFather hourly cap bypass
+                          — FloodWait full sleep + auto-retry (3x)
+                          — har step jab tak confirm na ho, dohrayo
+                          → limit aa bhi jaye to name/bio/pfp CHANGE HOGA hi
   .revertb [slots]      ✅ bots wapas ORIGINAL (pre-clone) state me
   .uncloneb [slots]     ✅ same ka alias
   .loadprofileb [slots] <name> 🆕 .saveprofile wala SAVED profile
@@ -172,6 +177,70 @@
      ex: .bccheck  → jo bhi line ❌ hai, uska fix hint wahi likha hai
   ⚠️ v7.4.1: command crash ho to chat me ❌ error reply dikhta hai
      (pehle silent tha) — saath me .bccheck chalao, cause wahi milega
+
+
+──────────────────────────────────────────────────────────────────────
+ ⌨️🤖 TYPE-X BOTS — v7.7 me NEW (typing effect bot army par!)
+──────────────────────────────────────────────────────────────────────
+  .typeb on            ⚡ bots ka har message (.spamb .raidb .botsay
+                         .rrb reply) TYPEWRITER effect me type hoga —
+                         jaise .type on apne messages par hota hai!
+  .typeb off           ⚡ effect band
+  .typeb1-2 on         ⚡ sirf specific bots par effect
+  .typeb <style>       ⚡ 12 styles: classic wave glitch scramble matrix
+                         pulse fire hearts zoom eraser reverse random
+  .typeb speed 0.2     ⚡ frame speed (0.05–1.0s)
+  .typeb styles        ⚡ saare styles ki gallery
+  .typeb status        ⚡ mode/style/speed/queue card
+  .typeb sync          ⚡ .type wala style+speed copy kar lo bots me
+  .typeb hello duniya  ⚡ ONE-SHOT: bots ye text effect ke saath bheje
+     🛡 flood-safe: ≤10 frames/msg · per-bot queue cap · storm guard
+     🧠 mention/tag wale messages: plain part type hota hai, phir
+        mention final frame me pop hota hai — koi formatting nahi tootti
+
+──────────────────────────────────────────────────────────────────────
+ 🆕 v7.6/7.7 ke REST (pehle se add, yaad dilane ke liye)
+──────────────────────────────────────────────────────────────────────
+  .rr / .rrt           ⚡ REPLY-RAID toggle (reply karke chalao)
+  .rrb / .rrtb [slots] ⚡ bots wala reply-raid (toggle)
+  .raidb 10 .1 hello   ⚡ 10x, 0.1s gap, custom text — reply+TAG dono
+  .ct / .ctb mirror    ⚡ same-to-same copy (sticker bhi!) · userbot se bhi
+  .cloneb              ⚡ bio+dp logic (no-dp → sab clear, dp → wahi dp)
+  .updateuserbot       ⚡ GitHub repo se self-update + auto-restart
+  .viewonce on/off     ⚡ view-once SAVER — photo + VIDEO, DEFAULT ON
+  .type on/off/styles  ⚡ apne messages par typewriter (12 styles)
+
+
+──────────────────────────────────────────────────────────────────────
+ ⌨️🤖 TYPE-X BOTS — v7.7 me NEW (typing effect bot army par!)
+──────────────────────────────────────────────────────────────────────
+  .typeb on            ⚡ bots ka har message (.spamb .raidb .botsay
+                         .rrb reply) TYPEWRITER effect me type hoga —
+                         jaise .type on apne messages par hota hai!
+  .typeb off           ⚡ effect band
+  .typeb1-2 on         ⚡ sirf specific bots par effect
+  .typeb <style>       ⚡ 12 styles: classic wave glitch scramble matrix
+                         pulse fire hearts zoom eraser reverse random
+  .typeb speed 0.2     ⚡ frame speed (0.05–1.0s)
+  .typeb styles        ⚡ saare styles ki gallery
+  .typeb status        ⚡ mode/style/speed/queue card
+  .typeb sync          ⚡ .type wala style+speed copy kar lo bots me
+  .typeb hello duniya  ⚡ ONE-SHOT: bots ye text effect ke saath bheje
+     🛡 flood-safe: ≤10 frames/msg · per-bot queue cap · storm guard
+     🧠 mention/tag wale messages: plain part type hota hai, phir
+        mention final frame me pop hota hai — koi formatting nahi tootti
+
+──────────────────────────────────────────────────────────────────────
+ 🆕 v7.6/7.7 ke REST (pehle se add, yaad dilane ke liye)
+──────────────────────────────────────────────────────────────────────
+  .rr / .rrt           ⚡ REPLY-RAID toggle (reply karke chalao)
+  .rrb / .rrtb [slots] ⚡ bots wala reply-raid (toggle)
+  .raidb 10 .1 hello   ⚡ 10x, 0.1s gap, custom text — reply+TAG dono
+  .ct / .ctb mirror    ⚡ same-to-same copy (sticker bhi!) · userbot se bhi
+  .cloneb              ⚡ bio+dp logic (no-dp → sab clear, dp → wahi dp)
+  .updateuserbot       ⚡ GitHub repo se self-update + auto-restart
+  .viewonce on/off     ⚡ view-once SAVER — photo + VIDEO, DEFAULT ON
+  .type on/off/styles  ⚡ apne messages par typewriter (12 styles)
 
 ──────────────────────────────────────────────────────────────────────
  📋 purane vs naye (SHORT SUMMARY)

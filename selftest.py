@@ -319,6 +319,10 @@ async def main():
     await run_cmd(".uptime", 3)
     await run_cmd(".sysinfo", 5)
     await run_cmd(".autodelete status", 4)
+    await run_cmd(".viewonce", 4, expect="view-once",
+                  note="v7.7 view-once saver card (photos+videos, default ON)")
+    await run_cmd(".help settings", 5, expect="autodeletem",
+                  note="v7.7 settings section inside .help")
     await run_cmd(".autodeletem 10", 3, expect="timer set",
                   note="v7.6 timed auto-delete ON (10s)")
     await run_cmd(".autodeletem off", 2, expect="off",
@@ -381,10 +385,23 @@ async def main():
     if st["bot_msg_id"]:
         await fire_on_msg(st["bot_msg_id"], wait=8, label="RRT listener (incoming)")
     await run_cmd(".stoprrt", 3, expect="stopped")
+    # v7.7 — .rr / .rrb explicit toggle tests (user demand: dobara likho = band)
+    await run_cmd(".rr", 4, reply_to=r_to, expect="started",
+                  note=".rr arm on the bot-target (saved slots reply)")
+    await run_cmd(".rr", 4, reply_to=r_to, expect="stopped",
+                  note=".rr same user again = TOGGLE OFF")
+    await run_cmd(".rrb", 6, reply_to=r_to, expect="started",
+                  note=".rrb bots reply-raid arm")
+    await run_cmd(".rrb", 6, reply_to=r_to, expect="stopped",
+                  note=".rrb toggle off")
+    await run_cmd(".rrt", 4, reply_to=r_to, expect="started",
+                  note="arm again for the listener check")
+    await run_cmd(".stoprrt", 3, expect="stopped", note="cleanup before raidb")
     if st["bot_msg_id"]:
-        await run_cmd(".raidb 2 0.5 selftest reply-tag ok", 14,
+        await run_cmd(".raidb 2 .1 selftest decimal gap ok", 14,
                       reply_to=st["bot_msg_id"], expect="raid started",
-                      note="v7.6 raidb reply+tag both")
+                      note="v7.7 raidb reply+tag + decimal gap .1 parse")
+        await run_cmd(".raidbstop", 3, expect="stop", note="bot raid stop")
 
     print("\n   PHASE F — CLONE / REVERT (bots)")
     await run_cmd(".cloneb", 30, reply_to=st["self_msg_id"],
@@ -394,6 +411,11 @@ async def main():
     print("\n   PHASE G — USER PROFILE CLONE (safety-net ke saath)")
     await run_cmd(".clone", 15, reply_to=r_to, note="me = bot ka clone")
     await run_cmd(".revert", 10, note="me wapas original")
+    _bu = (bot_names[0] if bot_names else None)
+    if _bu:
+        await run_cmd(f".clone @{_bu}", 25, expect="clone",
+                      note="v7.7 clone BY USERNAME (bot target)")
+        await run_cmd(".revert", 10, note="restore after username clone")
     try:
         me2 = await client.get_me()
         if (me2.first_name or "") != orig_first:
@@ -423,12 +445,32 @@ async def main():
     if st["bot_msg_id"]:
         await fire_on_msg(st["bot_msg_id"], wait=8,
                           label="sudo-bot incoming: .botlist response")
-    await run_cmd(".addnewbotauto", 70, note="BotFather se naya bot (real)")
+    await run_cmd(".addnewbotauto 1", 90, note="BotFather se naya bot (real, paced)")
+    await run_cmd(".updateuserbot", 60, expect="latest",
+                  note="v7.7 version guard — refuses to downgrade the deploy")
     await run_cmd(".refreshb", 20, note="sab bots reconnect")
     await run_cmd(".monitorb", 15, note="final status")
     await run_cmd(".stopall", 3)
+    await run_cmd(".autodeletem 10", 3, expect="timer set",
+                  note="leave the 10s timer ON (user default)")
     if bot_ids:
         await run_cmd(f".delsudo {bot_ids[0]}", 3, note="sudo cleanup")
+
+    # ── v7.7: ZIP → Saved Messages ──────────────────────────────────────
+    try:
+        await client.send_file(
+            "me", "/home/tgidsellerindian/sukuna-v77.zip",
+            caption=("📦 **sukuna-x-domain v7.7** — full source\n"
+                     "┃ 36 plugins · 386 commands · view-once saver ON\n"
+                     "┃ deployed & live on this server ✔"),
+            force_document=True)
+        results.append({"cmd": "zip→saved-messages", "ok": True,
+                        "why": "delivered", "output": ""})
+        print("   PASS ✅  zip→saved-messages                        delivered")
+    except Exception as e:
+        results.append({"cmd": "zip→saved-messages", "ok": False,
+                        "why": str(e)[:120], "output": ""})
+        print(f"   FAIL ❌  zip→saved-messages                        {str(e)[:60]}")
 
     # ── report ─────────────────────────────────────────────────────────
     p = _save()

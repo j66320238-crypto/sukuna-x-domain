@@ -38,6 +38,7 @@ from core.ui import register_builtin_commands, _total_commands
 from core.client import _step, _shutdown_panel, _run_forever, _interactive_login
 
 from telethon import TelegramClient
+from telethon import events as _tg_events          # v7.7.1: update-stream healer
 from telethon.sessions import StringSession
 
 # ── plugin loader (auto-discovers every plugins/*.py) ────────────────────
@@ -198,6 +199,13 @@ async def main() -> None:
     except Exception:
         pass
 
+    # 🩺 v7.7.1: fetch updates missed during connection hiccups — without
+    # this, a routing hiccup can leave own messages unprocessed forever.
+    try:
+        client.catch_up = True
+    except Exception:
+        pass
+
     client.stop_processes = stop_processes
     client.flood_safe = core.flood_safe
     client.command_registry = command_registry
@@ -242,6 +250,70 @@ async def main() -> None:
     cmds = _total_commands()
     _step(4, TOTAL_STEPS,
           f"Registered {count} plugins · {total_handlers} handlers · {cmds} commands")
+
+    # ── v7.7.1 UPDATE-STREAM SELF-HEALER ─────────────────────────────────
+    # An unclean kill (kill -9) or a server-side update-routing hiccup can
+    # leave this connection update-dead (commands sent but never processed)
+    # while RPCs still work. Detection = TWOFOLD:
+    #   (a) total dispatch silence > 5 min, or
+    #   (b) Telethon logs ≥4 "Timeout waiting for updates expired" inside
+    #       5 min while <2 updates actually dispatched (half-dead stream:
+    #       some diffs arrive but own messages never come back).
+    # Cure = reconnect (fresh getState re-binds the update stream).
+    _upd_state = {"ts": time.time(), "timeouts": [], "dispatched": 0,
+                  "last_heal": 0.0}
+
+    async def _upd_touch(event):
+        _upd_state["ts"] = time.time()
+        _upd_state["dispatched"] += 1
+
+    client.add_event_handler(_upd_touch, _tg_events.NewMessage())
+
+    class _UpdateTimeoutCounter(logging.Handler):
+        def emit(self, record):
+            try:
+                if "Timeout waiting for updates" in record.getMessage():
+                    _upd_state["timeouts"].append(time.time())
+            except Exception:
+                pass
+
+    _timeout_counter = _UpdateTimeoutCounter()
+    logging.getLogger("telethon.client.updates").addHandler(_timeout_counter)
+
+    async def _updates_healer():
+        while True:
+            await asyncio.sleep(75)
+            try:
+                now = time.time()
+                # (a) total silence
+                silent = now - _upd_state["ts"]
+                # (b) timeout cluster with barely any dispatches
+                _upd_state["timeouts"] = [t for t in _upd_state["timeouts"]
+                                          if now - t < 300]
+                n_timeouts = len(_upd_state["timeouts"])
+                dead = silent > 300 or (n_timeouts >= 4
+                                        and now - _upd_state["ts"] > 120)
+                if not dead or now - _upd_state["last_heal"] < 240:
+                    continue
+                _upd_state["last_heal"] = now
+                log.warning("🩺 update stream looks dead (silent %ds, "
+                            "%d update-timeouts) — self-healing reconnect…",
+                            int(silent), n_timeouts)
+                await client.disconnect()
+                await client.connect()
+                _upd_state["ts"] = time.time()
+                _upd_state["timeouts"].clear()
+                me2 = await client.get_me()
+                log.warning("🩺 update-stream heal done — reconnected as %s "
+                            "(%s)", me2.first_name, me2.id)
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                log.warning("🩺 updates healer: %r", e)
+
+    # keep a strong reference — unreferenced asyncio tasks get garbage-collected!
+    _core_state.BG_TASKS.append(asyncio.create_task(_updates_healer()))
+
     expected_plugins = len([f for f in os.listdir(os.path.join(os.path.dirname(os.path.abspath(__file__)), "plugins"))
                             if f.endswith(".py") and not f.startswith("_")])
     if count < expected_plugins:
