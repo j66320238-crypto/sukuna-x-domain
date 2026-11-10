@@ -136,14 +136,61 @@
   (jo bhi animation userbot me hai — sab chalega)
 
 ──────────────────────────────────────────────────────────────────────
- 7️⃣  COPYCAT — .ct / .ctb
+ 7️⃣  COPYCAT / MIRROR — .ct / .ctb  ⚡ v7.12 TAGRA ENGINE
 ──────────────────────────────────────────────────────────────────────
-  reply + .ct          🆕 replied text/sticker/photo SAME dobara bhejo
-  .ct on / .ct off     ✅ mode: jo bhi bhejoge wahi same dobara jayega
-  reply + .ctb [slots] 🆕 BOTS replied content bhejein
-     ex: reply + .ctb      → sab bots ne copy bheja
-          reply + .ctb2-3 → sirf 2nd-3rd
-  .ctb on / .ctb2-3 on / .ctb off  ✅ bots copycat mode (custom slots)
+  reply + .ct          🆕 USERBOT replied user ka HAR message same-to-same
+                         copy karta hai (sticker/photo/media sab)
+  .ct on / .ct off     ✅ self mode: jo bhi bhejoge wahi same dobara jayega
+  reply + .ctb         ⚡ v7.12 SAB BOTS us user ka HAR message copy
+                         karte hain — text, sticker, photo, video, voice,
+                         GIF, document · ALBUM poora ek saath jaata hai 📦
+                         ex: reply + .ctb      → sab bots mirror ON
+                             reply + .ctb again → OFF (toggle)
+                             reply + .ctb2-3  → sirf 2nd-3rd bots mirror
+  reply + .ctb copy    🆕 one-shot: bots replied message ek baar bhejein
+  .ctb on / .ctb2-3 on / .ctb off  ✅ bots copycat self mode (custom slots)
+  .ctlist              🆕 sab ACTIVE mirrors — userbot + bots (naam+uid)
+  .ctboff (reply|uid)  🆕 EK user ka mirror band (userbot+bots dono se)
+  .stopct              ✅ copycat + sab mirrors ek saath band
+
+──────────────────────────────────────────────────────────────────────
+ 7️⃣½  STICKER REGISTRY + SRR + RRM — v7.12 NAYA ENGINE 📌⚡💬
+──────────────────────────────────────────────────────────────────────
+  reply + .savestic 1  📌 replied STICKER number 1 par save (registry)
+                         restart-proof · 1-500 numbers · multiple stickers
+  .sticlist            📜 saved stickers ki list (number + emoji + pack)
+  .sticlist show       👁 list + ASLI stickers bhi chat me bhej do
+  .sticshow 1          👁 sirf sticker #1 asli preview
+  .sticdel 1           🗑 sticker #1 delete (uski SRR relay bhi auto band)
+  reply + .srr 1       ⚡ STICKER RELAY: target ka HAR message → sticker
+                         #1 uske reply me (userbot khud bhejta hai)
+                         ex: reply + .srr 1      → START
+                             reply + .srr 1 again → STOP (toggle)
+                             reply + .srr        → status/band
+  reply + .srrb 1      🤖 wahi kaam BOT ARMY se (sab bots)
+  reply + .srrb 1 2-3  🤖 sirf 2nd-3rd bots sticker bhejein
+  .stopsrr / .srroff   ⛔ SRR band — reply karke = ek user, bina reply = sab
+  reply + .rrm hello   💬 TEXT RELAY: target ka HAR message → "hello"
+                         uske reply me (userbot)
+                         ex: reply + .rrm hello     → START
+                             reply + .rrm (no text) → band/status
+                             reply + .rrm hello again → STOP (toggle)
+  reply + .rrmb hello  🤖 wahi kaam BOT ARMY se
+  reply + .rrmb hello 2-3  🤖 sirf 2nd-3rd bots text relay karein
+  .rrmlist / .rrm      📜 active text relays
+  .stoprrm / .rrmoff   ⛔ RRM band — reply karke = ek user, bina reply = sab
+
+──────────────────────────────────────────────────────────────────────
+ 7️⃣¾  REPLY-REPEAT SPAM — .spam / .spamb ⚡ v7.12
+──────────────────────────────────────────────────────────────────────
+  reply + .spam 10 .1  🔁 REPLIED content (sticker/text/photo/GIF/video/
+                         voice/document) ko 10 baar repeat — 0.1s gap
+                         (interval float hai — 0 / 0.1 / 0.5 / 1 sab ok)
+  reply + .uspam 10    🔁 no-delay repeat · reply + .fastspam 10 → 0.1s
+  reply + .delayspam 10 0.3  🔁 custom delay repeat
+  reply + .spamb 10 .1 🤖 BOTS replied content ko repeat karein (har bot
+                         10 baar) — .spamb2-3 10 .1 = sirf 2nd-3rd bots
+  ⛔ Stop: .stop / .stopb · text spam pehle jaisa hi chalta rahega
 
 ──────────────────────────────────────────────────────────────────────
  8️⃣  STOP SYSTEM — har attack ka apna stop 🆕
@@ -208,7 +255,11 @@
   .rr / .rrt           ⚡ REPLY-RAID toggle (reply karke chalao)
   .rrb / .rrtb [slots] ⚡ bots wala reply-raid (toggle)
   .raidb 10 .1 hello   ⚡ 10x, 0.1s gap, custom text — reply+TAG dono
-  .ct / .ctb mirror    ⚡ same-to-same copy (sticker bhi!) · userbot se bhi
+  .ct / .ctb mirror    ⚡ v7.12 TAGRA — .ctb = SAB bots har message copy (album saath) · .ctlist/.ctboff naye
+  .savestic/.srr/.rrm  ⚡ v7.12 NAYA — sticker registry + per-user sticker
+                         relay + per-user text relay (.srrb/.rrmb = bots)
+  .spam 10 .1 (reply)  ⚡ v7.12 NAYA — replied sticker/photo/GIF/text
+                         repeat · .spamb = bots version
   .cloneb              ⚡ bio+dp logic (no-dp → sab clear, dp → wahi dp)
   .updateuserbot       ⚡ GitHub repo se self-update + auto-restart
   .viewonce on/off     ⚡ view-once SAVER — photo + VIDEO, DEFAULT ON
@@ -240,7 +291,7 @@
   .rr / .rrt           ⚡ REPLY-RAID toggle (reply karke chalao)
   .rrb / .rrtb [slots] ⚡ bots wala reply-raid (toggle)
   .raidb 10 .1 hello   ⚡ 10x, 0.1s gap, custom text — reply+TAG dono
-  .ct / .ctb mirror    ⚡ same-to-same copy (sticker bhi!) · userbot se bhi
+  .ct / .ctb mirror    ⚡ v7.12 TAGRA — .ctb = SAB bots har message copy (album saath) · .ctlist/.ctboff naye
   .cloneb              ⚡ bio+dp logic (no-dp → sab clear, dp → wahi dp)
   .updateuserbot       ⚡ GitHub repo se self-update + auto-restart
   .viewonce on/off     ⚡ view-once SAVER — photo + VIDEO, DEFAULT ON

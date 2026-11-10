@@ -1,15 +1,14 @@
-SUKUNA-X DOMAIN v7.11.1 — FULL COMMAND LIST (auto-generated)
+SUKUNA-X DOMAIN v7.12 — FULL COMMAND LIST (auto-generated)
 ============================================================
 
-TOTAL: 417 commands · v7.11.1: 🔇 MUTE engine ab BILKUL SILENT — deletes par koi count/notice nahi, confirm sirf naam+uid · v7.11 NEW: 🔇 GLOBAL MUTE ENGINE — .mute/.unmute (reply/uid/@user) · muted user ki DM + admin-GC messages AUTO-DELETE · .mutelist/.unmuteall · native GC mute bonus · v7.10 NEW: 🎵 MUSIC v2 FULL-SONG ENGINE — .song/.gaana/.songs/.song2 ab PURA gaana dete hain (YouTube full → JioSaavn 320k → iTunes preview last-resort, real-duration verify har file ka) · v7.9: ⚡ Power Tools — .passgen .gitrepo .up .netspeed .hash .b64 .uuid .epoch .lorem .colors .ssl .whois .shot + .update FIXED (self-hosted channel, auto-restart, never-downgrade guard)
-### admin — Group Admin Tools  (14 cmds)
+TOTAL: 432 commands · v7.12 NEW: 🪞 .ctb TAGRA MIRROR — reply+.ctb = SAB bots target ka har message copy karte hain (text/sticker/photo/video/voice/GIF/document · album poora ek saath · parallel sends · zero-wait reply anchor) · .ctb1-3 custom slots · .ctlist (active mirrors) · .ctboff (ek user band) · 📌 STICKER REGISTRY — .savestic <n> / .sticlist / .sticshow / .sticdel · ⚡ SRR STICKER RELAY — .srr <n> (reply target → har message par sticker #n) · 🤖 .srrb <n> [slots] · 💬 RRM TEXT RELAY — .rrm <text> / .rrmb · 🔁 REPLY-REPEAT — .spam 10 .1 (reply par sticker/photo/GIF/text repeat) · .spamb (bots version) · .sudo relay ab REPLY-CONTEXT carry karta hai · v7.11: 🔇 MUTE engine — .mute/.unmute/.mutelist/.unmuteall · v7.10: 🎵 MUSIC v2 · v7.9: ⚡ Power Tools
+### admin — Group Admin Tools  (15 cmds)
   .ban [reason]                                  ban replied user
   .unban                                         unban user
   .kick [reason]                                 kick replied user
   .promote [title]                               promote to admin
   .demote                                        demote admin
-  .mute [min]                                    mute user
-  .unmute                                        unmute user
+  .mute/.unmute                                  ab mute.py me — global auto-delete mute
   .pin / .unpin / .unpinall                      manage pins
   .del                                           delete replied msg
   .purge [n]                                     mass delete
@@ -83,7 +82,7 @@ TOTAL: 417 commands · v7.11.1: 🔇 MUTE engine ab BILKUL SILENT — deletes pa
   .cafe                                          random coffee pic ☕
   .nasa                                          NASA astronomy picture of the day 🔭
 
-### botcontroller — 🤖 BotController — Multi-Bot Army Command Center  (45 cmds)
+### botcontroller — 🤖 BotController — Multi-Bot Army Command Center  (60 cmds)
   .addbottoken <token>                           register a bot + verify the token (1st/2nd/3rd slots)
   .addnewbotauto [n]                             create a new bot via BotFather automatically (name: worker, auto username, retries)
   .delbottoken / .delbot <n>                     delete a bot — slots auto-shift
@@ -93,11 +92,14 @@ TOTAL: 417 commands · v7.11.1: 🔇 MUTE engine ab BILKUL SILENT — deletes pa
   .addallb [slots] / .addall 1-3                 add bots to the group (all / specific)
   .removeallb                                    remove all bots from the group
   .spamb <n> <sec> <txt>                         all bots text spam — interval has NO lower limit
+  .spamb [slots] <n> <sec> (reply)               ⚡ v7.12 — bots repeat the replied content (sticker/photo/GIF/text) <n> baar
   .spamb1-2 <n> <sec> <txt>                      only specific bots spam
   .sspam <n> <sec>                               user sticker spam (reply)
   .sspamb <n> <sec>                              bots sticker spam (reply)
   .raidb [slots] <n> [gap] [txt]                 bot raid — `.raidb 10 .1` = 10x, 0.1s gap; reply+tag both (use via reply) + saved slots rotate
   .cloneb [slots]                                bots clone the replied user's profile (BotFather engine, DP logic included)
+  .clonebi [slots]                               FORCE clone — ignore BotFather caps/FloodWaits, land the change no matter what
+  .botcleanpics [slots]                          purge a bot's OLD profile photos (current main kept) — clean gallery after clone
   .revertb / .uncloneb [slots]                   bots back to their pre-clone (original) state
   .loadprofileb [slots] <name>                   load a .saveprofile profile onto the bots
   .botsay [slots] <txt>                          make the bots say something
@@ -114,8 +116,20 @@ TOTAL: 417 commands · v7.11.1: 🔇 MUTE engine ab BILKUL SILENT — deletes pa
   .rrb [slots]                                   BOTS reply-raid — bots send the saved messages (toggle)
   .rrtb [slots]                                  same — full name version (toggle)
   .stoprrt / .stoprr                             stop all reply-raid (user + bots)
+  .savestic <n>                                  📌 v7.12 — reply sticker → number <n> par save (registry, restart-proof)
+  .sticlist [show]                               saved sticker list — `show` = asli stickers bhej
+  .sticshow <n>                                  sticker #<n> asli preview
+  .sticdel <n>                                   sticker #<n> delete (+ uski SRR relay bhi band)
+  .srr <n>                                       ⚡ v7.12 — reply target → har message par sticker #<n> reply (userbot, toggle)
+  .srrb <n> [slots]                              🤖 v7.12 — wahi kaam BOT ARMY se (toggle)
+  .stopsrr / .srroff                             SRR relays band (reply = ek user, warna sab)
+  .rrm <text>                                    💬 v7.12 — reply target → har message par wahi text reply (userbot, toggle)
+  .rrmb <text> [slots]                           🤖 v7.12 — wahi kaam BOT ARMY se (toggle)
+  .stoprrm / .rrmoff                             RRM relays band (reply = ek user, warna sab)
   .ct (reply) / .ct on/off                       MIRROR a user's every message same-to-same / self-copycat mode · `.ct copy` = one-shot
-  .ctb (reply) [slots] / .ctb on/off             BOTS mirror a user — specific bots too (`.ctb1-2`)
+  .ctb (reply) [slots] / .ctb on/off             BOTS mirror a user — ALL bots default, slots: `.ctb1-3`
+  .ctlist                                        sab active copy-mirrors (userbot + bots)
+  .ctboff (reply|uid)                            ek user ka copy-mirror band
   .stopct / .ctstop                              stop copycat + all mirrors
   .stop / .stopall                               stop all tasks / everything (tasks+reply-raid+copycat)
   .stopb / .animstop                             bot tasks / animations stop
@@ -141,14 +155,6 @@ TOTAL: 417 commands · v7.11.1: 🔇 MUTE engine ab BILKUL SILENT — deletes pa
   .delnote <name>                                delete one note
   .delallnotes                                   delete all notes here
   .sed s/old/new/                                reply → fix a typo in your own message
-
-### core-ui — Core UI (.help .menu .update …)  (6 cmds)
-  .help [mod]                                    paginated help + search
-  .menu                                          interactive button menu
-  .cmds                                          all commands paginated
-  .update [force]                                update + auto-restart (channel + git + tarball)
-  .updateuserbot [force]                         full update + pip + auto-restart
-  .restart                                       restart the bot
 
 ### dp — DP Pool & Auto Rotator  (11 cmds)
   .adddp [n]                                     reply to a photo → save into the numbered pool
@@ -280,19 +286,19 @@ TOTAL: 417 commands · v7.11.1: 🔇 MUTE engine ab BILKUL SILENT — deletes pa
   .gc                                            memory cleanup + stats (optimise)
   .speed                                         event-loop + Telegram speed test
 
-### music — Music v2 FULL-SONG ENGINE (YouTube → JioSaavn → iTunes)  (5 cmds)
-  .song <name>                                   PURA song direct chat me (YouTube full → JioSaavn 320k → preview last)
+### music — Music (full-song engine: YouTube → JioSaavn → iTunes)  (5 cmds)
+  .song <name>                                   PURa song direct chat me (YouTube full → JioSaavn → preview last)
   .gaana <name>                                  alias of .song
-  .songs <name>                                  top-5 results card (⏱ duration ke saath)
+  .songs <name>                                  top-5 results card + ⏱ duration
   .songlist <name>                               alias of .songs
   .song2 <n>                                     last .songs list me se Nth song seedha bhejo
 
-### mute — 🔇 Global Silent Auto-Delete Mute (v7.11.1)  (6 cmds)
+### mute — Mute — global silent auto-delete mute (DM + admin GC)  (6 cmds)
   .mute (reply)                                  mute user — DM/GC messages silently auto-delete
   .mute <uid|@user>                              mute by user id ya username
   .unmute (reply)                                unmute user
   .unmute <uid|@user>                            unmute by user id ya username
-  .mutelist                                      muted users list (sirf naam + uid)
+  .mutelist                                      muted users list
   .unmuteall                                     poora mute list clear
 
 ### net — Web Lookups (10)  (9 cmds)
@@ -337,7 +343,7 @@ TOTAL: 417 commands · v7.11.1: 🔇 MUTE engine ab BILKUL SILENT — deletes pa
   .pereset                                       clear cached emoji documents
   .pestatus                                      mode + cached emoji documents
 
-### profile — Profile & PFP Tools (Full Clone + Video)  (18 cmds)
+### profile — Profile & PFP Tools (Full Clone + Video)  (17 cmds)
   .clone [full] / .clone @username               clone a profile (reply to them OR give their @username) — add 'full' for all photos
   .fclone / .fclone @username                    full clone — all photos/videos
   .rclone [full]                                 clone a RANDOM group member — no reply needed
@@ -353,7 +359,6 @@ TOTAL: 417 commands · v7.11.1: 🔇 MUTE engine ab BILKUL SILENT — deletes pa
   .autopfp <h> [name] / .pfprotate               auto-rotate pfps every h hours (human-like, no flood)
   .stopautopfp                                   stop auto rotate
   .delpfp [n]                                    delete all or n pfps
-  .cleanpics                                     🆕 (v7.9) purge OLD photos, keep current main — clean gallery after clone
   .setname / .setbio                             set name/bio
   .vo on|off                                     view-once saver
 
@@ -407,10 +412,14 @@ TOTAL: 417 commands · v7.11.1: 🔇 MUTE engine ab BILKUL SILENT — deletes pa
   .bccheck                                       🩺 self-diagnosis — versions/bots/states/dirs in one card
   .stats / .plist                                bot statistics / plugin table
 
-### spam — Spam & Stickers  (9 cmds)
+### spam — Spam & Stickers  (13 cmds)
   .spam <n> <text>                               spam text (1s delay)
+  .spam <n> [sec] (reply)                        ⚡ v7.12 — reply sticker/photo/GIF/text → wahi content <n> baar repeat (interval float, 0.1 ok)
   .fastspam <n> <text>                           spam fast (0.1s)
+  .fastspam <n> [sec] (reply)                    repeat replied content fast (0.1s default)
   .uspam <n> <text>                              ultra spam (no delay)
+  .uspam <n> [sec] (reply)                       repeat replied content no-delay
+  .delayspam <n> <sec> (reply)                   repeat replied content custom delay
   .delayspam <n> <sec> <text>                    custom delay
   .dmspam <n> @user <text>                       spam user DM
   .mspam <n>                                     spam replied sticker

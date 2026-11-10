@@ -71,13 +71,19 @@ BotController — control your whole BOT ARMY from your MAIN account (or SUDO us
   • .rrb [slots] / .rrtb     — the BOTS do the same (.rrb2-3 custom)
   • .stoprrt / .stoprr       — stop all RRT/RR (user + bots)
 
-  🪞 COPYCAT / MIRROR (.ct / .ctb)
-  • .ct (reply)              — MIRROR toggle: re-send everything the target
-                               sends, same-to-same (sticker → sticker)
+  🪞 COPYCAT / MIRROR (.ct / .ctb) — v7.12 TAGRA
+  • .ct (reply)              — MIRROR toggle: the USERBOT re-sends everything
+                               the target sends, same-to-same
   • .ct copy (reply)         — one-shot: re-send the replied message once
   • .ct on/off               — self-copycat mode (mirror your own sends)
-  • .ctb (reply) [slots]     — the BOTS mirror the target
-  • .ctb on/off / .ctb2-3 on — bots copycat mode (custom slots)
+  • .ctb (reply)             — ALL BOTS mirror the target: har message copy
+                               (text, sticker, photo, video, voice, GIF,
+                                document — album poora ek saath)
+  • .ctb1 / .ctb1-3 (reply)  — sirf ye slots mirror karein
+  • .ctb copy (reply)        — one-shot: bots re-send the replied message
+  • .ctb on/off / .ctb2-3 on — bots copycat self mode (custom slots)
+  • .ctlist                  — sab active mirrors (userbot + bots)
+  • .ctboff (reply|uid)      — EK user ka mirror band
 
   ⏹ STOP SYSTEM (a stop for everything)
   • .stop                    — stop all tasks (builtin)
@@ -1091,6 +1097,19 @@ CT_STATE = {
     "targets": {},      # {uid: name}   — userbot mirrors this user
     "bot_targets": {},  # {uid: {"slots": [..], "name": str}} — bots mirror
 }
+
+# v7.12 STICKER REGISTRY — .savestic <n> (reply sticker) → number par save
+# Persist: {"1": {"chat": int, "msg": int, "name": str, "emoji": str}}
+STIC = {}          # {int n: info}
+_STIC_CACHE = {}   # runtime Message cache (restart par auto refetch)
+# v7.12 SRR — STICKER reply-raid: target ka HAR message → sticker #n uske
+# reply me (userbot = SRR_USERS · BOTS = SRR_BOTS)
+SRR_USERS = {}     # {uid: {"n": int, "name": str}}
+SRR_BOTS = {}      # {uid: {"n": int, "slots": [int], "name": str}}
+# v7.12 RRM — FIXED-TEXT relay: target ka HAR message → wahi text uske reply
+# me (userbot = RRM_USERS · BOTS = RRM_BOTS)
+RRM_USERS = {}     # {uid: {"text": str, "name": str}}
+RRM_BOTS = {}      # {uid: {"text": str, "slots": [int], "name": str}}
 _COPY_SEEN = set()   # humari copy ke msg ids (infinite-loop guard)
 _COPY_CAP = 800
 
@@ -1108,6 +1127,47 @@ def _ct_load_state():
             try:
                 RRT_BOTS[int(k)] = v
             except (TypeError, ValueError):
+                pass
+        # v7.12 sticker registry + SRR + RRM state
+        for k, v in (data.get("stic") or {}).items():
+            try:
+                STIC[int(k)] = {
+                    "chat": int(v.get("chat", 0)),
+                    "msg": int(v.get("msg", 0)),
+                    "name": str(v.get("name", "Sticker")),
+                    "emoji": str(v.get("emoji", "")),
+                }
+            except (TypeError, ValueError, AttributeError):
+                pass
+        for k, v in (data.get("srr_users") or {}).items():
+            try:
+                SRR_USERS[int(k)] = {"n": int(v.get("n", 1)),
+                                     "name": str(v.get("name", "User"))}
+            except (TypeError, ValueError, AttributeError):
+                pass
+        for k, v in (data.get("srr_bots") or {}).items():
+            try:
+                SRR_BOTS[int(k)] = {
+                    "n": int(v.get("n", 1)),
+                    "slots": [int(s) for s in (v.get("slots") or [])],
+                    "name": str(v.get("name", "User")),
+                }
+            except (TypeError, ValueError, AttributeError):
+                pass
+        for k, v in (data.get("rrm_users") or {}).items():
+            try:
+                RRM_USERS[int(k)] = {"text": str(v.get("text", "")),
+                                     "name": str(v.get("name", "User"))}
+            except (TypeError, ValueError, AttributeError):
+                pass
+        for k, v in (data.get("rrm_bots") or {}).items():
+            try:
+                RRM_BOTS[int(k)] = {
+                    "text": str(v.get("text", "")),
+                    "slots": [int(s) for s in (v.get("slots") or [])],
+                    "name": str(v.get("name", "User")),
+                }
+            except (TypeError, ValueError, AttributeError):
                 pass
         cc = data.get("copycat") or {}
         CT_STATE["user"] = bool(cc.get("user"))
@@ -1149,6 +1209,20 @@ def _ct_save_state():
                 str(k): {"slots": v.get("slots", []), "name": v.get("name", "User")}
                 for k, v in CT_STATE["bot_targets"].items()
             },
+        }
+        # v7.12 sticker registry + SRR + RRM persistence
+        data["stic"] = {str(k): v for k, v in STIC.items()}
+        data["srr_users"] = {str(k): v for k, v in SRR_USERS.items()}
+        data["srr_bots"] = {
+            str(k): {"n": v.get("n", 1), "slots": v.get("slots", []),
+                     "name": v.get("name", "User")}
+            for k, v in SRR_BOTS.items()
+        }
+        data["rrm_users"] = {str(k): v for k, v in RRM_USERS.items()}
+        data["rrm_bots"] = {
+            str(k): {"text": v.get("text", ""), "slots": v.get("slots", []),
+                     "name": v.get("name", "User")}
+            for k, v in RRM_BOTS.items()
         }
         _bc_save(data)
     except Exception:
@@ -1237,7 +1311,9 @@ async def _bot_reply_target(bc, chat, target_uid, owner_uid=None,
             if hit:
                 return hit
             # the bot's update may lag the main session — patient retry
-            for _ in range(max(1, int(patience / 1.5))):
+            # v7.12: patience <= 0 → NO sleep-retry (mirror fast-path, the
+            # incoming mirror listener must never block for seconds)
+            for _ in range(max(0, int(patience / 1.5))):
                 await asyncio.sleep(1.5)
                 hit = _bot_seen_lookup(bid, ckey, target_uid, owner_uid,
                                        prefer_owner)
@@ -2360,6 +2436,124 @@ def register_botcontroller(client):
                 "⏱ interval in seconds — **float allowed, NO lower limit** "
                 "(`0.1`, `0.5`, `0` all fine)\n"
                 "⛔ Stop: `.stop` or `.stopb`")
+        # ── v7.12 REPLY-REPEAT: `.spamb 10 .1` reply par → bots replied
+        #    content (sticker/photo/GIF/text/video sab) count baar repeat ──
+        reply = await event.get_reply_message()
+        if reply is not None and (
+                getattr(reply, "media", None) is not None
+                or (getattr(reply, "raw_text", "") or "").strip()):
+            toks = arg.split()
+            if not toks:
+                return await event.edit(
+                    "📖 **Reply-Repeat (bots):** `.spamb 10 .1` — replied "
+                    "content <count> baar, <interval> sec gap")
+            try:
+                count = int(toks[0])
+            except ValueError:
+                return await event.edit("❌ `<count>` must be an integer.")
+            if count <= 0:
+                return await event.edit("❌ Count must be positive.")
+            interval = 0.5
+            if len(toks) >= 2:
+                try:
+                    interval = float(toks[1])
+                except ValueError:
+                    return await event.edit(
+                        "❌ Interval number hona chahiye — `.spamb 10 .1`")
+            if interval < 0:
+                interval = 0.0
+            slots = _parse_slots(event.pattern_match.group(1), len(bots))
+            if not slots:
+                return await event.edit(
+                    f"❌ Invalid bot slot (total `{len(bots)}`).")
+            pairs = await _connect_bots(client, slots, data)
+            if not pairs:
+                return await event.edit(
+                    "❄️ No bot connected (all frozen?). Check `.monitorb`.")
+            count = safe_cap(count)
+            chat = event.chat_id
+            await event.edit(
+                "🚀 **BOT REPEAT STARTED**\n"
+                f"┃ 🤖 Bots: `{len(pairs)}` · 🔁 Repeats: `{count}` each\n"
+                f"┃ ⏱ Interval: `{interval}s` · reply-anchor content\n"
+                "⛔ Stop with `.stop` / `.stopb`")
+
+            async def _rone(slot, bc):
+                key = f"bc_spam_{event.id}_{slot}"
+                sent = 0
+                fails = 0
+                tmp = os.path.join(BC_DIR, f"spamb_{event.id}_{slot}")
+                try:
+                    for _i in range(count):
+                        try:
+                            ok = await _copy_send(bc, chat, reply, tmp,
+                                                  helper=client)
+                            if ok:
+                                sent += 1
+                            else:
+                                fails += 1
+                        except FloodWaitError as fw:
+                            note_flood(fw.seconds)
+                            await asyncio.sleep(fw.seconds + 1)
+                            try:
+                                ok = await _copy_send(bc, chat, reply, tmp,
+                                                      helper=client)
+                                if ok:
+                                    sent += 1
+                                else:
+                                    fails += 1
+                            except Exception:
+                                fails += 1
+                        except asyncio.CancelledError:
+                            raise
+                        except Exception:
+                            fails += 1
+                        if fails >= 3:
+                            break
+                        await asyncio.sleep(interval)
+                except asyncio.CancelledError:
+                    raise
+                finally:
+                    client.stop_processes.pop(key, None)
+                    try:
+                        if os.path.exists(tmp):
+                            os.remove(tmp)
+                    except OSError:
+                        pass
+                return sent
+
+            tasks = []
+            for slot, bc in pairs:
+                t = asyncio.create_task(_rone(slot, bc))
+                client.stop_processes[f"bc_spam_{event.id}_{slot}"] = t
+                tasks.append(t)
+
+            async def _rgatherer():
+                try:
+                    res = await asyncio.gather(*tasks, return_exceptions=True)
+                except asyncio.CancelledError:
+                    for t in tasks:
+                        if not t.done():
+                            t.cancel()
+                    raise
+                if any(isinstance(r, asyncio.CancelledError) for r in res):
+                    for slot, _bc in pairs:
+                        client.stop_processes.pop(
+                            f"bc_spam_{event.id}_{slot}", None)
+                    return
+                total = sum(r for r in res if isinstance(r, int))
+                per = ", ".join(
+                    f"{_ord(slot)}:`{r if isinstance(r, int) else 0}`"
+                    for (slot, _bc), r in zip(pairs, res))
+                try:
+                    await event.reply(
+                        f"✅ **Bot repeat done** — "
+                        f"`{total}/{count * len(pairs)}` copies\n"
+                        f"┃ {per}")
+                except Exception:
+                    pass
+            client.loop.create_task(_rgatherer())
+            return
         count, interval, text, err = _parse_count_interval(arg, need_text=True)
         if err == "count":
             return await event.edit("❌ `<count>` must be an integer.")
@@ -3732,11 +3926,644 @@ def register_botcontroller(client):
         await event.edit(
             f"✅ **All RRT/RR stopped** — users: `{n_users}` · bots: `{n_bots}`")
 
-    # ── RRT + COPY-MIRROR LISTENER — target ka har message → reply ───────
+    # ════════════════════════════════════════════════════════════════════
+    #  G2) v7.12 STICKER REGISTRY + SRR + RRM — per-user relays
+    # ════════════════════════════════════════════════════════════════════
+    #  .savestic <n>   — replied sticker number n par save (restart-proof)
+    #  .sticlist       — saved stickers ki list (+ `show` = asli stickers)
+    #  .sticdel <n>    — sticker #n delete
+    #  .srr <n>        — target ka HAR message → sticker #n reply (userbot)
+    #  .srrb <n> [slots] — wahi kaam BOTS se
+    #  .rrm <text>     — target ka HAR message → fixed text reply (userbot)
+    #  .rrmb <text> [slots] — wahi kaam BOTS se
+    #  Toggle: usi user par dobara same cmd = off · .stopsrr / .stoprrm
+
+    async def _stic_fetch(n):
+        """Sticker #n ka FRESH Message nikalo (cache → refetch → last-good).
+        File references expire hote hain — isliye har baar get_messages
+        (ek halka API call) — fail ho to cached media fallback."""
+        try:
+            info = STIC.get(int(n))
+        except (TypeError, ValueError):
+            return None
+        if not info:
+            return None
+        try:
+            m = await client.get_messages(info["chat"], ids=info["msg"])
+            if m is not None and getattr(m, "media", None) is not None:
+                _STIC_CACHE[int(n)] = m
+                return m
+        except Exception:
+            pass
+        return _STIC_CACHE.get(int(n))
+
+    async def _stic_send_user(chat, n, reply_to=None):
+        """Userbot se sticker #n bhejo (reply anchor optional)."""
+        m = await _stic_fetch(n)
+        if m is None:
+            return False
+        media = getattr(m, "media", None)
+        if media is None:
+            return False
+        for _try in range(2):
+            try:
+                await client.send_file(chat, media, reply_to=reply_to)
+                return True
+            except FloodWaitError as fw:
+                note_flood(fw.seconds)
+                await asyncio.sleep(fw.seconds + 1)
+            except Exception:
+                await asyncio.sleep(0.5)
+        return False
+
+    async def _stic_send_bot(bc, chat_id, n, reply_to=None):
+        """Ek bot se sticker #n bhejo — _copy_send 4-layer engine (cross-account
+        safe: helper = main account, attrs same-to-same)."""
+        m = await _stic_fetch(n)
+        if m is None:
+            return False
+        tmp = os.path.join(BC_DIR, f"stic_{int(n)}_{int(time.time() * 10) % 1000000}")
+        try:
+            return await _copy_send(bc, chat_id, m, tmp, reply_to=reply_to,
+                                    helper=client)
+        finally:
+            try:
+                if os.path.exists(tmp):
+                    os.remove(tmp)
+            except OSError:
+                pass
+
+    # ── .savestic <n> — replied sticker ko number n par save ──────────────
+    @_on(r"^\.savestic(?:\d+)?(?:\s+([\s\S]+))?$")
+    async def _savestic(event):
+        reply = await event.get_reply_message()
+        # sticker number: `.savestic 1` ya `.savestic1`
+        num_tok = event.pattern_match.group(1)
+        num = None
+        if num_tok and num_tok.strip().isdigit():
+            num = int(num_tok.strip())
+        elif event.pattern_match.group(0):
+            m0 = re.match(r"^\.savestic(\d+)", event.pattern_match.group(0))
+            if m0:
+                num = int(m0.group(1))
+        if reply is None:
+            return await event.edit(
+                "📌 **Sticker Registry**\n"
+                "┃ 📖 Reply to a STICKER → `.savestic 1` (number 1 par save)\n"
+                "┃ 📜 `.sticlist` — saved stickers · `.sticdel 1` — delete\n"
+                "┃ ⚡ `.srr 1` (reply target) — har message par sticker #1\n"
+                "┃ 🤖 `.srrb 1` — wahi kaam bots se")
+        if num is None:
+            return await event.edit("❌ Number do — e.g. `.savestic 1`")
+        if not (1 <= num <= 500):
+            return await event.edit("❌ Number `1-500` ke beech do.")
+        st = getattr(reply, "sticker", None)
+        if not st:
+            return await event.edit(
+                "❌ Reply ek STICKER par karo — ye sticker nahi hai.\n"
+                "┃ (photo/video ke liye `.spam 10 .1` reply-repeat use karo)")
+        doc = getattr(reply, "document", None)
+        emoji = ""
+        name = "Sticker"
+        try:
+            for at in (getattr(doc, "attributes", None) or []):
+                em = getattr(at, "alt", None)
+                if em:
+                    emoji = em
+                aset = getattr(at, "stickerset", None)
+                if aset is not None and getattr(aset, "shortcode", None):
+                    name = getattr(aset, "set_name", None) or name
+        except Exception:
+            pass
+        try:
+            sender = await reply.get_sender()
+            sname = (getattr(sender, "first_name", None)
+                     or getattr(sender, "title", None) or "")
+        except Exception:
+            sname = ""
+        STIC[num] = {
+            "chat": int(event.chat_id), "msg": int(reply.id),
+            "name": name, "emoji": emoji, "from": sname[:40],
+        }
+        _ct_save_state()
+        total = len(STIC)
+        await event.edit(
+            f"📌 **Sticker #{num} SAVED** {emoji or '🟢'}\n"
+            f"┃ 🧩 Registry total: `{total}` sticker(s)\n"
+            f"┃ ⚡ Ab reply target par `.srr {num}` — har message par\n"
+            f"┃    ye sticker uske reply me jayega\n"
+            f"┃ 🤖 Bots: `.srrb {num}` · 📜 List: `.sticlist` · "
+            f"🗑 Delete: `.sticdel {num}`",
+            link_preview=False)
+
+    # ── .sticlist — saved stickers (`.sticlist show` = asli stickers bhej) ─
+    @_on(r"^\.sticlist(?:\s+([\s\S]+))?$")
+    async def _sticlist(event):
+        if not STIC:
+            return await event.edit(
+                "📌 Sticker registry khali hai.\n"
+                "┃ 📖 Reply to a sticker → `.savestic 1`")
+        want_show = (event.pattern_match.group(1) or "").strip().lower()
+        rows = []
+        for n in sorted(STIC):
+            inf = STIC[n]
+            rows.append(f"┃ #{n}  {inf.get('emoji', '') or '🟢'}  "
+                        f"`{inf.get('name', 'Sticker')[:24]}`"
+                        + (f"  · from {inf.get('from')}" if inf.get('from')
+                           else ""))
+        card = ("✦ ━〔 📌 **STICKER REGISTRY** 〕━ ✦\n" + "\n".join(rows) +
+                f"\n┃ 🧩 Total: `{len(STIC)}`\n"
+                "┃ ⚡ `.srr <n>` / 🤖 `.srrb <n>` (reply target par)\n"
+                "┃ 👁 Asli dekhne ke liye: `.sticlist show`\n"
+                "┃ 🗑 `.sticdel <n>`")
+        if want_show == "show":
+            await event.edit(card, link_preview=False)
+            sent = 0
+            for n in sorted(STIC)[:20]:
+                ok = await _stic_send_user(event.chat_id, n)
+                if ok:
+                    sent += 1
+                await asyncio.sleep(0.35)
+            await event.reply(f"👁 Preview bheja — `{sent}` sticker(s)")
+        else:
+            await event.edit(card, link_preview=False)
+
+    # ── .sticshow <n> — ek saved sticker asli bhejo ───────────────────────
+    @_on(r"^\.sticshow\s*(\d+)?\s*$")
+    async def _sticshow(event):
+        n = event.pattern_match.group(1)
+        if not n:
+            return await event.edit("📖 `.sticshow 1` — sticker #1 preview")
+        ok = await _stic_send_user(event.chat_id, int(n))
+        if not ok:
+            return await event.edit(f"❌ Sticker #{n} nahi mila — `.sticlist` dekho")
+
+    # ── .sticdel <n> — registry se delete ─────────────────────────────────
+    @_on(r"^\.sticdel\s*(\d+)?\s*$")
+    async def _sticdel(event):
+        n = event.pattern_match.group(1)
+        if not n:
+            return await event.edit("📖 `.sticdel 1` — sticker #1 delete")
+        n = int(n)
+        if n not in STIC:
+            return await event.edit(f"❌ Sticker #{n} registry me nahi hai.")
+        STIC.pop(n, None)
+        _STIC_CACHE.pop(n, None)
+        # jis SRR me ye number laga tha — wo relay bhi band (dangling na rahe)
+        for uid in list(SRR_USERS):
+            if SRR_USERS[uid].get("n") == n:
+                SRR_USERS.pop(uid, None)
+        for uid in list(SRR_BOTS):
+            if SRR_BOTS[uid].get("n") == n:
+                SRR_BOTS.pop(uid, None)
+        _ct_save_state()
+        await event.edit(
+            f"🗑 **Sticker #{n} deleted** — registry `{len(STIC)}`\n"
+            "┃ (jis SRR/SRRB me ye number tha, wo relay bhi band)")
+
+    # ── .srr <n> — STICKER reply-raid (USERBOT version) ───────────────────
+    # Reply target par `.srr 1` → target ka HAR message, sticker #1 uske
+    # reply me. Dobara same cmd usi par = band (toggle).
+    @_on(r"^\.srr(\d+)?(?:\s+(\d+))?\s*$")
+    async def _srr(event):
+        reply = await event.get_reply_message()
+        g1, g2 = event.pattern_match.group(1), event.pattern_match.group(2)
+        num = None
+        for tok in (g1, g2):
+            if tok and tok.isdigit():
+                num = int(tok)
+                break
+        if not SRR_USERS and not SRR_BOTS and reply is None:
+            return await event.edit(
+                "⚡ **Sticker Reply-Raid (SRR)**\n"
+                "┃ 📖 Reply to the TARGET → `.srr 1` — har message of that\n"
+                "┃    user par sticker #1 uske reply me jayega\n"
+                "┃ 🤖 `.srrb 1 [slots]` — wahi kaam BOT ARMY se\n"
+                "┃ 📌 Pehle sticker save karo: reply sticker → `.savestic 1`\n"
+                "┃ ⛔ Band: `.srr` dobara usi par · `.stopsrr` = sab off")
+        if reply is None:
+            if num is not None and num in STIC:
+                # `.srr 1` (no reply) → sticker #1 ka asli preview
+                ok = await _stic_send_user(event.chat_id, num)
+                if not ok:
+                    await event.edit(f"❌ Sticker #{num} send fail — `.sticlist` dekho")
+                return
+            rows = []
+            for uid, stt in SRR_USERS.items():
+                rows.append(f"┃ 👤 `{uid}` ({stt.get('name', 'User')}) — "
+                            f"sticker #{stt.get('n')}")
+            for uid, stt in SRR_BOTS.items():
+                rows.append(f"┃ 🤖 `{uid}` ({stt.get('name', 'User')}) — "
+                            f"sticker #{stt.get('n')} bots "
+                            f"{stt.get('slots', [])}")
+            if not rows:
+                return await event.edit(
+                    "⚡ No SRR active.\n┃ 📖 Reply to target → `.srr 1`")
+            return await event.edit(
+                "✦ ━〔 ⚡ **SRR ACTIVE** 〕━ ✦\n" + "\n".join(rows) +
+                "\n┃ ⛔ `.stopsrr` = sab band", link_preview=False)
+        try:
+            tent = await reply.get_input_sender()
+            u = await client.get_entity(tent)
+            uid = u.id
+            uname = (getattr(u, "first_name", None)
+                     or getattr(u, "title", None) or "User")
+        except Exception:
+            return await event.edit("❌ Could not resolve the target.")
+        if num is None:
+            # `.srr` (no number) + reply → toggle off / status
+            if uid in SRR_USERS:
+                SRR_USERS.pop(uid, None)
+                _ct_save_state()
+                return await event.edit(
+                    f"⛔ **SRR STOPPED** on **{uname}** (toggle off)",
+                    link_preview=False)
+            return await event.edit(
+                f"ℹ️ **{uname}** par SRR on nahi hai.\n"
+                "┃ 📖 Start: reply + `.srr 1` (sticker number)")
+        if num not in STIC:
+            return await event.edit(
+                f"❌ Sticker #{num} saved nahi hai.\n"
+                f"┃ 📌 Reply to a sticker → `.savestic {num}`")
+        if uid in SRR_USERS and SRR_USERS[uid].get("n") == num:
+            SRR_USERS.pop(uid, None)
+            _ct_save_state()
+            return await event.edit(
+                f"⛔ **SRR STOPPED** on **{uname}** — sticker #{num} (toggle off)",
+                link_preview=False)
+        SRR_USERS[uid] = {"n": num, "name": uname}
+        _ct_save_state()
+        await event.edit(
+            f"⚡ **SRR STARTED** on **{uname}**\n"
+            f"┃ 🎯 Har message of **{uname}** → sticker #{num} uske reply me\n"
+            f"┃ 🤖 Bots version: `.srrb {num}`\n"
+            f"┃ ⛔ Band: `.srr` dobara usi par · `.stopsrr` = sab",
+            link_preview=False)
+
+    # ── .srrb <n> [slots] — STICKER reply-raid (BOTS version) ─────────────
+    @_on(r"^\.srrb(\d+(?:-\d+)?)?(?:\s+([\s\S]+))?$")
+    async def _srrb(event):
+        data = _bc_load()
+        bots = data["bots"]
+        if not bots:
+            return await event.edit("🤖 No bots yet — `.addbottoken <token>`.")
+        reply = await event.get_reply_message()
+        g1, arg = event.pattern_match.group(1), \
+            (event.pattern_match.group(2) or "").strip()
+        num, slot_spec = None, None
+        if arg:
+            toks = arg.split()
+            if toks[0].isdigit():
+                num = int(toks[0])
+            if len(toks) >= 2:
+                slot_spec = toks[1]
+            elif g1 and "-" in g1:
+                slot_spec = g1
+        elif g1:
+            if "-" in g1:
+                return await event.edit(
+                    "📖 `.srrb <sticker#> [slots]` — e.g. `.srrb 1 2-3` "
+                    "ya `.srrb2-3 1`")
+            num = int(g1)
+        if reply is None and num is None:
+            rows = []
+            for uid, stt in SRR_BOTS.items():
+                rows.append(f"┃ 🤖 `{uid}` ({stt.get('name', 'User')}) — "
+                            f"sticker #{stt.get('n')} bots "
+                            f"{stt.get('slots', [])}")
+            if rows:
+                return await event.edit(
+                    "✦ ━〔 🤖 **SRR-BOTS ACTIVE** 〕━ ✦\n" + "\n".join(rows) +
+                    "\n┃ ⛔ `.stopsrr` = sab band", link_preview=False)
+            return await event.edit(
+                "🤖 **SRR-Bots** — Reply to the TARGET → `.srrb 1 [slots]`\n"
+                "┃ e.g. `.srrb 1` (sab bots) · `.srrb 1 2-3` (2nd-3rd)\n"
+                "┃ 🎯 target ka har message → sticker #1 bots ki reply\n"
+                "┃ 📌 Pehle: reply sticker → `.savestic 1`")
+        if num is None:
+            return await event.edit(
+                "❌ Sticker number do — e.g. `.srrb 1`")
+        if num not in STIC:
+            return await event.edit(
+                f"❌ Sticker #{num} saved nahi hai — pehle `.savestic {num}`")
+        slots = _parse_slots(slot_spec, len(bots)) if slot_spec else \
+            list(range(1, len(bots) + 1))
+        if not slots:
+            return await event.edit(f"❌ Invalid bot slot (total `{len(bots)}`).")
+        try:
+            tent = await reply.get_input_sender()
+            u = await client.get_entity(tent)
+            uid = u.id
+            uname = (getattr(u, "first_name", None)
+                     or getattr(u, "title", None) or "User")
+        except Exception:
+            return await event.edit("❌ Could not resolve the target.")
+        # v7.12 ANTI-LOOP: target khud replying slot bot hai → us slot ko hatao
+        _eff = []
+        for _s in slots:
+            try:
+                if int(bots[_s - 1].get("id", 0)) == int(uid):
+                    continue
+            except Exception:
+                pass
+            _eff.append(_s)
+        if not _eff:
+            return await event.edit(
+                "⚠️ Target khud hi wo bot hai jo sticker bhejta — "
+                "infinite loop. Doosre slots do.")
+        slots = _eff
+        if uid in SRR_BOTS and SRR_BOTS[uid].get("n") == num:
+            SRR_BOTS.pop(uid, None)
+            _ct_save_state()
+            return await event.edit(
+                f"⛔ **SRR-BOTS STOPPED** on **{uname}** — sticker #{num} "
+                "(toggle off)", link_preview=False)
+        SRR_BOTS[uid] = {"n": num, "slots": slots, "name": uname}
+        _ct_save_state()
+        await event.edit(
+            f"🤖 **SRR-BOTS STARTED** on **{uname}**\n"
+            f"┃ 🎯 Har message of **{uname}** → sticker #{num} bots se reply\n"
+            f"┃ 🤖 Bots: `{len(slots)}` ({', '.join(_ord(s) for s in slots)})\n"
+            f"┃ ⛔ Band: `.srrb {num}` dobara · `.stopsrr` = sab",
+            link_preview=False)
+
+    # ── .stopsrr — sab / ek-user SRR band ──────────────────────────────────
+    @_on(r"^\.(?:stopsrr|srroff|srrstop)\s*$")
+    async def _stopsrr(event):
+        reply = await event.get_reply_message()
+        target_uid = None
+        if reply:
+            try:
+                tent = await reply.get_input_sender()
+                target_uid = (await client.get_entity(tent)).id
+            except Exception:
+                target_uid = None
+        if target_uid is not None:
+            a = SRR_USERS.pop(target_uid, None)
+            b = SRR_BOTS.pop(target_uid, None)
+            _ct_save_state()
+            if a or b:
+                return await event.edit("✅ SRR band for this user.")
+            return await event.edit("ℹ️ Is user par SRR active nahi tha.")
+        n_u, n_b = len(SRR_USERS), len(SRR_BOTS)
+        SRR_USERS.clear()
+        SRR_BOTS.clear()
+        _ct_save_state()
+        await event.edit(
+            f"✅ **All SRR stopped** — users: `{n_u}` · bots: `{n_b}`")
+
+    # ── .rrm <text> — FIXED-TEXT relay (USERBOT version) ──────────────────
+    # Reply target par `.rrm hello` → target ka har message → "hello" reply.
+    # Reply + `.rrm` (no text) = band. `.rrmlist` = active relays.
+    @_on(r"^\.rrm(?:\s+([\s\S]+))?$")
+    async def _rrm(event):
+        arg = (event.pattern_match.group(1) or "").strip()
+        reply = await event.get_reply_message()
+        if reply is None:
+            if not arg:
+                rows = []
+                for uid, stt in RRM_USERS.items():
+                    rows.append(f"┃ 👤 `{uid}` ({stt.get('name', 'User')}) — "
+                                f"\"{stt.get('text', '')[:60]}\"")
+                for uid, stt in RRM_BOTS.items():
+                    rows.append(f"┃ 🤖 `{uid}` ({stt.get('name', 'User')}) — "
+                                f"\"{stt.get('text', '')[:60]}\" bots "
+                                f"{stt.get('slots', [])}")
+                if not rows:
+                    return await event.edit(
+                        "💬 **Text Relay (RRM)**\n"
+                        "┃ 📖 Reply to the TARGET → `.rrm hello` — har message\n"
+                        "┃    of that user par \"hello\" uske reply me jayega\n"
+                        "┃ 🤖 `.rrmb hello [slots]` — wahi kaam bots se\n"
+                        "┃ ⛔ Band: reply + `.rrm` (no text) · `.stoprrm` = sab")
+                return await event.edit(
+                    "✦ ━〔 💬 **RRM ACTIVE** 〕━ ✦\n" + "\n".join(rows) +
+                    "\n┃ ⛔ `.stoprrm` = sab band", link_preview=False)
+            return await event.edit(
+                "📖 Reply to the target's message → `.rrm hello`")
+        try:
+            tent = await reply.get_input_sender()
+            u = await client.get_entity(tent)
+            uid = u.id
+            uname = (getattr(u, "first_name", None)
+                     or getattr(u, "title", None) or "User")
+        except Exception:
+            return await event.edit("❌ Could not resolve the target.")
+        if not arg:
+            # toggle off / status
+            if uid in RRM_USERS:
+                RRM_USERS.pop(uid, None)
+                _ct_save_state()
+                return await event.edit(
+                    f"⛔ **RRM STOPPED** on **{uname}** (toggle off)",
+                    link_preview=False)
+            return await event.edit(
+                f"ℹ️ **{uname}** par RRM on nahi hai.\n"
+                "┃ 📖 Start: reply + `.rrm hello`")
+        if uid in RRM_USERS and RRM_USERS[uid].get("text") == arg:
+            RRM_USERS.pop(uid, None)
+            _ct_save_state()
+            return await event.edit(
+                f"⛔ **RRM STOPPED** on **{uname}** — \"{arg[:60]}\" (toggle off)",
+                link_preview=False)
+        RRM_USERS[uid] = {"text": arg, "name": uname}
+        _ct_save_state()
+        await event.edit(
+            f"💬 **RRM STARTED** on **{uname}**\n"
+            f"┃ 🎯 Har message of **{uname}** → \"{arg[:80]}\" reply\n"
+            f"┃ 🤖 Bots version: `.rrmb {arg[:40]}`\n"
+            f"┃ ⛔ Band: reply + `.rrm` (no text) · `.stoprrm` = sab",
+            link_preview=False)
+
+    # ── .rrmb <text> [slots] — FIXED-TEXT relay (BOTS version) ────────────
+    @_on(r"^\.rrmb(?:\s+([\s\S]+))?$")
+    async def _rrmb(event):
+        data = _bc_load()
+        bots = data["bots"]
+        if not bots:
+            return await event.edit("🤖 No bots yet — `.addbottoken <token>`.")
+        arg = (event.pattern_match.group(1) or "").strip()
+        reply = await event.get_reply_message()
+        text, slot_spec = None, None
+        if arg:
+            toks = arg.split()
+            if len(toks) >= 2 and re.fullmatch(r"\d+(?:-\d+)?", toks[-1]):
+                slot_spec = toks[-1]
+                text = " ".join(toks[:-1])
+            else:
+                text = arg
+        if reply is None or not text:
+            rows = []
+            for uid, stt in RRM_BOTS.items():
+                rows.append(f"┃ 🤖 `{uid}` ({stt.get('name', 'User')}) — "
+                            f"\"{stt.get('text', '')[:60]}\" bots "
+                            f"{stt.get('slots', [])}")
+            if rows and not text:
+                return await event.edit(
+                    "✦ ━〔 🤖 **RRM-BOTS ACTIVE** 〕━ ✦\n" + "\n".join(rows) +
+                    "\n┃ ⛔ `.stoprrm` = sab band", link_preview=False)
+            return await event.edit(
+                "🤖 **RRM-Bots** — Reply to the TARGET → `.rrmb hello [slots]`\n"
+                "┃ e.g. `.rrmb hello` (sab bots) · `.rrmb hello 2-3`\n"
+                "┃ 🎯 target ka har message → bots wahi text reply karte\n"
+                "┃ ⛔ Band: `.stoprrm`")
+        slots = _parse_slots(slot_spec, len(bots)) if slot_spec else \
+            list(range(1, len(bots) + 1))
+        if not slots:
+            return await event.edit(f"❌ Invalid bot slot (total `{len(bots)}`).")
+        try:
+            tent = await reply.get_input_sender()
+            u = await client.get_entity(tent)
+            uid = u.id
+            uname = (getattr(u, "first_name", None)
+                     or getattr(u, "title", None) or "User")
+        except Exception:
+            return await event.edit("❌ Could not resolve the target.")
+        _eff = []
+        for _s in slots:
+            try:
+                if int(bots[_s - 1].get("id", 0)) == int(uid):
+                    continue
+            except Exception:
+                pass
+            _eff.append(_s)
+        if not _eff:
+            return await event.edit(
+                "⚠️ Target khud hi wo bot hai jo text bhejta — infinite loop. "
+                "Doosre slots do.")
+        slots = _eff
+        if uid in RRM_BOTS and RRM_BOTS[uid].get("text") == text:
+            RRM_BOTS.pop(uid, None)
+            _ct_save_state()
+            return await event.edit(
+                f"⛔ **RRM-BOTS STOPPED** on **{uname}** — \"{text[:60]}\" "
+                "(toggle off)", link_preview=False)
+        RRM_BOTS[uid] = {"text": text, "slots": slots, "name": uname}
+        _ct_save_state()
+        await event.edit(
+            f"🤖 **RRM-BOTS STARTED** on **{uname}**\n"
+            f"┃ 🎯 Har message of **{uname}** → \"{text[:80]}\" bots se reply\n"
+            f"┃ 🤖 Bots: `{len(slots)}` ({', '.join(_ord(s) for s in slots)})\n"
+            f"┃ ⛔ Band: `.stoprrm`",
+            link_preview=False)
+
+    # ── .stoprrm — sab / ek-user RRM band ──────────────────────────────────
+    @_on(r"^\.(?:stoprrm|rrmoff|rrmstop)\s*$")
+    async def _stoprrm(event):
+        reply = await event.get_reply_message()
+        target_uid = None
+        if reply:
+            try:
+                tent = await reply.get_input_sender()
+                target_uid = (await client.get_entity(tent)).id
+            except Exception:
+                target_uid = None
+        if target_uid is not None:
+            a = RRM_USERS.pop(target_uid, None)
+            b = RRM_BOTS.pop(target_uid, None)
+            _ct_save_state()
+            if a or b:
+                return await event.edit("✅ RRM band for this user.")
+            return await event.edit("ℹ️ Is user par RRM active nahi tha.")
+        n_u, n_b = len(RRM_USERS), len(RRM_BOTS)
+        RRM_USERS.clear()
+        RRM_BOTS.clear()
+        _ct_save_state()
+        await event.edit(
+            f"✅ **All RRM stopped** — users: `{n_u}` · bots: `{n_b}`")
+
+    # ── v7.12 ALBUM BUFFER — grouped media (album) ek saath mirror ────────
+    # Telegram album = alag-alag messages (same grouped_id). Har item par
+    # turant copy bhejne se albums toot jaate the — ab items buffer hote
+    # hain aur 1.3s ki shaanti ke baad POORA ALBUM ek saath re-send hota
+    # hai (layer 1: direct refs · layer 2: main-account download + upload).
+    _ALBUMS = getattr(client, "_ct_albums", None)
+    if _ALBUMS is None:
+        _ALBUMS = {}
+        client._ct_albums = _ALBUMS
+
+    async def _album_flush(gid):
+        """Album ka sab items har slot bot se bhejo (sticker/media/text)."""
+        await asyncio.sleep(1.3)
+        slot = _ALBUMS.pop(gid, None)
+        if not slot:
+            return
+        items = [m for m in slot["items"] if getattr(m, "media", None)][:10]
+        if not items:
+            return
+        chat_id = slot["chat"]
+        cap = ""
+        for m in items:
+            t = (getattr(m, "raw_text", "") or "").strip()
+            if t:
+                cap = t
+                break
+        tmp = os.path.join(BC_DIR, f"ctmb_album_{gid}")
+        for mslot in slot["slots"]:
+            mbc = await _bot_client(client, mslot, _bc_load())
+            if mbc is None:
+                continue
+            sent = None
+            try:                                # layer 1: direct media refs
+                sent = await mbc.send_file(chat_id, [m.media for m in items],
+                                           caption=cap or None)
+            except FloodWaitError as fw:
+                note_flood(fw.seconds)
+                await asyncio.sleep(fw.seconds + 1)
+            except Exception:
+                sent = None
+            if sent is None:                    # layer 2: download + re-upload
+                paths = []
+                try:
+                    for m in items:
+                        p = await client.download_media(m, file=tmp)
+                        if p and os.path.exists(p):
+                            paths.append(p)
+                    if paths:
+                        sent = await mbc.send_file(chat_id, paths,
+                                                   caption=cap or None)
+                except FloodWaitError as fw:
+                    note_flood(fw.seconds)
+                    await asyncio.sleep(fw.seconds + 1)
+                except Exception:
+                    sent = None
+                finally:
+                    for p in paths:
+                        try:
+                            os.remove(p)
+                        except OSError:
+                            pass
+            if sent is not None:
+                try:
+                    _ids = sent if isinstance(sent, (list, tuple)) else [sent]
+                    for s_ in _ids:
+                        _COPY_SEEN.add(int(s_.id))
+                    if len(_COPY_SEEN) > _COPY_CAP:
+                        _COPY_SEEN.clear()
+                except Exception:
+                    pass
+            await asyncio.sleep(0.3)
+
+    async def _mirror_album_buffer(event, uid, mst, gid):
+        """Album items ko grouped_id par jodo — pehla item flush task
+        chhodta hai, aakhri item ke 1.3s baad poora album jata hai."""
+        slot = _ALBUMS.get(gid)
+        if slot is None:
+            slot = {"items": [], "chat": event.chat_id,
+                    "slots": list(mst.get("slots", [])), "task": None}
+            _ALBUMS[gid] = slot
+        _mid = getattr(event.message, "id", None)
+        if all(getattr(m, "id", None) != _mid for m in slot["items"]):
+            slot["items"].append(event.message)
+        if slot["task"] is None or slot["task"].done():
+            slot["task"] = client.loop.create_task(_album_flush(gid))
+
+    # ── RRT + SRR + RRM + COPY-MIRROR LISTENER — target ka har message → reply ──
     @client.on(events.NewMessage(incoming=True))
     async def _rrt_listener(event):
         if not (RRT_USERS or RRT_BOTS or CT_STATE["targets"]
-                or CT_STATE["bot_targets"]):
+                or CT_STATE["bot_targets"]
+                or SRR_USERS or SRR_BOTS or RRM_USERS or RRM_BOTS):
             return
         uid = event.sender_id
         if uid is None:
@@ -3744,14 +4571,30 @@ def register_botcontroller(client):
         in_rrt = uid in RRT_USERS or uid in RRT_BOTS
         in_mirror = (uid in CT_STATE["targets"]
                      or uid in CT_STATE["bot_targets"])
-        if not in_rrt and not in_mirror:
+        in_srr = uid in SRR_USERS or uid in SRR_BOTS
+        in_rrm = uid in RRM_USERS or uid in RRM_BOTS
+        if not in_rrt and not in_mirror and not in_srr and not in_rrm:
             return
         # guard: never mirror/reply-raid our OWN army bots (loop storm)
+        # v7.12 SMART GUARD: army bot TARGET allowed for mirror as long as
+        # that bot is NOT one of its own mirror slots (its copies would come
+        # back to itself). RRT_BOTS already does the same per-slot check.
         try:
             _army_ids = {int(b.get("id", 0)) for b in (_bc_load().get("bots") or [])
                          if b.get("id")}
             if in_mirror and uid in _army_ids:
-                return
+                if uid not in CT_STATE["targets"]:
+                    _mslot_ids = set()
+                    try:
+                        _bdata = _bc_load()
+                        for _s in (CT_STATE["bot_targets"].get(uid) or {}).get("slots", []):
+                            _bid = int(_bdata["bots"][_s - 1].get("id", 0) or 0)
+                            if _bid:
+                                _mslot_ids.add(_bid)
+                    except Exception:
+                        pass
+                    if uid in _mslot_ids:
+                        return
         except Exception:
             pass
         chat_id = event.chat_id
@@ -3840,32 +4683,192 @@ def register_botcontroller(client):
                 except Exception as e:
                     log.warning("[botcontroller] RR-bot slot %s send fail: "
                                 "%s: %s", slot, type(e).__name__, str(e)[:100])
-        # ── v7.6 COPY-MIRROR — userbot (normal account) version ──
-        if uid in CT_STATE["targets"]:
+        # ── v7.12 SRR — STICKER relay: userbot version ──
+        if uid in SRR_USERS:
+            st = SRR_USERS[uid]
             try:
-                await _copy_send(client, chat_id, event.message,
-                                 os.path.join(BC_DIR, f"ctm_{event.id}"),
-                                 reply_to=event.id)
+                ok = await _stic_send_user(chat_id, st.get("n"),
+                                           reply_to=event.id)
+                if not ok:
+                    log.warning("[botcontroller] SRR-user sticker #%s fail",
+                                st.get("n"))
+            except Exception as e:
+                log.warning("[botcontroller] SRR-user fail: %s: %s",
+                            type(e).__name__, str(e)[:100])
+        # ── v7.12 SRR — STICKER relay: BOTS version ──
+        if uid in SRR_BOTS:
+            st = SRR_BOTS[uid]
+            data = _bc_load()
+            try:
+                _slot_ids = set()
+                for _s in st.get("slots", []):
+                    try:
+                        _bid = int(data["bots"][_s - 1].get("id", 0))
+                        if _bid:
+                            _slot_ids.add(_bid)
+                    except Exception:
+                        pass
+                if uid in _slot_ids:
+                    return          # target khud replying bot — storm guard
+            except Exception:
+                pass
+            sup_or_pm = (bool(getattr(event, "is_channel", False))
+                         or not event.is_group)
+            fast_anchor = event.id if sup_or_pm else None
+            rids = {}
+            if not fast_anchor:
+                for _s in st.get("slots", []):
+                    _bc0 = BOT_CLIENTS.get(_s)
+                    if _bc0 is None:
+                        continue
+                    try:
+                        rids[_s] = await _bot_reply_target(
+                            _bc0, chat_id, uid, patience=2.0)
+                    except Exception:
+                        rids[_s] = None
+
+            async def _srr_one(slot, sdata):
+                sbc = await _bot_client(client, slot, sdata)
+                if sbc is None:
+                    return
+                rid = fast_anchor if fast_anchor else rids.get(slot)
+                try:
+                    ok = await _stic_send_bot(sbc, chat_id, st.get("n"),
+                                              reply_to=rid)
+                    if not ok:
+                        log.warning("[botcontroller] SRR-bot slot %s "
+                                    "sticker #%s fail", slot, st.get("n"))
+                except Exception as e:
+                    log.warning("[botcontroller] SRR-bot slot %s fail: %s: %s",
+                                slot, type(e).__name__, str(e)[:80])
+
+            sdata = _bc_load()
+            await asyncio.gather(*[_srr_one(s, sdata)
+                                   for s in st.get("slots", [])])
+        # ── v7.12 RRM — FIXED-TEXT relay: userbot version ──
+        if uid in RRM_USERS:
+            st = RRM_USERS[uid]
+            try:
+                await client.send_message(chat_id, st.get("text", ""),
+                                          reply_to=event.id,
+                                          link_preview=False)
             except FloodWaitError as fw:
                 note_flood(fw.seconds)
                 await asyncio.sleep(fw.seconds + 1)
+                try:
+                    await client.send_message(chat_id, st.get("text", ""),
+                                              reply_to=event.id,
+                                              link_preview=False)
+                except Exception as e2:
+                    log.warning("[botcontroller] RRM-user retry fail: %s",
+                                str(e2)[:100])
             except Exception as e:
-                log.warning("[botcontroller] mirror-user fail: %s: %s",
+                log.warning("[botcontroller] RRM-user send fail: %s: %s",
                             type(e).__name__, str(e)[:100])
-        # ── v7.6 COPY-MIRROR — bots version (specific slots) ──
+        # ── v7.12 RRM — FIXED-TEXT relay: BOTS version ──
+        if uid in RRM_BOTS:
+            st = RRM_BOTS[uid]
+            data = _bc_load()
+            try:
+                _slot_ids = set()
+                for _s in st.get("slots", []):
+                    try:
+                        _bid = int(data["bots"][_s - 1].get("id", 0))
+                        if _bid:
+                            _slot_ids.add(_bid)
+                    except Exception:
+                        pass
+                if uid in _slot_ids:
+                    return          # storm guard
+            except Exception:
+                pass
+            sup_or_pm = (bool(getattr(event, "is_channel", False))
+                         or not event.is_group)
+            fast_anchor = event.id if sup_or_pm else None
+            rids = {}
+            if not fast_anchor:
+                for _s in st.get("slots", []):
+                    _bc0 = BOT_CLIENTS.get(_s)
+                    if _bc0 is None:
+                        continue
+                    try:
+                        rids[_s] = await _bot_reply_target(
+                            _bc0, chat_id, uid, patience=2.0)
+                    except Exception:
+                        rids[_s] = None
+
+            async def _rrm_one(slot, rdata):
+                rbc = await _bot_client(client, slot, rdata)
+                if rbc is None:
+                    return
+                rid = fast_anchor if fast_anchor else rids.get(slot)
+                sent = await _bc_send_text(rbc, chat_id, st.get("text", ""),
+                                           reply_to=rid)
+                if sent is None:
+                    log.warning("[botcontroller] RRM-bot slot %s send fail",
+                                slot)
+
+            rdata = _bc_load()
+            await asyncio.gather(*[_rrm_one(s, rdata)
+                                   for s in st.get("slots", [])])
+        # ── v7.6 COPY-MIRROR — userbot (normal account) version ──
+        if uid in CT_STATE["targets"]:
+            # v7.12: command-like messages (.cmd / /cmd / !cmd) mirror NAHI —
+            # copy karne se relay/handlers dobara fire ho sakte hain (chaos)
+            m_raw = (getattr(event.message, "raw_text", "") or "").strip()
+            if m_raw[:1] not in (".", "/", "!"):
+                try:
+                    await _copy_send(client, chat_id, event.message,
+                                     os.path.join(BC_DIR, f"ctm_{event.id}"),
+                                     reply_to=event.id)
+                except FloodWaitError as fw:
+                    note_flood(fw.seconds)
+                    await asyncio.sleep(fw.seconds + 1)
+                except Exception as e:
+                    log.warning("[botcontroller] mirror-user fail: %s: %s",
+                                type(e).__name__, str(e)[:100])
+        # ── v7.12 COPY-MIRROR — BOTS version (TAGRA engine) ──
+        #   • album → buffered, poora album ek saath (grouped_id flush)
+        #   • supergroup/DM → global ids → anchor = event.id (zero wait)
+        #   • basic group → quick per-bot translation (patience=0, no sleep)
+        #   • sab slots PARALLEL fire (gather) — koi 6s block nahi
+        #   • command-like text skip (chaos guard)
         if uid in CT_STATE["bot_targets"]:
+            m_raw = (getattr(event.message, "raw_text", "") or "").strip()
+            if m_raw[:1] in (".", "/", "!"):
+                return
             mst = CT_STATE["bot_targets"][uid]
-            mdata = _bc_load()
-            for mslot in mst.get("slots", []):
+            gid = getattr(event.message, "grouped_id", None)
+            if gid is not None:
+                await _mirror_album_buffer(event, uid, mst, gid)
+                return
+            m_sup_or_pm = (bool(getattr(event, "is_channel", False))
+                           or not event.is_group)
+            m_fast_anchor = event.id if m_sup_or_pm else None
+            if not m_sup_or_pm:
+                # basic group — per-account ids; quick translation only
+                m_rids = {}
+                m_bdata = _bc_load()
+                for _ms in mst.get("slots", []):
+                    _mbc = BOT_CLIENTS.get(_ms)
+                    if _mbc is None:
+                        continue
+                    try:
+                        m_rids[_ms] = await _bot_reply_target(
+                            _mbc, chat_id, uid, patience=0)
+                    except Exception:
+                        m_rids[_ms] = None
+            else:
+                m_rids = {}
+
+            async def _mirror_one(mslot, mdata):
                 mbc = await _bot_client(client, mslot, mdata)
                 if mbc is None:
-                    continue
-                # v7.6: bot-side id translation for the reply header
-                mrid = await _bot_reply_target(mbc, chat_id, uid)
+                    return
+                mrid = m_fast_anchor if m_fast_anchor else m_rids.get(mslot)
+                mtmp = os.path.join(BC_DIR, f"ctmb_{event.id}_{mslot}")
                 try:
-                    await _copy_send(mbc, chat_id, event.message,
-                                     os.path.join(BC_DIR,
-                                                  f"ctmb_{event.id}_{mslot}"),
+                    await _copy_send(mbc, chat_id, event.message, mtmp,
                                      reply_to=mrid, helper=client)
                 except FloodWaitError as fw:
                     note_flood(fw.seconds)
@@ -3873,17 +4876,27 @@ def register_botcontroller(client):
                 except Exception as e:
                     log.warning("[botcontroller] mirror-bot slot %s fail: %s: %s",
                                 mslot, type(e).__name__, str(e)[:80])
-                await asyncio.sleep(0.25)
+                finally:
+                    try:
+                        if os.path.exists(mtmp):
+                            os.remove(mtmp)
+                    except OSError:
+                        pass
+
+            mdata = _bc_load()
+            await asyncio.gather(*[_mirror_one(ms, mdata)
+                                   for ms in mst.get("slots", [])])
 
     # ════════════════════════════════════════════════════════════════════
     #  H) COPYCAT — .ct / .ctb
     # ════════════════════════════════════════════════════════════════════
 
-    # ── v7.6 mirror-toggle engine (shared by .ct and .ctb) ───────────────
+    # ── v7.12 mirror-toggle engine (shared by .ct and .ctb) ───────────────
     # Reply to a user + .ct   → the USERBOT mirrors every message they send
-    # Reply to a user + .ctb  → the given BOTS mirror every message they
-    #                           send (specific slots: .ctb1-2). Repeat = off.
-    async def _ct_mirror_toggle(event, reply, slots_arg):
+    # Reply to a user + .ctb  → the BOTS mirror every message they send
+    #                           (default: ALL bots · custom slots: .ctb1-3)
+    #                           Repeat = off.
+    async def _ct_mirror_toggle(event, reply, slots_arg, bots=False):
         try:
             tent = await reply.get_input_sender()
             u = await client.get_entity(tent)
@@ -3892,38 +4905,46 @@ def register_botcontroller(client):
                      or "User")
         except Exception:
             return await event.edit("❌ Could not resolve the target user.")
-        if slots_arg is None:
-            # ── userbot mirror (normal account) ──
+        if not bots:
+            # ── userbot mirror (.ct) ──
             if uid in CT_STATE["targets"]:
                 CT_STATE["targets"].pop(uid, None)
                 _ct_save_state()
                 return await event.edit(
-                    f"⛔ **COPY-MIRROR OFF** — **{uname}** (toggle off)\n"
+                    f"⛔ **COPY-MIRROR OFF** — **{uname}** (`{uid}`)\n"
                     "🪞 Their messages are no longer copied. "
                     "Reply + `.ct` again to re-enable.",
                     link_preview=False)
             CT_STATE["targets"][uid] = uname
             _ct_save_state()
             return await event.edit(
-                f"🪞 **COPY-MIRROR ON** — **{uname}**\n"
+                f"🪞 **COPY-MIRROR ON (userbot)** — **{uname}** (`{uid}`)\n"
                 "┃ 📜 EVERY message they send (text, sticker, photo, media…)\n"
                 "┃ is re-sent here same-to-same, right away.\n"
                 "┃ ♻️ Toggle: reply + `.ct` again on them = off · "
-                "`.stopct` = stop all",
+                "`.ctlist` = active mirrors · `.stopct` = stop all",
                 link_preview=False)
-        # ── bots mirror (specific slots) ──
+        # ── v7.12 BOT mirror (.ctb) — toggle-off ALWAYS possible ──
+        if uid in CT_STATE["bot_targets"]:
+            old = CT_STATE["bot_targets"].pop(uid)
+            _ct_save_state()
+            return await event.edit(
+                f"⛔ **BOT MIRROR OFF** — **{uname}** (`{uid}`)\n"
+                f"┃ 🤖 Was: {', '.join(_ord(s) for s in old.get('slots', []))}\n"
+                "🪞 Reply + `.ctb` again on them to re-enable.",
+                link_preview=False)
         data = _bc_load()
-        bots = data["bots"]
-        if not bots:
+        bots_list = data["bots"]
+        if not bots_list:
             return await event.edit("🤖 No bots registered — `.addbottoken <token>`.")
-        slots = _parse_slots(slots_arg, len(bots))
+        slots = _parse_slots(slots_arg, len(bots_list))   # None → ALL bots
         if not slots:
-            return await event.edit(f"❌ Invalid bot slot (total `{len(bots)}`).")
-        # anti-loop: never let a bot mirror itself (infinite storm guard)
+            return await event.edit(f"❌ Invalid bot slot (total `{len(bots_list)}`).")
+        # anti-loop: a bot never mirrors ITSELF (infinite storm guard)
         eff = []
         for s in slots:
             try:
-                if int(bots[s - 1].get("id", 0)) == int(uid):
+                if int(bots_list[s - 1].get("id", 0) or 0) == int(uid):
                     continue
             except Exception:
                 pass
@@ -3932,22 +4953,14 @@ def register_botcontroller(client):
             return await event.edit(
                 "⚠️ **That target IS one of your bots** — mirroring it by "
                 "itself would loop forever. Pick other slots.")
-        slots = eff
-        if uid in CT_STATE["bot_targets"]:
-            CT_STATE["bot_targets"].pop(uid, None)
-            _ct_save_state()
-            return await event.edit(
-                f"⛔ **BOT COPY-MIRROR OFF** — **{uname}** (toggle off)\n"
-                "🪞 Reply + `.ctb` again on them to re-enable.",
-                link_preview=False)
-        CT_STATE["bot_targets"][uid] = {"slots": slots, "name": uname}
+        CT_STATE["bot_targets"][uid] = {"slots": eff, "name": uname}
         _ct_save_state()
         await event.edit(
-            f"🪞 **BOT COPY-MIRROR ON** — **{uname}**\n"
-            f"┃ 🤖 Bots: {', '.join(_ord(s) for s in slots)}\n"
-            "┃ 📜 EVERY message they send is re-sent by the bots,\n"
-            "┃ same-to-same (sticker → sticker, photo → photo…)\n"
-            "┃ ♻️ Toggle: reply + `.ctb` again = off · `.stopct` = stop all",
+            f"🪞 **BOT MIRROR ON (tagra)** — **{uname}** (`{uid}`)\n"
+            f"┃ 🤖 Bots: {', '.join(_ord(s) for s in eff)}\n"
+            "┃ 📜 EVERY message — text, sticker, photo, video, voice, GIF,\n"
+            "┃ document, album — same-to-same copy yahin aayega 📦\n"
+            "┃ ♻️ Toggle: reply + `.ctb` again = off · `.ctboff`/`.stopct`",
             link_preview=False)
 
     # ── .ct — COPYCAT (user) ─────────────────────────────────────────────
@@ -3995,11 +5008,12 @@ def register_botcontroller(client):
                 "\n📖 reply+`.ct` mirror a user · `.ct on/off` self mode · "
                 "`.ctb [slots]` bots mirror")
 
-    # ── .ctb [slots] — COPYCAT BOTS (v7.6 mirror mode) ────────────────────
-    # reply + .ctb [slots] → MIRROR toggle: the given bots re-send EVERY
-    #                        message the target sends, same-to-same
-    # reply + .ctb copy    → one-shot: bots re-send the replied message once
-    # .ctb on / .ctb2-3 on → bots mirror YOUR OWN sends (self mode)
+    # ── .ctb [slots] — COPYCAT BOTS (v7.12 TAGRA MIRROR) ──────────────────
+    # reply + .ctb           → ALL bots mirror the target (toggle: again=off)
+    # reply + .ctb1 / 1-3    → sirf ye slots mirror karein
+    # reply + .ctb copy      → one-shot: bots re-send the replied message once
+    # .ctb on / .ctb2-3 on   → bots mirror YOUR OWN sends (self mode)
+    # .ctb off / .ctb status → control · .ctlist / .ctboff (reply|uid) bhi
     @_on(r"^\.ctb(\d+(?:-\d+)?)?(?:\s+(on|off|status|copy))?\s*$")
     async def _ctb(event):
         data = _bc_load()
@@ -4019,14 +5033,20 @@ def register_botcontroller(client):
                 return await event.edit("❄️ No bot connected. Check `.monitorb`.")
             tmp = os.path.join(BC_DIR, f"ctb_{event.id}")
             chat_id = event.chat_id
+
+            async def _copy_one(slot, bc):
+                ok = False
+                try:
+                    ok = await _copy_send(bc, chat_id, reply, tmp, helper=client)
+                except Exception:
+                    ok = False
+                return slot, ok
+
+            res = await asyncio.gather(*[_copy_one(s, bc) for s, bc in pairs])
             sent, rows = 0, []
-            for slot, bc in pairs:
-                if await _copy_send(bc, chat_id, reply, tmp, helper=client):
-                    sent += 1
-                    rows.append(f"┃ {_ord(slot)} ✅")
-                else:
-                    rows.append(f"┃ {_ord(slot)} ❌")
-                await asyncio.sleep(0.3)
+            for slot, okc in res:
+                sent += 1 if okc else 0
+                rows.append(f"┃ {_ord(slot)} {'✅' if okc else '❌'}")
             try:
                 if os.path.exists(tmp):
                     os.remove(tmp)
@@ -4035,8 +5055,8 @@ def register_botcontroller(client):
             return await event.edit(
                 f"🪞 **Bots copied it** — `{sent}/{len(pairs)}`\n" + "\n".join(rows))
         if not mode and reply is not None:
-            # v7.6: bots MIRROR this user (specific slots, e.g. `.ctb1-2`)
-            return await _ct_mirror_toggle(event, reply, slots_arg)
+            # v7.12: BOTS mirror this user (default ALL bots, slots: .ctb1-3)
+            return await _ct_mirror_toggle(event, reply, slots_arg, bots=True)
         if mode == "off":
             CT_STATE["bots"] = False
             CT_STATE["bot_slots"] = None
@@ -4061,17 +5081,83 @@ def register_botcontroller(client):
                 "┃ ⛔ Turn off: `.ctb off`")
         # status / no-arg
         tgt = ", ".join(f"`{n}`" for n in CT_STATE["targets"].values()) or "—"
-        btgt = ", ".join(f"`{v.get('name','User')}`→bots {v.get('slots')}"
-                         for v in CT_STATE["bot_targets"].values()) or "—"
+        btgt = "\n".join(
+            f"┃    • {v.get('name','User')} (`{k}`) → bots "
+            + ",".join(str(s) for s in v.get("slots", []))
+            for k, v in CT_STATE["bot_targets"].items()) or "—"
         await event.edit(
             f"🪞 **COPYCAT STATUS**\n"
             f"┃ 👤 Self mode: {'🟢 ON' if CT_STATE['user'] else '🔴 OFF'}\n"
             f"┃ 👤 Mirroring: {tgt}\n"
             f"┃ 🤖 Bots self: {'🟢 ON' if CT_STATE['bots'] else '🔴 OFF'}"
             + (f" (slots: {CT_STATE.get('bot_slots')})" if CT_STATE.get("bot_slots") else "") +
-            f"\n┃ 🤖 Bots mirroring: {btgt}"
+            f"\n┃ 🤖 Bots mirroring:\n{btgt}"
             "\n📖 reply+`.ctb [slots]` mirror a user via bots · "
-            "`.ctb on` self mode · `.ctb off`")
+            "`.ctb on` self mode · `.ctb off` · `.ctlist` · `.ctboff`")
+
+    # ── .ctlist — ACTIVE mirrors (userbot + bots) — v7.12 ─────────────────
+    @_on(r"^\.ctlist\s*$")
+    async def _ctlist(event):
+        lines = ["🪞 **ACTIVE COPY-MIRRORS**"]
+        if CT_STATE["targets"]:
+            lines.append("┃ 👤 USERBOT:")
+            for k, v in CT_STATE["targets"].items():
+                lines.append(f"┃    • {v} (`{k}`)")
+        else:
+            lines.append("┃ 👤 USERBOT: —")
+        if CT_STATE["bot_targets"]:
+            lines.append("┃ 🤖 BOTS:")
+            for k, v in CT_STATE["bot_targets"].items():
+                sl = ", ".join(_ord(s) for s in v.get("slots", []))
+                lines.append(f"┃    • {v.get('name','User')} (`{k}`) → {sl}")
+        else:
+            lines.append("┃ 🤖 BOTS: —")
+        us = "🟢 ON" if CT_STATE["user"] else "🔴 OFF"
+        bs = "🟢 ON" if CT_STATE["bots"] else "🔴 OFF"
+        extra = f" (slots: {CT_STATE.get('bot_slots')})" if CT_STATE.get("bot_slots") else ""
+        lines.append(f"┃ Self mode — user {us} · bots {bs}{extra}")
+        lines.append("📖 reply+`.ct` userbot mirror · reply+`.ctb` bots mirror · "
+                     "`.ctboff` ek band · `.stopct` sab band")
+        await event.edit("\n".join(lines), link_preview=False)
+
+    # ── .ctboff (reply | uid) — EK user ka mirror band — v7.12 ────────────
+    @_on(r"^\.ctboff(?:\s+(\d+))?\s*$")
+    async def _ctboff(event):
+        arg = event.pattern_match.group(1)
+        uid = None
+        uname = "User"
+        reply = await event.get_reply_message()
+        if reply is not None:
+            try:
+                tent = await reply.get_input_sender()
+                u = await client.get_entity(tent)
+                uid = u.id
+                uname = (getattr(u, "first_name", None)
+                         or getattr(u, "title", None) or "User")
+            except Exception:
+                uid = None
+        if uid is None and arg:
+            try:
+                uid = int(arg)
+            except ValueError:
+                uid = None
+        if uid is None:
+            return await event.edit(
+                "📖 `.ctboff` (reply) ya `.ctboff <uid>` — "
+                "usi user ka copy-mirror band hoga")
+        a = CT_STATE["targets"].pop(uid, None)
+        b = CT_STATE["bot_targets"].pop(uid, None)
+        _ct_save_state()
+        if a or b:
+            det = []
+            if a:
+                det.append("userbot")
+            if b:
+                det.append("bots " + ",".join(str(s) for s in b.get("slots", [])))
+            return await event.edit(
+                f"⛔ **MIRROR OFF** — **{uname}** (`{uid}`)\n┃ 🛑 Was: "
+                + " + ".join(det))
+        return await event.edit("ℹ️ Is user ka koi mirror active nahi tha.")
 
     # ── COPYCAT LISTENER — outgoing (user + bots) ─────────────────────────
     @client.on(events.NewMessage(outgoing=True))
@@ -4419,7 +5505,25 @@ def register_botcontroller(client):
             if not cmd_txt or not cmd_txt.startswith("."):
                 return
             await asyncio.sleep(0.4)
-            msg = await event.respond(cmd_txt[:4000])
+            # v7.12 REPLY-CONTEXT CARRY: sudo user jis message par REPLY
+            # karke `.sudo .ctb`/`.ct`/`.rrt`… bheje, relayed command ko
+            # wahi anchor milna chahiye — warna reply-based commands dead.
+            # (Supergroup/DM me ids global hote hain — anchor seedha chalega;
+            #  basic group me best-effort, copy bina reply anchor bhi jayega.)
+            rid = None
+            try:
+                hdr = getattr(event.message, "reply_to", None)
+                if hdr is not None:
+                    rid = getattr(hdr, "reply_to_msg_id", None)
+            except Exception:
+                rid = None
+            try:
+                if rid:
+                    msg = await event.respond(cmd_txt[:4000], reply_to=rid)
+                else:
+                    msg = await event.respond(cmd_txt[:4000])
+            except Exception:
+                msg = await event.respond(cmd_txt[:4000])
             try:
                 # refresh the message + entities so handlers get a fully
                 # resolved event (server-side edit needs the exact peer)
@@ -4592,9 +5696,19 @@ def register_botcontroller(client):
             "┃ `.rrt` / `.rr` — reply-raid (userbot) — again = toggle off\n"
             "┃ `.rrtb` / `.rrb [slots]` — BOTS reply-raid (toggle)\n"
             "┃ `.stoprrt` / `.stoprr` — stop all reply-raid\n"
+            "**📌 Sticker Registry + SRR (v7.12)**\n"
+            "┃ reply sticker → `.savestic 1` — number par save\n"
+            "┃ `.sticlist` (`.sticlist show` = asli stickers) · `.sticshow 1`\n"
+            "┃ `.sticdel 1` — delete (+ uski SRR bhi band)\n"
+            "┃ reply target → `.srr 1` — har message par sticker #1 reply\n"
+            "┃ 🤖 `.srrb 1 [slots]` — wahi bots se · ⛔ `.stopsrr`\n"
+            "**💬 Text Relay RRM (v7.12)**\n"
+            "┃ reply target → `.rrm hello` — har message par 'hello' reply\n"
+            "┃ 🤖 `.rrmb hello [slots]` — wahi bots se · status = `.rrm`\n"
+            "┃ ⛔ band: reply + `.rrm` (no text) · `.stoprrm` = sab\n"
             "**🪞 CopyCat / Mirror**\n"
             "┃ reply+`.ct` — MIRROR that user same-to-same · `.ct copy` one-shot\n"
-            "┃ reply+`.ctb [slots]` — bots mirror them · `.ctb2-3 on` self mode\n"
+            "┃ reply+`.ctb [slots]` — bots mirror them (all, ya .ctb1-3) · `.ctb2-3 on` self mode\n"
             "┃ `.stopct` — stop copycat + all mirrors\n"
             "**⏹ Stop System**\n"
             "┃ `.stop` · `.stopall` · `.stopb` · `.animstop`\n"
@@ -4722,6 +5836,7 @@ COMMANDS_BOTCONTROLLER = {
         (".removeallb", "remove all bots from the group"),
         # attack
         (".spamb <n> <sec> <txt>", "all bots text spam — interval has NO lower limit"),
+        (".spamb [slots] <n> <sec> (reply)", "⚡ v7.12 — bots repeat the replied content (sticker/photo/GIF/text) <n> baar"),
         (".spamb1-2 <n> <sec> <txt>", "only specific bots spam"),
         (".sspam <n> <sec>", "user sticker spam (reply)"),
         (".sspamb <n> <sec>", "bots sticker spam (reply)"),
@@ -4749,9 +5864,21 @@ COMMANDS_BOTCONTROLLER = {
         (".rrb [slots]", "BOTS reply-raid — bots send the saved messages (toggle)"),
         (".rrtb [slots]", "same — full name version (toggle)"),
         (".stoprrt / .stoprr", "stop all reply-raid (user + bots)"),
+        (".savestic <n>", "📌 v7.12 — reply sticker → number <n> par save (registry)"),
+        (".sticlist [show]", "saved sticker list — `show` = asli stickers bhej"),
+        (".sticshow <n>", "sticker #<n> asli preview"),
+        (".sticdel <n>", "sticker #<n> delete (+ uski SRR relay bhi band)"),
+        (".srr <n>", "⚡ v7.12 — reply target → har message par sticker #<n> reply (userbot, toggle)"),
+        (".srrb <n> [slots]", "🤖 v7.12 — wahi kaam BOT ARMY se (toggle)"),
+        (".stopsrr / .srroff", "SRR relays band (reply = ek user, warna sab)"),
+        (".rrm <text>", "💬 v7.12 — reply target → har message par wahi text reply (userbot, toggle)"),
+        (".rrmb <text> [slots]", "🤖 v7.12 — wahi kaam BOT ARMY se (toggle)"),
+        (".stoprrm / .rrmoff", "RRM relays band (reply = ek user, warna sab)"),
         # copycat
         (".ct (reply) / .ct on/off", "MIRROR a user's every message same-to-same / self-copycat mode · `.ct copy` = one-shot"),
-        (".ctb (reply) [slots] / .ctb on/off", "BOTS mirror a user — specific bots too (`.ctb1-2`)"),
+        (".ctb (reply) [slots] / .ctb on/off", "BOTS mirror a user — ALL bots default, slots: `.ctb1-3`"),
+        (".ctlist", "sab active copy-mirrors (userbot + bots)"),
+        (".ctboff (reply|uid)", "ek user ka copy-mirror band"),
         (".stopct / .ctstop", "stop copycat + all mirrors"),
         # stop system
         (".stop / .stopall", "stop all tasks / everything (tasks+reply-raid+copycat)"),

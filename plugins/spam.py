@@ -219,12 +219,116 @@ def register_spam(client):
             return None, None, "❌ **Count** must be a positive integer."
         return count, parts[1], None
 
+    # ── v7.12 REPLY-REPEAT engine ────────────────────────────────────────
+
+    def _parse_repeat_args(args, default_interval):
+        """Reply mode: `.spam 10 .1` → (count, interval, err).
+        Interval float allowed — 0 / 0.1 / 0.5 / 1 sab chalta hai."""
+        parts = (args or "").split()
+        if not parts:
+            return None, None, ("❌ Count do — e.g. `.spam 10 .1` "
+                                "(reply par)")
+        try:
+            count = int(parts[0])
+        except ValueError:
+            return None, None, ("❌ Count integer hona chahiye — "
+                                "`.spam 10 .1`")
+        if count <= 0:
+            return None, None, "❌ Count positive hona chahiye."
+        interval = default_interval
+        if len(parts) >= 2:
+            try:
+                interval = float(parts[1])
+            except ValueError:
+                return None, None, ("❌ Interval number hona chahiye — "
+                                    "`.spam 10 .1`")
+        if interval < 0:
+            interval = 0.0
+        return count, interval, None
+
+    async def _repeat_reply_task(event, chat, reply, count, interval, label):
+        """v7.12: REPLIED content ko repeat karo — sticker / text / photo /
+        video / GIF / voice / audio / document SAB. Direct media-reference
+        send (same file, no forward) + FloodWait-safe pacing."""
+        key = f"spam_{event.id}"
+        count = safe_cap(count)  # 🛡 burst cap in safe mode
+        media = getattr(reply, "media", None)
+        raw = (getattr(reply, "raw_text", "") or "").strip()
+        is_stic = bool(getattr(reply, "sticker", None))
+        cap = None if (is_stic or not raw) else raw
+        kind = ("sticker" if is_stic else
+                ("media" if media is not None else
+                 ("text" if raw else "empty")))
+        sent = 0
+        try:
+            if kind == "empty":
+                await event.reply("❌ Replied message me kuch repeat karne "
+                                  "ko nahi hai.")
+                return
+            for _ in range(count):
+                try:
+                    if media is not None:
+                        await client.send_file(chat, media, caption=cap)
+                    else:
+                        await client.send_message(chat, raw,
+                                                  link_preview=False)
+                    sent += 1
+                except FloodWaitError as fw:
+                    note_flood(fw.seconds)  # 🛡 auto slow-down
+                    await asyncio.sleep(fw.seconds + 1)
+                    try:
+                        if media is not None:
+                            await client.send_file(chat, media, caption=cap)
+                        else:
+                            await client.send_message(chat, raw,
+                                                      link_preview=False)
+                        sent += 1
+                    except Exception:
+                        pass
+                except asyncio.CancelledError:
+                    raise
+                except Exception:
+                    pass
+                if sent and sent % 10 == 0:
+                    await asyncio.sleep(0)   # event-loop breath
+                await safe_sleep(interval)   # 🛡 anti-ban pacing
+            try:
+                await event.reply(
+                    f"✅ **{label} repeat** finished — {sent}/{count} {kind} "
+                    "sent.")
+            except Exception:
+                pass
+        except asyncio.CancelledError:
+            try:
+                await event.reply(
+                    f"⛔ **{label} repeat** stopped — {sent}/{count} sent.")
+            except Exception:
+                pass
+            raise
+        finally:
+            client.stop_processes.pop(key, None)
+
     # ── .spam  (1 s delay) ───────────────────────────────────────────────
 
     @client.on(events.NewMessage(outgoing=True, pattern=r"^\.spam(?:\s|$)"))
     @client.flood_safe
     async def spam_handler(event):
         args = event.raw_text[len(".spam"):].strip()
+        # ── v7.12 REPLY-REPEAT: `.spam 10 .1` reply par → replied content
+        #    (sticker/text/photo/GIF/video/voice sab) count baar repeat ──
+        reply = await event.get_reply_message()
+        if reply is not None and (getattr(reply, "media", None) is not None
+                                  or (getattr(reply, "raw_text", "") or "").strip()):
+            count, interval, err = _parse_repeat_args(args, 1.0)
+            if err:
+                await event.reply(err)
+                return
+            chat = await event.get_input_chat()
+            task = asyncio.create_task(
+                _repeat_reply_task(event, chat, reply, count, interval,
+                                   "spam"))
+            client.stop_processes[f"spam_{event.id}"] = task
+            return
         if not args:
             await event.reply("Usage: `.spam <count> <text>`")
             return
@@ -244,6 +348,20 @@ def register_spam(client):
     @client.flood_safe
     async def uspam_handler(event):
         args = event.raw_text[len(".uspam"):].strip()
+        # v7.12 REPLY-REPEAT (no delay)
+        reply = await event.get_reply_message()
+        if reply is not None and (getattr(reply, "media", None) is not None
+                                  or (getattr(reply, "raw_text", "") or "").strip()):
+            count, interval, err = _parse_repeat_args(args, 0.0)
+            if err:
+                await event.reply(err)
+                return
+            chat = await event.get_input_chat()
+            task = asyncio.create_task(
+                _repeat_reply_task(event, chat, reply, count, interval,
+                                   "uspam"))
+            client.stop_processes[f"spam_{event.id}"] = task
+            return
         if not args:
             await event.reply("Usage: `.uspam <count> <text>`")
             return
@@ -263,6 +381,20 @@ def register_spam(client):
     @client.flood_safe
     async def fastspam_handler(event):
         args = event.raw_text[len(".fastspam"):].strip()
+        # v7.12 REPLY-REPEAT (0.1s default)
+        reply = await event.get_reply_message()
+        if reply is not None and (getattr(reply, "media", None) is not None
+                                  or (getattr(reply, "raw_text", "") or "").strip()):
+            count, interval, err = _parse_repeat_args(args, 0.1)
+            if err:
+                await event.reply(err)
+                return
+            chat = await event.get_input_chat()
+            task = asyncio.create_task(
+                _repeat_reply_task(event, chat, reply, count, interval,
+                                   "fastspam"))
+            client.stop_processes[f"spam_{event.id}"] = task
+            return
         if not args:
             await event.reply("Usage: `.fastspam <count> <text>`")
             return
@@ -282,6 +414,20 @@ def register_spam(client):
     @client.flood_safe
     async def delayspam_handler(event):
         args = event.raw_text[len(".delayspam"):].strip()
+        # v7.12 REPLY-REPEAT (custom delay): `.delayspam 10 0.3` reply par
+        reply = await event.get_reply_message()
+        if reply is not None and (getattr(reply, "media", None) is not None
+                                  or (getattr(reply, "raw_text", "") or "").strip()):
+            count, interval, err = _parse_repeat_args(args, 0.5)
+            if err:
+                await event.reply(err)
+                return
+            chat = await event.get_input_chat()
+            task = asyncio.create_task(
+                _repeat_reply_task(event, chat, reply, count, interval,
+                                   "delayspam"))
+            client.stop_processes[f"spam_{event.id}"] = task
+            return
         if not args:
             await event.reply("Usage: `.delayspam <count> <seconds> <text>`")
             return
@@ -470,9 +616,11 @@ COMMANDS_SPAM = {
     "description": "Spam & Stickers",
     "commands": [
         (".spam <n> <text>", "spam text (1s delay)"),
-        (".fastspam <n> <text>", "spam fast (0.1s)"),
-        (".uspam <n> <text>", "ultra spam (no delay)"),
-        (".delayspam <n> <sec> <text>", "custom delay"),
+        (".spam <n> [sec] (reply)", "⚡ v7.12 — reply sticker/photo/GIF/text → wahi content <n> baar repeat (interval float, 0.1 ok)"),
+        (".fastspam <n> [sec] (reply)", "repeat replied content fast (0.1s default)"),
+        (".uspam <n> [sec] (reply)", "repeat replied content no-delay"),
+        (".delayspam <n> <sec> (reply)", "repeat replied content custom delay"),
+        (".delayspam <n> <sec> <text>", "custom delay text spam"),
         (".dmspam <n> @user <text>", "spam user DM"),
         (".mspam <n>", "spam replied sticker"),
         (".setgspam", "save global sticker"),

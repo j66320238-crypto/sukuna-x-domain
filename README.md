@@ -1,14 +1,53 @@
-# ⚡ SUKUNA-X DOMAIN v7.3.1 — PHANTOM EDITION + BOTCONTROLLER 👑🤖
+# ⚡ SUKUNA-X DOMAIN v7.12 — PHANTOM EDITION + BOTCONTROLLER 👑🤖
 
-**34 plugins · 460+ handlers · 350+ cmds · 88 animations · BOTCONTROLLER MULTI-BOT ARMY 🤖 · TYPE-X auto-typewriter · 13 naye API commands · v7.2 BAN-PROOF SHIELD+ · JioSaavn music · ID Backup/Restore · interactive button menu · AI tools · DP Auto-Rotator · zero-flood engine**
+**34 plugins · 460+ handlers · 432 cmds · 88 animations · BOTCONTROLLER MULTI-BOT ARMY 🤖 · STICKER REGISTRY + SRR/RRM RELAYS 📌⚡💬 · REPLY-REPEAT SPAM 🔁 · TYPE-X auto-typewriter · v7.2 BAN-PROOF SHIELD+ · JioSaavn music · ID Backup/Restore · interactive button menu · AI tools · DP Auto-Rotator · zero-flood engine**
 
 ```
 ✦━━━━━━〔 ⚡ SUKUNA-X DOMAIN ⚡ 〕━━━━━━✦
-        👑 v7.3 PHANTOM + BOTCONTROLLER 🤖
-   Multi-Bot Army · .revert pahle-jaisa fix
+        👑 v7.12 PHANTOM + BOTCONTROLLER 🤖
+   Multi-Bot Army · Sticker Registry · SRR/RRM Relays
 🛡️ 6-layer anti-ban shield · human delays · no flood
 ✦ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ ✦
 ```
+
+---
+
+## 📌⚡💬 What's New in v7.12 — Sticker Registry + SRR/RRM + Reply-Repeat
+
+**Sticker Registry** — stickers ko NUMBER par save karo, restart-proof:
+
+| Command | Kya karta hai |
+|---|---|
+| `.savestic 1` | replied sticker number **1** par save (1-500) |
+| `.sticlist` | saved stickers list · `.sticlist show` = asli stickers bhi bhej |
+| `.sticshow 1` | sticker #1 ka asli preview |
+| `.sticdel 1` | sticker #1 delete (uski SRR relay bhi auto band) |
+
+**SRR — Sticker Relay** — target ka HAR message → uske reply me sticker:
+
+| Command | Kya karta hai |
+|---|---|
+| `.srr 1` (reply target) | har message of target → sticker #1 reply (userbot) · again = toggle off |
+| `.srrb 1` (reply target) | wahi kaam BOT ARMY se · `.srrb 1 2-3` = sirf 2nd-3rd bots |
+| `.stopsrr` | SRR band — reply karke = ek user, bina reply = sab |
+
+**RRM — Text Relay** — target ka HAR message → fixed text reply:
+
+| Command | Kya karta hai |
+|---|---|
+| `.rrm hello` (reply target) | har message of target → "hello" reply (userbot) · reply + `.rrm` (no text) = band |
+| `.rrmb hello` (reply target) | wahi kaam BOT ARMY se · `.rrmb hello 2-3` = slots |
+| `.stoprrm` | RRM band — reply karke = ek user, bina reply = sab |
+
+**Reply-Repeat Spam** — replied content repeat (sticker/text/photo/GIF/video/voice/document sab):
+
+| Command | Kya karta hai |
+|---|---|
+| `.spam 10 .1` (reply) | replied content 10 baar repeat, 0.1s gap (interval float — 0 ok) |
+| `.spamb 10 .1` (reply) | BOTS replied content repeat karein · `.spamb2-3 10 .1` = slots |
+| `.uspam 10` / `.fastspam 10` / `.delayspam 10 0.3` (reply) | no-delay / 0.1s / custom-delay repeat |
+
+Plus v7.12 ka pehle wala: 🪞 `.ctb` TAGRA MIRROR (sab bots har message copy — album saath) + `.sudo` relay ab reply-context carry karta hai.
 
 ---
 
