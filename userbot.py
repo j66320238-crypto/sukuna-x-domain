@@ -269,6 +269,14 @@ async def main() -> None:
     async def _upd_touch(event):
         _upd_state["ts"] = time.time()
         _upd_state["dispatched"] += 1
+        # first 40 updates per start — update-stream health diagnostic
+        if _upd_state["dispatched"] <= 40:
+            try:
+                log.info("📥 update #%d: chat=%s out=%s %r",
+                         _upd_state["dispatched"], event.chat_id, event.out,
+                         (event.raw_text or "(media)")[:40])
+            except Exception:
+                pass
 
     client.add_event_handler(_upd_touch, _tg_events.NewMessage())
 

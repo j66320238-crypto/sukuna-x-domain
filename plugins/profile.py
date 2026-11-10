@@ -2,7 +2,10 @@
 from core import *  # noqa: F401,F403 — shared engine
 
 ############################################################################
-#  SECTION: PROFILE  v6.7 — FULL CLONE, VIDEO PFP, AUTOPFP ROTATE, NO FLOOD
+#  SECTION: PROFILE  v7.9 — FULL CLONE, VIDEO PFP, AUTOPFP ROTATE, NO FLOOD
+#  v7.9: verified photo delete (purani photo rah jana FIX), upload-first
+#  order, auto-upscale small pfps, _safe_edit statuses, channel-target
+#  guard, .cleanpics command
 ############################################################################
 
 PROFILES_FILE = "profiles_data.json"
@@ -46,59 +49,158 @@ def _is_view_once(message) -> bool:
         return False
     return False
 
-async def _delete_all_profile_photos(client) -> int:
+# ─── v7.9 PHOTO ENGINE — listing / verified delete / purge / upscale ────
+# v7.8 tak: delete photos SILENTLY fail ho sakte the (exception swallow +
+# galat "success" count) aur upload pehle hota tha delete baad me — isliye
+# purani photo gallery me rah jati thi / profile photoless ho jata tha.
+# v7.9: verified delete (re-list kar confirm), FloodWait retry, per-photo
+# fallback, aur NAYA order — pehle nayi photo, PHIR purani delete.
+
+async def _list_own_photos(client, retries: int = 2):
+    """Apne profile photos ki TRUE list (FloodWait-safe)."""
+    for attempt in range(retries + 1):
+        try:
+            photos = await client.get_profile_photos("me")
+            return list(photos or [])
+        except FloodWaitError as fw:
+            note_flood(fw.seconds)
+            if attempt >= retries:
+                return []
+            await asyncio.sleep(fw.seconds + 1)
+        except Exception as e:
+            print(f"[profile] list own photos failed: {e}")
+            return []
+    return []
+
+
+async def _delete_photos_by_ids(client, ids) -> int:
+    """Diye gaye photo ids delete karo — VERIFIED count return karta hai
+    (delete ke baad re-list karke confirm). FloodWait sleep + retry,
+    bulk fail hone par per-photo fallback."""
     from telethon.tl.functions.photos import DeletePhotosRequest
     from telethon.tl.types import InputPhoto
-    try:
-        photos = await client.get_profile_photos("me")
-    except Exception:
+    ids = list(ids or [])
+    if not ids:
         return 0
-    if not photos:
-        return 0
-    inputs = [
-        InputPhoto(id=p.id, access_hash=p.access_hash, file_reference=p.file_reference)
-        for p in photos
-        if getattr(p, "access_hash", None) is not None
-    ]
-    # fallback old way if file_reference missing
+    photos = await _list_own_photos(client)
+    by_id = {p.id: p for p in photos}
+    inputs = []
+    for pid in ids:
+        p = by_id.get(pid)
+        if p is not None and getattr(p, "access_hash", None) is not None:
+            inputs.append(InputPhoto(id=p.id, access_hash=p.access_hash,
+                                     file_reference=p.file_reference))
     if not inputs:
-        inputs = [
-            InputPhoto(id=p.id, access_hash=p.access_hash)
-            for p in photos
-            if getattr(p, "access_hash", None) is not None
-        ]
-    if inputs:
+        return 0
+    for _attempt in range(3):
         try:
             await client(DeletePhotosRequest(id=inputs))
+            break
+        except FloodWaitError as fw:
+            note_flood(fw.seconds)
+            await asyncio.sleep(fw.seconds + 1)
         except Exception as e:
-            print(f"[profile] delete photos failed: {e}")
-    return len(inputs)
+            print(f"[profile] bulk delete failed ({e}) — per-photo fallback")
+            for ip in inputs:
+                try:
+                    await client(DeletePhotosRequest(id=[ip]))
+                    await safe_sleep(0.4, floor=0.2)
+                except FloodWaitError as fw2:
+                    note_flood(fw2.seconds)
+                    await asyncio.sleep(fw2.seconds + 1)
+                    try:
+                        await client(DeletePhotosRequest(id=[ip]))
+                    except Exception:
+                        pass
+                except Exception:
+                    pass
+            break
+    # VERIFY — kitne sach me delete hue
+    try:
+        remaining = {p.id for p in await _list_own_photos(client)}
+    except Exception:
+        remaining = set()
+    return len([pid for pid in ids if pid not in remaining])
+
+
+async def _current_main_photo_id(client):
+    try:
+        me = await client.get_me()
+        return me.photo.photo_id if me.photo else None
+    except Exception:
+        return None
+
+
+async def _purge_old_photos(client, keep_ids=None) -> int:
+    """Old photos delete — current main (ya keep_ids) ko chhod kar.
+    Returns verified deleted count."""
+    keep = set(keep_ids or [])
+    main = await _current_main_photo_id(client)
+    if main is not None:
+        keep.add(main)
+    photos = await _list_own_photos(client)
+    old = [p.id for p in photos if p.id not in keep]
+    if not old:
+        return 0
+    return await _delete_photos_by_ids(client, old)
+
+
+def _upscale_pfp_if_needed(path: str, min_side: int = 320) -> bool:
+    """Chhoti photo ko Pillow se bada karo — Telegram chhoti pfp par
+    'Photo is too small' de kar upload REJECT kar deta hai (v7.8 me yahi
+    bug tha: purani delete ho chuki thi aur nayi set nahi hui).
+    Returns True if file was modified."""
+    if not path or not os.path.exists(path):
+        return False
+    if path.lower().endswith((".mp4", ".mov", ".avi", ".mkv", ".webm")):
+        return False
+    try:
+        from PIL import Image
+        with Image.open(path) as im:
+            w, h = im.size
+            if w >= 160 and h >= 160 and min(w, h) >= min_side:
+                return False
+            scale = max(min_side / w if w else 1.0,
+                        min_side / h if h else 1.0, 1.0)
+            nw = max(160, int(w * scale))
+            nh = max(160, int(h * scale))
+            im.convert("RGB").resize((nw, nh), Image.LANCZOS).save(
+                path, "JPEG", quality=92)
+        return True
+    except Exception as e:
+        print(f"[profile] upscale skipped: {e}")
+        return False
+
+
+async def _safe_edit(event, text, **kw):
+    """Status message HAMESHA user tak pahunche — edit fail ho (command
+    message autodelete-timer ne delete kar diya / MessageIdInvalid) to
+    reply() se naya message bhejo. v7.8 me yahi crash tha: clone hota
+    tha par final ✅ kabhi nahi dikhta tha."""
+    try:
+        return await event.edit(text, **kw)
+    except Exception:
+        try:
+            return await event.reply(text, **kw)
+        except Exception:
+            return None
+
+
+async def _delete_all_profile_photos(client) -> int:
+    """SAB apne photos delete (verified count)."""
+    photos = await _list_own_photos(client)
+    if not photos:
+        return 0
+    return await _delete_photos_by_ids(client, [p.id for p in photos])
+
 
 async def _delete_n_photos(client, n: int) -> int:
-    from telethon.tl.functions.photos import DeletePhotosRequest
-    from telethon.tl.types import InputPhoto
-    try:
-        photos = await client.get_profile_photos("me")
-    except Exception:
-        return 0
+    """Sabse naye n photos delete (verified count)."""
+    photos = await _list_own_photos(client)
     if not photos:
         return 0
     to_del = photos[:max(1, n)]
-    inputs = []
-    for p in to_del:
-        try:
-            inputs.append(InputPhoto(id=p.id, access_hash=p.access_hash, file_reference=p.file_reference))
-        except Exception:
-            try:
-                inputs.append(InputPhoto(id=p.id, access_hash=p.access_hash))
-            except Exception:
-                continue
-    if inputs:
-        try:
-            await client(DeletePhotosRequest(id=inputs))
-        except Exception as e:
-            print(f"[profile] delete n failed: {e}")
-    return len(inputs)
+    return await _delete_photos_by_ids(client, [p.id for p in to_del])
 
 async def _get_user_full(client, target):
     try:
@@ -251,9 +353,47 @@ async def _save_preclone_backup(client):
 
 
 async def _clone_profile(client, event, target, full: bool = False):
-    """Core clone logic. full=True => all photos/videos."""
-    await event.edit(f"`{'🔥 Full' if full else '👤'} Cloning {'full profile' if full else 'profile'}...`")
-    # 🤖 v7.3: clone se PEHLE backup — taaki .revert pahle jaisa kar sake
+    """Core clone logic. full=True => all photos/videos.
+
+    v7.9 REWRITE ("purani photo rah jati thi" fix):
+    ① channel-sender (anonymous admin) par friendly error — pehle
+       yahan crash hota tha (Cannot cast InputPeerChannel).
+    ② NAYA ORDER — pehle NAYI photo upload, PHIR purani delete →
+       profile kabhi photoless nahi rehta aur upload fail hone par
+       purani photo SAFE rehti hai.
+    ③ chhoti photo auto-upscale — 'Photo is too small' reject NO MORE.
+    ④ delete VERIFIED (re-list confirm) + FloodWait sleep-retry.
+    ⑤ final status _safe_edit se — autodelete-timer crash NO MORE."""
+    # 0) anonymous-admin / channel guard
+    try:
+        from telethon.tl.types import InputPeerChannel
+        if isinstance(target, InputPeerChannel):
+            return await _safe_edit(
+                event,
+                "❌ That message was sent by the **group itself** (anonymous "
+                "admin / channel) — Telegram hides the real user.\n"
+                "➤ Reply to a normal user message, or use `.clone @username`")
+    except Exception:
+        pass
+    await _safe_edit(event, f"`{'🔥 Full' if full else '👤'} Cloning "
+                            f"{'full profile' if full else 'profile'}...`")
+    # 1) target profile PEHLE resolve (fail-fast — backup baad me save hota)
+    user_info, user_full = await _get_user_full(client, target)
+    if not user_info:
+        return await _safe_edit(
+            event, "`❌ Could not fetch user info.` "
+                   "(anonymous-admin message? try `.clone @username`)")
+    first_name = (user_info.first_name or "")[:64]
+    last_name = (user_info.last_name or "")[:64]
+    # bio limit — Premium 140, normal 70 (ABOUT_TOO_LONG se bachne ke liye)
+    try:
+        _me_now = await client.get_me()
+        bio_limit = 140 if getattr(_me_now, "premium", False) else 70
+    except Exception:
+        bio_limit = 70
+    bio = getattr(user_full, "about", None) or getattr(user_full, "bio", None) or ""
+    bio = bio[:bio_limit]
+    # 2) 🤖 pre-clone backup — .revert isi se restore karega
     await _save_preclone_backup(client)
     temp_dir = os.path.join(DATA_DIR, f"clone_temp_{event.id}")
     try:
@@ -262,76 +402,109 @@ async def _clone_profile(client, event, target, full: bool = False):
         pass
     downloaded = []
     try:
-        user_info, user_full = await _get_user_full(client, target)
-        if not user_info:
-            await event.edit("`❌ Could not fetch user info.`")
-            return
-        first_name = (user_info.first_name or "")[:64]
-        last_name = (user_info.last_name or "")[:64]
-        bio = getattr(user_full, "about", None) or getattr(user_full, "bio", None) or ""
-        bio = bio[:70]
-
-        # download photos
+        # 3) target ki photos download
         try:
-            downloaded = await _download_all_pfps(client, target, temp_dir, limit=20 if full else 1)
+            downloaded = await _download_all_pfps(client, target, temp_dir,
+                                                  limit=20 if full else 1)
         except Exception as e:
             print(f"[clone] download all failed: {e}")
 
-        # backup current name to saved messages? optional
-        # update name/bio first (safe, no flood)
+        # 4) name + bio (FloodWait sleep + retry)
+        name_ok = False
         await safe_sleep(0.8, floor=0.4)
-        try:
-            await client(UpdateProfileRequest(
-                first_name=first_name or DEFAULT_NAME,
-                last_name=last_name,
-                about=bio
-            ))
-        except FloodWaitError as fw:
-            await event.edit(f"`⏳ FloodWait {fw.seconds}s on name update, retrying...`")
-            await asyncio.sleep(fw.seconds + 1)
-            await client(UpdateProfileRequest(first_name=first_name, last_name=last_name, about=bio))
+        for _attempt in range(2):
+            try:
+                await client(UpdateProfileRequest(
+                    first_name=first_name or DEFAULT_NAME,
+                    last_name=last_name,
+                    about=bio))
+                name_ok = True
+                break
+            except FloodWaitError as fw:
+                note_flood(fw.seconds)
+                await asyncio.sleep(fw.seconds + 1)
 
-        # v7.6 FIX: ALWAYS clear our photos first — if the target has no DP
-        # the clone stays clean (no DP), if they have one it gets replaced.
-        await safe_sleep(0.8, floor=0.4)
-        await _delete_all_profile_photos(client)
+        # 5) apni PURANI photo ids capture — uploads se PEHLE
+        old_photos = await _list_own_photos(client)
+        old_ids = [p.id for p in old_photos]
 
-        # upload new photos (only if the target actually has any)
+        # 6) NAYI photos PEHLE upload (profile photoless na ho + purani
+        #    safe rahe agar upload fail ho jaye)
+        success = 0
         if downloaded:
             # for full clone, upload oldest first so newest becomes main
             to_upload = list(reversed(downloaded)) if full else downloaded
-            success = 0
             for fpath, is_vid in to_upload:
                 try:
                     await safe_sleep(1.2, floor=0.6)  # human delay
                     ok = await _upload_pfp_file(client, fpath, is_video=is_vid)
+                    if not ok:
+                        # 'Photo is too small' → upscale → ek aur try
+                        if _upscale_pfp_if_needed(fpath):
+                            ok = await _upload_pfp_file(client, fpath,
+                                                        is_video=is_vid)
                     if ok:
                         success += 1
                 except FloodWaitError as fw:
-                    await event.edit(f"`⏳ FloodWait {fw.seconds}s on photo upload, waiting...`")
+                    await _safe_edit(event, f"`⏳ FloodWait {fw.seconds}s on "
+                                            "photo upload, waiting...`")
                     await asyncio.sleep(fw.seconds + 2)
                     try:
-                        ok = await _upload_pfp_file(client, fpath, is_video=is_vid)
+                        if _upscale_pfp_if_needed(fpath):
+                            pass  # pehle try me already try ho chuka
+                        ok = await _upload_pfp_file(client, fpath,
+                                                    is_video=is_vid)
                         if ok:
                             success += 1
                     except Exception:
                         continue
-            await event.edit(
-                f"`✅ {'Full' if full else 'Main'} clone done!\n"
-                f"Name: {first_name} {last_name}\n"
-                f"Bio: {bio or 'N/A'}\n"
-                f"Photos: {success}/{len(downloaded)}`"
-            )
+                except Exception as e:
+                    print(f"[clone] upload failed: {e}")
+
+        # 7) PURANI photos delete — verified (v7.9 ORDER)
+        #    • nayi set hui → sirf purani wali delete (nayi safe)
+        #    • target ki photo NAHI → sab delete (100% mirror)
+        #    • upload FAIL → purani rahne do (photoless profile se better)
+        purged = 0
+        if downloaded:
+            if success:
+                purged = await _delete_photos_by_ids(client, old_ids)
         else:
-            await event.edit(
-                f"`✅ Profile cloned — no DP (all photos cleared, exact copy)\n"
-                f"Name: {first_name} {last_name}\n"
-                f"Bio: {bio or 'N/A'}`"
-            )
+            purged = await _delete_photos_by_ids(client, old_ids)
+
+        # 8) verify + final status — hamesha dikhega (_safe_edit)
+        now_count = len(await _list_own_photos(client))
+        mark = "✓" if name_ok else "✗"
+        if downloaded:
+            if success:
+                photo_line = f"Photos: {success}/{len(downloaded)} ✓"
+            else:
+                photo_line = "Photos: ⚠️ upload failed — previous DP kept"
+            if purged:
+                gallery_line = f"Old photos removed: {purged} ✓"
+            elif not old_ids:
+                gallery_line = "Old photos: none (was already clean)"
+            else:
+                gallery_line = "Old photos: ⚠️ could not remove — try `.cleanpics`"
+            await _safe_edit(
+                event,
+                f"`✅ {'Full' if full else 'Main'} clone done!`\n"
+                f"Name: {first_name} {last_name} {mark}\n"
+                f"Bio: {bio or 'N/A'} {mark}\n"
+                f"{photo_line}\n"
+                f"{gallery_line}\n"
+                f"Gallery now: {now_count} photo(s) — exact copy")
+        else:
+            await _safe_edit(
+                event,
+                f"`✅ Profile cloned — no DP (exact copy)`\n"
+                f"Name: {first_name} {last_name} {mark}\n"
+                f"Bio: {bio or 'N/A'} {mark}\n"
+                f"Photos removed: {purged} · Gallery now: {now_count}")
     except FloodWaitError as e:
-        await event.edit(f"`⏳ FloodWait: {e.seconds}s`")
+        await _safe_edit(event, f"`⏳ FloodWait: {e.seconds}s`")
     except Exception as e:
-        await event.edit(f"`❌ Clone error: {e}`")
+        await _safe_edit(event, f"`❌ Clone error: {e}`")
     finally:
         # cleanup temp
         try:
@@ -413,48 +586,67 @@ def register_profile(client):
         await _clone_profile(client, event, target, full=True)
 
     # .revert — PEHLE JaisA (pre-clone state restore) — v7.3 fix
+    # v7.9: restore photo PEHLE upload hota hai, PHIR baaki delete — aur
+    # saare status _safe_edit se (autodelete-timer crash NO MORE).
     @client.flood_safe
     async def revert_handler(event):
         meta = _load_preclone_meta()
         if not meta:
             # fallback: koi backup nahi → purana default behaviour
-            await event.edit("`➤ No pre-clone backup found — reverting to default...`")
+            await _safe_edit(event, "`➤ No pre-clone backup found — reverting to default...`")
             try:
                 await client(UpdateProfileRequest(first_name=DEFAULT_NAME, last_name="", about=""))
                 await safe_sleep(0.6, floor=0.3)
                 await _delete_all_profile_photos(client)
-                await event.edit(
+                await _safe_edit(
+                    event,
                     f"`✅ Reverted to {DEFAULT_NAME}`\n"
                     "⚠️ No backup existed — from now on a backup is auto-saved before every `.clone`.")
             except FloodWaitError as e:
-                await event.edit(f"`⏳ FloodWait: {e.seconds}s`")
+                await _safe_edit(event, f"`⏳ FloodWait: {e.seconds}s`")
             except Exception as e:
-                await event.edit(f"`❌ Revert error: {e}`")
+                await _safe_edit(event, f"`❌ Revert error: {e}`")
             return
-        await event.edit("`➤ Restoring pre-clone state...`")
+        await _safe_edit(event, "`➤ Restoring pre-clone state...`")
         try:
             first = (meta.get("first_name") or DEFAULT_NAME)[:64]
             last = (meta.get("last_name") or "")[:64]
             bio = (meta.get("bio") or "")[:70]
             await client(UpdateProfileRequest(first_name=first, last_name=last, about=bio))
             await safe_sleep(0.6, floor=0.3)
-            await _delete_all_profile_photos(client)
+            # v7.9 ORDER: backup photo PEHLE upload (nayi = main), PHIR
+            # baaki sab delete — restore fail ho to profile photoless nahi
             photo_note = "removed"
             if meta.get("has_photo") and os.path.exists(_preclone_photo_path()):
                 await safe_sleep(0.8, floor=0.4)
                 if await _upload_pfp_file(client, _preclone_photo_path()):
                     photo_note = "restored"
+                    new_main = await _current_main_photo_id(client)
+                    await _purge_old_photos(
+                        client, keep_ids=[new_main] if new_main else None)
+                else:
+                    if _upscale_pfp_if_needed(_preclone_photo_path()):
+                        if await _upload_pfp_file(client, _preclone_photo_path()):
+                            photo_note = "restored"
+                            new_main = await _current_main_photo_id(client)
+                            await _purge_old_photos(
+                                client, keep_ids=[new_main] if new_main else None)
+                    else:
+                        await _delete_all_profile_photos(client)
+            else:
+                await _delete_all_profile_photos(client)
             _clear_preclone()
-            await event.edit(
+            await _safe_edit(
+                event,
                 "`✅ Reverted to pre-clone state!`\n"
                 f"Name: `{first} {last}`\n"
                 f"Bio: `{bio or '—'}`\n"
                 f"DP: `{photo_note}`\n"
                 "💡 Your profile is back exactly how it was before.")
         except FloodWaitError as e:
-            await event.edit(f"`⏳ FloodWait: {e.seconds}s`")
+            await _safe_edit(event, f"`⏳ FloodWait: {e.seconds}s`")
         except Exception as e:
-            await event.edit(f"`❌ Revert error: {e}`")
+            await _safe_edit(event, f"`❌ Revert error: {e}`")
 
     # .rclone — RANDOM CLONE: group me kisi bhi random member ka clone
     @client.flood_safe
@@ -843,17 +1035,44 @@ def register_profile(client):
         try:
             if n:
                 deleted = await _delete_n_photos(client, n)
-                await event.edit(f"`✅ Deleted {deleted} photo(s).`")
+                await _safe_edit(event, f"`✅ Deleted {deleted} photo(s).`")
             else:
                 deleted = await _delete_all_profile_photos(client)
                 if not deleted:
-                    await event.edit("`➤ No pfps to delete.`")
+                    await _safe_edit(event, "`➤ No pfps to delete.`")
                 else:
-                    await event.edit(f"`✅ Deleted {deleted} photo(s).`")
+                    await _safe_edit(event, f"`✅ Deleted {deleted} photo(s).`")
         except FloodWaitError as e:
-            await event.edit(f"`⏳ FloodWait {e.seconds}s`")
+            await _safe_edit(event, f"`⏳ FloodWait {e.seconds}s`")
         except Exception as e:
-            await event.edit(f"`❌ {e}`")
+            await _safe_edit(event, f"`❌ {e}`")
+
+    # .cleanpics — v7.9: purani photos clean, sirf current main bache
+    # (clone ke baad gallery me purani photos rah jayein to ye command)
+    @client.flood_safe
+    async def cleanpics_handler(event):
+        await _safe_edit(event, "`➤ Cleaning old profile photos...`")
+        try:
+            before = len(await _list_own_photos(client))
+            deleted = await _purge_old_photos(client)
+            after = len(await _list_own_photos(client))
+            if deleted:
+                await _safe_edit(
+                    event,
+                    f"`✅ Old photos removed: {deleted}`\n"
+                    f"Before: {before} → Now: {after} (current main kept)")
+            elif before <= 1:
+                await _safe_edit(
+                    event, f"`✅ Already clean — {before} photo(s), nothing to remove.`")
+            else:
+                await _safe_edit(
+                    event,
+                    f"`⚠️ Could not remove old photos ({before - 1} left) — "
+                    "Telegram may be rate-limiting. Try again in a minute.`")
+        except FloodWaitError as e:
+            await _safe_edit(event, f"`⏳ FloodWait {e.seconds}s`")
+        except Exception as e:
+            await _safe_edit(event, f"`❌ {e}`")
 
     # ---------- NEW: PFP SAVE / GET / SET / LIST / AUTOROTATE ----------
 
@@ -1138,6 +1357,7 @@ def register_profile(client):
     client.add_event_handler(setname_handler, events.NewMessage(outgoing=True, pattern=r"^\.setname(?:\s+(.*))?$"))
     client.add_event_handler(setbio_handler, events.NewMessage(outgoing=True, pattern=r"^\.setbio(?:\s+(.*))?$"))
     client.add_event_handler(delpfp_handler, events.NewMessage(outgoing=True, pattern=r"^\.delpfp(?:\s+(\d+))?$"))
+    client.add_event_handler(cleanpics_handler, events.NewMessage(outgoing=True, pattern=r"^\.cleanpics$"))
     client.add_event_handler(pfpsave_handler, events.NewMessage(outgoing=True, pattern=r"^\.pfpsave$"))
     client.add_event_handler(pfpsave_handler, events.NewMessage(outgoing=True, pattern=r"^\.savepfp$"))
     client.add_event_handler(getpfp_handler, events.NewMessage(outgoing=True, pattern=r"^\.getpfp(?:\s+(.*))?$"))
@@ -1148,7 +1368,7 @@ def register_profile(client):
     client.add_event_handler(autopfp_handler, events.NewMessage(outgoing=True, pattern=r"^\.pfprotate(?:\s+(.*))?$"))
     client.add_event_handler(stopautopfp_handler, events.NewMessage(outgoing=True, pattern=r"^\.stopautopfp$"))
 
-    print("[Module] profile.py v6.8 loaded — .clone .fclone .rclone .revert .saveprofile .loadprofile .floadprofile .pfpsave .getpfp .setpfp .pfplist .autopfp .stopautopfp .delpfp")
+    print("[Module] profile.py v7.9.1 loaded — .clone .fclone .rclone .revert .saveprofile .loadprofile .floadprofile .pfpsave .getpfp .setpfp .pfplist .autopfp .stopautopfp .delpfp .cleanpics")
 
 COMMANDS_PROFILE = {
     "description": "Profile & PFP Tools (Full Clone + Video)",

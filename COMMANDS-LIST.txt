@@ -1,8 +1,8 @@
-SUKUNA-X DOMAIN v7.9 — FULL COMMAND LIST (auto-generated)
+SUKUNA-X DOMAIN v7.11.1 — FULL COMMAND LIST (auto-generated)
 ============================================================
 
-TOTAL: 415 commands · v7.9 NEW: ⚡ Power Tools — .passgen .gitrepo .up .netspeed .hash .b64 .uuid .epoch .lorem .colors .ssl .whois .shot + .update FIXED (self-hosted channel, auto-restart, never-downgrade guard)
-### admin — Group Admin Tools  (16 cmds)
+TOTAL: 417 commands · v7.11.1: 🔇 MUTE engine ab BILKUL SILENT — deletes par koi count/notice nahi, confirm sirf naam+uid · v7.11 NEW: 🔇 GLOBAL MUTE ENGINE — .mute/.unmute (reply/uid/@user) · muted user ki DM + admin-GC messages AUTO-DELETE · .mutelist/.unmuteall · native GC mute bonus · v7.10 NEW: 🎵 MUSIC v2 FULL-SONG ENGINE — .song/.gaana/.songs/.song2 ab PURA gaana dete hain (YouTube full → JioSaavn 320k → iTunes preview last-resort, real-duration verify har file ka) · v7.9: ⚡ Power Tools — .passgen .gitrepo .up .netspeed .hash .b64 .uuid .epoch .lorem .colors .ssl .whois .shot + .update FIXED (self-hosted channel, auto-restart, never-downgrade guard)
+### admin — Group Admin Tools  (14 cmds)
   .ban [reason]                                  ban replied user
   .unban                                         unban user
   .kick [reason]                                 kick replied user
@@ -280,11 +280,20 @@ TOTAL: 415 commands · v7.9 NEW: ⚡ Power Tools — .passgen .gitrepo .up .nets
   .gc                                            memory cleanup + stats (optimise)
   .speed                                         event-loop + Telegram speed test
 
-### music — Music (JioSaavn)  (4 cmds)
-  .song <name>                                   full song direct chat me (JioSaavn 320k)
+### music — Music v2 FULL-SONG ENGINE (YouTube → JioSaavn → iTunes)  (5 cmds)
+  .song <name>                                   PURA song direct chat me (YouTube full → JioSaavn 320k → preview last)
   .gaana <name>                                  alias of .song
-  .songs <name>                                  top-5 results list card
+  .songs <name>                                  top-5 results card (⏱ duration ke saath)
   .songlist <name>                               alias of .songs
+  .song2 <n>                                     last .songs list me se Nth song seedha bhejo
+
+### mute — 🔇 Global Silent Auto-Delete Mute (v7.11.1)  (6 cmds)
+  .mute (reply)                                  mute user — DM/GC messages silently auto-delete
+  .mute <uid|@user>                              mute by user id ya username
+  .unmute (reply)                                unmute user
+  .unmute <uid|@user>                            unmute by user id ya username
+  .mutelist                                      muted users list (sirf naam + uid)
+  .unmuteall                                     poora mute list clear
 
 ### net — Web Lookups (10)  (9 cmds)
   .weather [city]                                live weather (no city = your area)
@@ -328,7 +337,7 @@ TOTAL: 415 commands · v7.9 NEW: ⚡ Power Tools — .passgen .gitrepo .up .nets
   .pereset                                       clear cached emoji documents
   .pestatus                                      mode + cached emoji documents
 
-### profile — Profile & PFP Tools (Full Clone + Video)  (17 cmds)
+### profile — Profile & PFP Tools (Full Clone + Video)  (18 cmds)
   .clone [full] / .clone @username               clone a profile (reply to them OR give their @username) — add 'full' for all photos
   .fclone / .fclone @username                    full clone — all photos/videos
   .rclone [full]                                 clone a RANDOM group member — no reply needed
@@ -344,6 +353,7 @@ TOTAL: 415 commands · v7.9 NEW: ⚡ Power Tools — .passgen .gitrepo .up .nets
   .autopfp <h> [name] / .pfprotate               auto-rotate pfps every h hours (human-like, no flood)
   .stopautopfp                                   stop auto rotate
   .delpfp [n]                                    delete all or n pfps
+  .cleanpics                                     🆕 (v7.9) purge OLD photos, keep current main — clean gallery after clone
   .setname / .setbio                             set name/bio
   .vo on|off                                     view-once saver
 

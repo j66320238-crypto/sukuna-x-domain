@@ -114,6 +114,10 @@
                           — FloodWait full sleep + auto-retry (3x)
                           — har step jab tak confirm na ho, dohrayo
                           → limit aa bhi jaye to name/bio/pfp CHANGE HOGA hi
+  .botcleanpics [slots] 🧹 (v7.9) bot ke PURANE photos delete — current
+                          main safe rehta hai. .cloneb ke baad bhi kisi
+                          bot ki gallery me purani photos rah jayein
+                          to ye command turant saaf kar deti hai.
   .revertb [slots]      ✅ bots wapas ORIGINAL (pre-clone) state me
   .uncloneb [slots]     ✅ same ka alias
   .loadprofileb [slots] <name> 🆕 .saveprofile wala SAVED profile

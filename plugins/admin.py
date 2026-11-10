@@ -12,7 +12,7 @@ Admin Module for Telegram Userbot (Telethon v1.x+)
 
 Handles group administration commands:
     .ban  .unban  .kick  .promote  .demote
-    .mute <min>  .unmute
+    (.mute/.unmute ab plugins/mute.py me — global auto-delete engine)
     .pin  .unpin  .unpinall
     .del  .purge [n]
     .lock <type>  .unlock <type>
@@ -252,47 +252,10 @@ def register_admin(client):
         except (UserAdminInvalidError, ChatAdminRequiredError) as e:
             await event.reply(_perm_msg(e))
 
-    # ════════════════════════════ .mute <minutes> ════════════════════════════
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^[\.!]mute(?:\s+(\d+))?$"))
-    @client.flood_safe
-    async def mute_handler(event):
-        try:
-            chat, target = await _target_from_reply(event)
-            if not target:
-                return await event.reply("❌ Reply to the user you want to **mute**.")
-            minutes = int(event.pattern_match.group(1) or 0)
-            until = int(time.time()) + minutes * 60 if minutes > 0 else 0
-            rights = ChatBannedRights(
-                until_date=until,
-                view_messages=False,
-                send_messages=True,
-                send_media=True,
-                send_stickers=True,
-                send_gifs=True,
-                send_games=True,
-                send_inline=True,
-                embed_links=True,
-                send_polls=True,
-            )
-            await client(EditBannedRequest(channel=chat, user_id=target, banned_rights=rights))
-            dur = f"{minutes} min" if minutes else "indefinitely"
-            await event.reply(f"🔇 **Muted** `{target.user_id}` for **{dur}**")
-        except (UserAdminInvalidError, ChatAdminRequiredError) as e:
-            await event.reply(_perm_msg(e))
-
-    # ════════════════════════════ .unmute ════════════════════════════
-    @client.on(events.NewMessage(outgoing=True, pattern=r"^[\.!]unmute$"))
-    @client.flood_safe
-    async def unmute_handler(event):
-        try:
-            chat, target = await _target_from_reply(event)
-            if not target:
-                return await event.reply("❌ Reply to the user you want to **unmute**.")
-            await client(EditBannedRequest(
-                channel=chat, user_id=target, banned_rights=_FULL_FREE_RIGHTS))
-            await event.reply(f"🔊 **Unmuted** `{target.user_id}`")
-        except (UserAdminInvalidError, ChatAdminRequiredError) as e:
-            await event.reply(_perm_msg(e))
+    # ════════════════════════════ .mute / .unmute ════════════════════════════
+    # (yahan se hata diya — ab GLOBAL auto-delete mute engine hai:
+    #  plugins/mute.py → .mute/.unmute/.mutelist/.unmuteall
+    #  DM + admin-GC auto-delete, uid/@user/reply sab support karta hai)
 
     # ════════════════════════════ .pin ════════════════════════════
     @client.on(events.NewMessage(outgoing=True, pattern=r"^[\.!]pin(?:\s+(silent))?$"))
@@ -737,7 +700,7 @@ COMMANDS_ADMIN = {
         (".ban [reason]", "ban replied user"), (".unban", "unban user"),
         (".kick [reason]", "kick replied user"),
         (".promote [title]", "promote to admin"), (".demote", "demote admin"),
-        (".mute [min]", "mute user"), (".unmute", "unmute user"),
+        (".mute/.unmute", "ab mute.py me — global auto-delete mute"),
         (".pin / .unpin / .unpinall", "manage pins"),
         (".del", "delete replied msg"), (".purge [n]", "mass delete"),
         (".lock <type> / .unlock <type>", "chat locks"),

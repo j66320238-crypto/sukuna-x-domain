@@ -5,3 +5,6 @@ pillow>=9.0.0
 
 # optional (enables CPU/RAM in .stats / .sysinfo — auto-detected)
 psutil>=5.9.0
+
+# v7.10 music engine — full songs from YouTube
+yt-dlp>=2025.1.1

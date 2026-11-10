@@ -37,6 +37,8 @@ BotController — control your whole BOT ARMY from your MAIN account (or SUDO us
   • .clonebi [slots]         — 🧨 FORCE clone: ignores the BotFather hourly
                                cap, sleeps through every FloodWait, retries
                                each step until the name/bio/pfp REALLY lands
+  • .botcleanpics [slots]    — 🧹 purge a bot's OLD profile photos (current
+                               main kept) — clone ke baad gallery clean
   • .revertb / .uncloneb [slot] — bots back to ORIGINAL (pre-clone) state
   • .loadprofileb [slots] <name> — put a .saveprofile profile on the bots
   • .botsay [slots] <text>   — make the bots say something
@@ -1282,21 +1284,97 @@ async def _bc_send_text(bc, chat, text, **kw):
     return None
 
 
-async def _bc_clear_bot_photos(bc) -> bool:
-    """Bot ke apne profile photos delete (best-effort)."""
+def _bc_upscale_pfp(path: str, min_side: int = 320) -> bool:
+    """Chhoti image ko Pillow se bada karo — MTProto/BotFather chhoti
+    pfp par 'Photo is too small' de kar reject kar dete hain (v7.9).
+    Returns True if file was modified."""
     try:
-        from telethon.tl.functions.photos import DeletePhotosRequest
-        from telethon.tl.types import InputPhoto
-        cur = await bc.get_profile_photos("me")
-        if cur:
-            inputs = [InputPhoto(id=p.id, access_hash=p.access_hash,
-                                  file_reference=p.file_reference)
-                      for p in cur if getattr(p, "access_hash", None) is not None]
-            if inputs:
-                await bc(DeletePhotosRequest(id=inputs))
+        if not path or not os.path.exists(path):
+            return False
+        if path.lower().endswith((".mp4", ".mov", ".avi", ".mkv", ".webm")):
+            return False
+        from PIL import Image
+        with Image.open(path) as im:
+            w, h = im.size
+            if w >= 160 and h >= 160 and min(w, h) >= min_side:
+                return False
+            scale = max(min_side / w if w else 1.0,
+                        min_side / h if h else 1.0, 1.0)
+            im.convert("RGB").resize((max(160, int(w * scale)),
+                                       max(160, int(h * scale))),
+                                      Image.LANCZOS).save(path, "JPEG",
+                                                          quality=92)
         return True
     except Exception:
         return False
+
+
+async def _bc_purge_bot_photos(bc, keep_main: bool = True):
+    """Bot ke purane profile photos delete karo (VERIFIED count).
+
+    v7.9: pehle silent-fail ho raha tha (exception swallow + galat
+    success) — ab re-list karke confirm hota hai ki sach me delete hue.
+    keep_main=True → current main photo safe rehta hai.
+    Returns (ok: bool, deleted: int, err: str|None)."""
+    from telethon.tl.functions.photos import DeletePhotosRequest
+    from telethon.tl.types import InputPhoto
+    try:
+        keep = set()
+        if keep_main:
+            try:
+                bme = await bc.get_me()
+                if bme.photo:
+                    keep.add(bme.photo.photo_id)
+            except Exception:
+                pass
+        photos = []
+        for _attempt in range(2):
+            try:
+                photos = list(await bc.get_profile_photos("me") or [])
+                break
+            except FloodWaitError as fw:
+                note_flood(fw.seconds)
+                await asyncio.sleep(fw.seconds + 1)
+            except Exception:
+                break
+        old = [p for p in photos
+               if p.id not in keep and getattr(p, "access_hash", None) is not None]
+        if not old:
+            return True, 0, None
+        inputs = [InputPhoto(id=p.id, access_hash=p.access_hash,
+                             file_reference=p.file_reference) for p in old]
+        try:
+            await bc(DeletePhotosRequest(id=inputs))
+        except FloodWaitError as fw:
+            note_flood(fw.seconds)
+            await asyncio.sleep(fw.seconds + 1)
+            try:
+                await bc(DeletePhotosRequest(id=inputs))
+            except Exception:
+                pass
+        except Exception:
+            for ip in inputs:
+                try:
+                    await bc(DeletePhotosRequest(id=[ip]))
+                    await asyncio.sleep(0.3)
+                except Exception:
+                    pass
+        # VERIFY
+        try:
+            remaining = {p.id for p in
+                         (await bc.get_profile_photos("me") or [])}
+        except Exception:
+            remaining = {p.id for p in old}   # verify fail — conservative
+        deleted = len([p for p in old if p.id not in remaining])
+        return True, deleted, None
+    except Exception as e:
+        return False, 0, f"{type(e).__name__}: {e}"[:80]
+
+
+async def _bc_clear_bot_photos(bc) -> bool:
+    """SAB bot photos delete (legacy bool wrapper — verified engine)."""
+    ok, _n, _err = await _bc_purge_bot_photos(bc, keep_main=False)
+    return ok
 
 
 def _bc_bot_line(rec, slot) -> str:
@@ -2902,32 +2980,60 @@ def register_botcontroller(client):
                                         client, rec, bio, force)
             done.append("bio ✅" if ok else f"bio❌ {why[:40]}")
             await asyncio.sleep(0.4)
-        # ── PFP (MTProto — bots uploadProfilePhoto KAR sakte hain) ──
+        # ── PFP (MTProto first — bots uploadProfilePhoto kar sakte hain) ──
+        # v7.9 ORDER: pehle NAYI photo upload, PHIR purani delete (verified)
+        # → bot kabhi photoless nahi rehta + old pics guaranteed clean.
         if pfp_path:
             bc = await _bot_client(client, _slot_of(rec), _bc_load())
-            if bc is None:
-                done.append("pfp❌ bot offline")
-            else:
+            pfp_done = False
+            if bc is not None:
                 try:
-                    await _bc_clear_bot_photos(bc)
-                    await asyncio.sleep(0.3)
+                    _bc_upscale_pfp(pfp_path)   # 'Photo is too small' fix
                     up = await bc.upload_file(pfp_path)
                     await bc(UploadProfilePhotoRequest(file=up))
-                    done.append("pfp ✅")
+                    pfp_done = True
+                except FloodWaitError as fw:
+                    note_flood(fw.seconds)
+                    await asyncio.sleep(fw.seconds + 1)
+                    try:
+                        up = await bc.upload_file(pfp_path)
+                        await bc(UploadProfilePhotoRequest(file=up))
+                        pfp_done = True
+                    except Exception:
+                        pfp_done = False
                 except Exception:
-                    # BotFather fallback
-                    ok, why = await _force_step(_bf_set_bot_pic,
-                                                client, rec, pfp_path, force)
-                    done.append("pfp ✅" if ok else f"pfp❌ {why[:36]}")
+                    pfp_done = False
+            if pfp_done:
+                await asyncio.sleep(0.4)
+                pok, purged, perr = await _bc_purge_bot_photos(bc,
+                                                               keep_main=True)
+                note = "pfp ✅"
+                if purged:
+                    note += f" · old {purged} purged"
+                elif not pok:
+                    note += f" · ⚠️ purge: {perr}"[:64]
+                done.append(note)
+            else:
+                # BotFather fallback — uske baad bhi old pics purge
+                ok, why = await _force_step(_bf_set_bot_pic,
+                                            client, rec, pfp_path, force)
+                if ok and bc is not None:
+                    await asyncio.sleep(0.6)
+                    _pok, purged, _perr = await _bc_purge_bot_photos(
+                        bc, keep_main=True)
+                    if purged:
+                        why = f"pfp ✅ · old {purged} purged"
+                done.append("pfp ✅" if ok else f"pfp❌ {str(why)[:36]}")
         elif first:
-            # v7.6: target has NO profile photo → clear the bot's photos too,
-            # so the clone is 100% identical (no DP on either side).
+            # v7.6/v7.9: target has NO profile photo → bot ki photos bhi
+            # clean (100% identical clone) — verified count ke saath
             try:
                 bc2 = await _bot_client(client, _slot_of(rec), _bc_load())
                 if bc2 is not None:
-                    cleared = await _bc_clear_bot_photos(bc2)
+                    cok, cpurged, cerr = await _bc_purge_bot_photos(
+                        bc2, keep_main=False)
                     done.append("pfp ✅ (cleared — target has no DP)"
-                                if cleared else "pfp ⚠️ clear failed")
+                                if cok else f"pfp ⚠️ clear failed: {cerr}"[:60])
                 else:
                     done.append("pfp ⚠️ bot offline — could not clear")
             except Exception:
@@ -3040,6 +3146,37 @@ def register_botcontroller(client):
     @_on(r"^\.clonebi(\d+(?:-\d+)?)?\s*$")
     async def _clonebi(event):
         await _clone_run(event, force=True)
+
+    # ── .botcleanpics [slots] — bots ke purane photos clean (v7.9) ────────
+    # .cloneb ke baad bhi kisi bot ki gallery me purani photos rah jayein
+    # to ye command current main chhod kar sab hata deta hai (verified).
+    @_on(r"^\.botcleanpics(\d+(?:-\d+)?)?\s*$")
+    async def _botcleanpics(event):
+        data = _bc_load()
+        bots = data["bots"]
+        if not bots:
+            return await event.edit("🤖 No bots yet — `.addbottoken <token>`.")
+        slots = _parse_slots(event.pattern_match.group(1), len(bots))
+        if not slots:
+            return await event.edit(f"❌ Invalid bot slot (total `{len(bots)}`).")
+        await event.edit("🧹 **Cleaning old bot photos…** (current main kept)")
+        rows = []
+        for s in slots:
+            rec = bots[s - 1]
+            uname = rec.get("username") or rec.get("id")
+            bc = await _bot_client(client, s, data)
+            if bc is None:
+                rows.append(f"┃ {_ord(s)} @{uname} ❄️ frozen")
+                continue
+            ok, purged, err = await _bc_purge_bot_photos(bc, keep_main=True)
+            if ok:
+                rows.append(f"┃ {_ord(s)} @{uname} ✅ purged {purged}")
+            else:
+                rows.append(f"┃ {_ord(s)} @{uname} ⚠️ {err}"[:80])
+        await event.edit(
+            "🧹 **BOT PHOTO CLEANUP** — done\n" + "\n".join(rows) +
+            "\n💡 Use after `.cloneb` if old pics linger in a bot's gallery.",
+            link_preview=False)
 
     # ── .revertb / .uncloneb [slots] — bots ORIGINAL state me ────────────
     @_on(r"^\.(?:revertb|uncloneb)(\d+(?:-\d+)?)?\s*$")
@@ -4591,6 +4728,8 @@ COMMANDS_BOTCONTROLLER = {
         (".raidb [slots] <n> [gap] [txt]", "bot raid — `.raidb 10 .1` = 10x, 0.1s gap; reply+tag both (use via reply) + saved slots rotate"),
         # profile
         (".cloneb [slots]", "bots clone the replied user's profile (BotFather engine, DP logic included)"),
+        (".clonebi [slots]", "FORCE clone — ignore BotFather caps/FloodWaits, land the change no matter what"),
+        (".botcleanpics [slots]", "purge a bot's OLD profile photos (current main kept) — clean gallery after clone"),
         (".revertb / .uncloneb [slots]", "bots back to their pre-clone (original) state"),
         (".loadprofileb [slots] <name>", "load a .saveprofile profile onto the bots"),
         (".botsay [slots] <txt>", "make the bots say something"),

@@ -133,6 +133,16 @@ def _channel_engine(base, force):
 def _update_engine(base, force):
     """Synchronous (run in executor). Returns (ok: bool, message: str)."""
     import subprocess
+    # ── route 0: SELF-HOSTED update channel (fastest, always fresh) ──
+    # v7.9.1 FIX: ye engine pehle se maujood tha par _update_engine me WIRE
+    # nahi tha — isliye .update hamesha git/tarball route par jaata tha aur
+    # "already latest (remote)" bolta tha. Ab channel pehle check hota hai.
+    try:
+        _r0 = _channel_engine(base, force)
+    except Exception:
+        _r0 = None
+    if _r0 is not None:
+        return _r0          # (ok, msg) — None = channel down → aage badho
     # ── route 1: git (reset --hard — dirty-tree safe) ──
     if os.path.isdir(os.path.join(base, ".git")):
         try:
